@@ -25,9 +25,10 @@ import type { AIProvider, AIGenerateOptions } from "./providers/types";
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
-export type GeminiModel = "gemini-2.0-flash" | "gemini-1.5-pro";
+export type GeminiModel = "gemini-2.0-flash" | "gemini-1.5-flash" | "gemini-1.5-pro";
 
-export const GEMINI_DEFAULT_MODEL: GeminiModel = "gemini-2.0-flash";
+// gemini-1.5-flash: separate free-tier quota pool from 2.0-flash, good fallback
+export const GEMINI_DEFAULT_MODEL: GeminiModel = "gemini-1.5-flash";
 export const GEMINI_PRO_MODEL: GeminiModel = "gemini-1.5-pro";
 
 // ── Safety settings ───────────────────────────────────────────────────────────
