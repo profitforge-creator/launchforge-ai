@@ -61,16 +61,25 @@ export type ProductCategory =
   | "saas"
   | "generic";
 
+export interface AssetDownloadMetadata {
+  filename: string;           // e.g., "python-automation-study-guide.md"
+  primaryFormat: ExportFormat;
+  mimeType: string;
+  sizeEstimateKb: number;     // rough estimate: wordCount * 6 bytes / 1024
+  availableFormats: ExportFormat[];
+}
+
 export interface GeneratedAsset {
   id: string;
   name: string;
   type: AssetType;
-  category: string;       // human-readable group: "Content", "Structure", "Templates", etc.
-  description: string;    // one-line summary shown on the card
-  content: string;        // full content in markdown — this is what gets exported
+  category: string;           // human-readable group: "Content", "Structure", etc.
+  description: string;        // one-line summary shown on the card
+  content: string;            // full content in markdown — this is what gets exported
   wordCount: number;
-  estimatedPages: number; // rough estimate: wordCount / 250
-  // AI INTEGRATION POINT: add generatedByAI: boolean; modelUsed?: string;
+  estimatedPages: number;     // wordCount / 250
+  downloadMetadata?: AssetDownloadMetadata;
+  // AI INTEGRATION POINT: generatedByAI?: boolean; modelUsed?: string;
 }
 
 export interface AssetSet {

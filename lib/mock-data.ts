@@ -12,6 +12,7 @@ export const MOCK_BUSINESS_RESULT: BusinessResult = {
   summary:
     "High-demand niche with strong monetization potential. Developers actively pay for tools that save time. Low barrier to entry for solo founders with technical skills.",
   formData: {
+    idea: "Software development, productivity, automation",
     interests: "Software development, productivity, automation",
     skills: "TypeScript, React, Node.js, API integration",
     timePerWeek: "15-20 hours",

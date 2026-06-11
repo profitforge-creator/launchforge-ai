@@ -2,7 +2,44 @@
 
 export type { GeneratedAsset, AssetSet, AssetType, ExportFormat, ProductCategory } from "@/lib/assets/types";
 
+// ── Subscription ──────────────────────────────────────────────────────────────
+
+export type SubscriptionTier = "free" | "starter" | "pro";
+
+export interface SubscriptionLimits {
+  projectsPerMonth: number;   // -1 = unlimited
+  aiEditsPerProject: number;  // -1 = unlimited
+  websiteGeneration: boolean;
+  exportAll: boolean;
+}
+
+export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> = {
+  free:    { projectsPerMonth: 3,  aiEditsPerProject: 5,  websiteGeneration: false, exportAll: false },
+  starter: { projectsPerMonth: 20, aiEditsPerProject: 50, websiteGeneration: true,  exportAll: true  },
+  pro:     { projectsPerMonth: -1, aiEditsPerProject: -1, websiteGeneration: true,  exportAll: true  },
+};
+
+// ── Project File System ───────────────────────────────────────────────────────
+
+export type FileLanguage = "typescript" | "markdown" | "json" | "css" | "text";
+
+export interface ProjectFile {
+  path: string;           // e.g., "/website/app/page.tsx"
+  name: string;           // e.g., "page.tsx"
+  folder: string;         // top-level folder: "website", "marketing", etc.
+  /** Subfolder within folder, e.g., "app" or "app/pricing" */
+  subfolder?: string;
+  content: string;        // full file content
+  language: FileLanguage;
+  generatedAt: string;
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+
 export interface BusinessFormData {
+  /** Free-form idea: "I like anime", "I need $1000/month", "I love fitness" */
+  idea: string;
+  // Derived fields (kept for backward compat with agent prompts):
   interests: string;
   skills: string;
   timePerWeek: string;
@@ -10,16 +47,20 @@ export interface BusinessFormData {
   businessType: string;
 }
 
+// ── Opportunity scoring ───────────────────────────────────────────────────────
+
 export interface OpportunityScore {
   overall: number;
   demand: number;
-  monetization: number;   // how easily this market pays
-  competition: number;    // lower = less competition (better)
-  difficulty: number;     // lower = easier to build (better)
+  monetization: number;
+  competition: number;  // lower raw = less competition (better)
+  difficulty: number;   // lower raw = easier to build (better)
   category: ScoreCategory;
 }
 
 export type ScoreCategory = "Exceptional" | "Strong" | "Good" | "Moderate" | "Weak";
+
+// ── Research / competitors ────────────────────────────────────────────────────
 
 export interface Competitor {
   id: string;
@@ -32,6 +73,8 @@ export interface Competitor {
   marketShare: number;
 }
 
+// ── Product ───────────────────────────────────────────────────────────────────
+
 export interface ProductConcept {
   name: string;
   tagline: string;
@@ -42,6 +85,8 @@ export interface ProductConcept {
   suggestedPrice: string;
   timeToLaunch: string;
 }
+
+// ── Marketing ─────────────────────────────────────────────────────────────────
 
 export interface MarketingPlan {
   tiktokHooks: string[];
@@ -79,6 +124,8 @@ export interface Recommendation {
   priority: "high" | "medium" | "low";
 }
 
+// ── Project (the main entity) ─────────────────────────────────────────────────
+
 export interface BusinessResult {
   id: string;
   createdAt: string;
@@ -91,8 +138,22 @@ export interface BusinessResult {
   summary: string;
   niche: string;
   marketGaps: string[];
-  assets?: import("@/lib/assets/types").AssetSet; // undefined for legacy records seeded before this feature
+  assets?: import("@/lib/assets/types").AssetSet;
+  /** Project file system — all generated files organized by folder */
+  projectFiles?: ProjectFile[];
+  /** AI INTEGRATION POINT: usage tracking per project */
+  aiEditsUsed?: number;
 }
+
+// ── AI file modification ──────────────────────────────────────────────────────
+
+export interface FileUpdate {
+  path: string;
+  content: string;
+  description: string;  // human-readable summary, e.g. "Updated hero headline for students"
+}
+
+// ── History / sidebar ─────────────────────────────────────────────────────────
 
 export interface HistoryRecord {
   id: string;
@@ -104,11 +165,13 @@ export interface HistoryRecord {
   status: "completed" | "draft";
 }
 
+// ── User ──────────────────────────────────────────────────────────────────────
+
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  plan: "free" | "pro" | "team";
+  plan: SubscriptionTier;
   generationsUsed: number;
   generationsLimit: number;
   joinedAt: string;

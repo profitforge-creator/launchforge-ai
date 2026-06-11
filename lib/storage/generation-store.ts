@@ -99,3 +99,18 @@ export function toHistoryRecord(result: BusinessResult): HistoryRecord {
 export function getHistoryRecords(): HistoryRecord[] {
   return getAllGenerations().map(toHistoryRecord);
 }
+
+export function updateProjectFile(projectId: string, path: string, content: string): boolean {
+  seedIfNeeded();
+  const result = store.get(projectId);
+  if (!result || !result.projectFiles) return false;
+  const idx = result.projectFiles.findIndex((f) => f.path === path);
+  if (idx === -1) return false;
+  result.projectFiles[idx] = {
+    ...result.projectFiles[idx],
+    content,
+    generatedAt: new Date().toISOString(),
+  };
+  store.set(projectId, result);
+  return true;
+}

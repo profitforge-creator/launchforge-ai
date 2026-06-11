@@ -1,19 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import {
   actionRunResearch,
   actionRunProduct,
   actionRunMarketing,
   actionRunCritic,
   actionRunAssets,
-  actionFinalizeGeneration,
+  actionRunWebsite,
+  actionFinalizeProject,
 } from "@/app/actions/generate";
-import type { BusinessFormData } from "@/types";
+import type { BusinessFormData, ProjectFile } from "@/types";
 import type { AssetSet } from "@/lib/assets/types";
 import type {
   ResearchAgentOutput,
@@ -22,81 +20,167 @@ import type {
   CriticAgentOutput,
 } from "@/lib/types/agents";
 
-const timeOptions = [
-  { value: "", label: "Select availability" },
-  { value: "1-5", label: "1–5 hours/week" },
-  { value: "5-10", label: "5–10 hours/week" },
-  { value: "10-20", label: "10–20 hours/week" },
-  { value: "20-40", label: "20–40 hours/week" },
-  { value: "40+", label: "Full-time (40+ hrs)" },
-];
+// ── Build stages ──────────────────────────────────────────────────────────────
 
-const incomeOptions = [
-  { value: "", label: "Select income goal" },
-  { value: "500", label: "$500/month" },
-  { value: "1000", label: "$1,000/month" },
-  { value: "2500", label: "$2,500/month" },
-  { value: "5000", label: "$5,000/month" },
-  { value: "10000", label: "$10,000/month" },
-  { value: "25000+", label: "$25,000+/month" },
-];
-
-const businessTypeOptions = [
-  { value: "", label: "Select business type" },
-  { value: "saas", label: "SaaS / Software" },
-  { value: "digital-product", label: "Digital Product" },
-  { value: "productized-service", label: "Productized Service" },
-  { value: "content", label: "Content / Newsletter" },
-  { value: "agency", label: "Agency / Consulting" },
-  { value: "ecommerce", label: "E-commerce" },
-  { value: "open", label: "Open — Let AI decide" },
-];
-
-interface PipelineStep {
+interface BuildStage {
+  id: string;
   label: string;
   sublabel: string;
+  icon: string;
+  /** Simulated duration hint shown to the user */
+  estSeconds: number;
 }
 
-const STEPS: PipelineStep[] = [
-  { label: "Researching market demand", sublabel: "Analyzing competitors and market gaps" },
-  { label: "Building product concept",  sublabel: "Generating name, deliverables, and pricing" },
-  { label: "Designing marketing plan",  sublabel: "Creating hooks, content calendar, and launch strategy" },
-  { label: "Reviewing opportunity",     sublabel: "Identifying weaknesses and improvements" },
-  { label: "Generating your assets",    sublabel: "Creating downloadable templates, documents, and deliverables" },
-  { label: "Finalizing results",        sublabel: "Assembling your complete business package" },
+const BUILD_STAGES: BuildStage[] = [
+  {
+    id: "research",
+    label: "Researching Market",
+    sublabel: "Analyzing demand signals, search trends, and market size",
+    icon: "🔍",
+    estSeconds: 12,
+  },
+  {
+    id: "competitors",
+    label: "Analyzing Competitors",
+    sublabel: "Mapping competitor products, pricing, and key weaknesses",
+    icon: "🏆",
+    estSeconds: 8,
+  },
+  {
+    id: "opportunity",
+    label: "Identifying Opportunity",
+    sublabel: "Scoring demand, competition gap, and monetization potential",
+    icon: "💡",
+    estSeconds: 4,
+  },
+  {
+    id: "product",
+    label: "Designing Product",
+    sublabel: "Structuring deliverables, pricing model, and product architecture",
+    icon: "📐",
+    estSeconds: 10,
+  },
+  {
+    id: "assets",
+    label: "Generating Product",
+    sublabel: "Creating complete product documents, templates, and content",
+    icon: "📦",
+    estSeconds: 14,
+  },
+  {
+    id: "website",
+    label: "Building Website",
+    sublabel: "Writing homepage, pricing, features, about, and FAQ pages",
+    icon: "🌐",
+    estSeconds: 8,
+  },
+  {
+    id: "marketing",
+    label: "Creating Marketing System",
+    sublabel: "Building content calendar, launch strategy, and growth hooks",
+    icon: "📣",
+    estSeconds: 10,
+  },
+  {
+    id: "finalize",
+    label: "Finalizing Project",
+    sublabel: "Assembling all files and saving your complete project",
+    icon: "✅",
+    estSeconds: 4,
+  },
 ];
 
-type StepStatus = "pending" | "active" | "complete" | "error";
+const TOTAL_EST_SECONDS = BUILD_STAGES.reduce((a, s) => a + s.estSeconds, 0);
 
-const INITIAL_FORM: BusinessFormData = {
-  interests: "",
-  skills: "",
-  timePerWeek: "",
-  incomeGoal: "",
-  businessType: "",
-};
+// ── Idea detection ────────────────────────────────────────────────────────────
+
+function detectBusinessType(idea: string): string {
+  const lower = idea.toLowerCase();
+  if (/notion|template|dashboard|system|workspace/.test(lower)) return "digital-product";
+  if (/app|saas|software|tool|platform/.test(lower)) return "saas";
+  if (/content|newsletter|youtube|tiktok|instagram|creator|blog/.test(lower)) return "content";
+  if (/agency|freelance|consulting|service|client/.test(lower)) return "agency";
+  if (/course|teach|learn|education|tutoring|coaching/.test(lower)) return "digital-product";
+  return "open";
+}
+
+function expandIdea(idea: string): BusinessFormData {
+  return {
+    idea,
+    interests: idea,
+    skills: "open to any direction",
+    timePerWeek: "10-20",
+    incomeGoal: "1000",
+    businessType: detectBusinessType(idea),
+  };
+}
+
+// ── Quick-start prompts ───────────────────────────────────────────────────────
+
+const QUICK_STARTS = [
+  "I like anime",
+  "I want passive income",
+  "I love fitness",
+  "I'm good at Excel",
+  "I need $1000/month",
+];
+
+// ── Stage status ──────────────────────────────────────────────────────────────
+
+type StageStatus = "pending" | "active" | "complete" | "error";
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export function GenerationForm() {
   const router = useRouter();
-  const [form, setForm] = useState<BusinessFormData>(INITIAL_FORM);
+  const [idea, setIdea] = useState("");
   const [running, setRunning] = useState(false);
-  const [currentStep, setCurrentStep] = useState(-1);
-  const [stepStatuses, setStepStatuses] = useState<StepStatus[]>(Array(STEPS.length).fill("pending"));
+  const [stageStatuses, setStageStatuses] = useState<StageStatus[]>(
+    Array(BUILD_STAGES.length).fill("pending"),
+  );
+  const [activeStageIndex, setActiveStageIndex] = useState(-1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const startTimeRef = useRef<number>(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const isValid = idea.trim().length >= 2;
+  const completedCount = stageStatuses.filter((s) => s === "complete").length;
+  const progressPct = Math.round((completedCount / BUILD_STAGES.length) * 100);
+  const estimatedRemaining = Math.max(
+    0,
+    TOTAL_EST_SECONDS - elapsedSeconds,
+  );
 
-  const isValid =
-    form.interests.trim().length > 2 &&
-    form.skills.trim().length > 2 &&
-    form.timePerWeek !== "" &&
-    form.incomeGoal !== "" &&
-    form.businessType !== "";
+  function startTimer() {
+    startTimeRef.current = Date.now();
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds(Math.round((Date.now() - startTimeRef.current) / 1000));
+    }, 1000);
+  }
 
-  function markStep(index: number, status: StepStatus) {
-    setCurrentStep(index);
-    setStepStatuses((prev) => {
+  function stopTimer() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+
+  useEffect(() => () => stopTimer(), []);
+
+  function setStage(index: number, status: StageStatus) {
+    setActiveStageIndex(index);
+    setStageStatuses((prev) => {
       const next = [...prev];
       next[index] = status;
+      return next;
+    });
+  }
+
+  function completeStage(index: number) {
+    setStageStatuses((prev) => {
+      const next = [...prev];
+      next[index] = "complete";
       return next;
     });
   }
@@ -107,221 +191,307 @@ export function GenerationForm() {
 
     setRunning(true);
     setErrorMessage(null);
-    setStepStatuses(Array(STEPS.length).fill("pending"));
+    setStageStatuses(Array(BUILD_STAGES.length).fill("pending"));
+    setActiveStageIndex(-1);
+    setElapsedSeconds(0);
+    startTimer();
+
+    const form = expandIdea(idea.trim());
 
     let research: ResearchAgentOutput | null = null;
     let product: ProductAgentOutput | null = null;
     let marketing: MarketingAgentOutput | null = null;
     let critic: CriticAgentOutput | null = null;
     let assets: AssetSet | null = null;
+    let websiteFiles: ProjectFile[] = [];
 
-    // ── Step 0: Research ──────────────────────────────────────────────────────
-    markStep(0, "active");
+    // ── Stage 0–2: Research (market + competitors + opportunity) ─────────────
+    setStage(0, "active");
+
     const r0 = await actionRunResearch(form);
     if (!r0.success) {
-      markStep(0, "error");
+      setStage(0, "error");
       setErrorMessage(r0.error);
       setRunning(false);
+      stopTimer();
       return;
     }
     research = r0.data;
-    markStep(0, "complete");
 
-    // ── Step 1: Product ───────────────────────────────────────────────────────
-    markStep(1, "active");
+    // Simulate competitor analysis sub-stage (visual only)
+    completeStage(0);
+    setStage(1, "active");
+    await new Promise((res) => setTimeout(res, 600));
+    completeStage(1);
+
+    // Simulate opportunity scoring (instant)
+    setStage(2, "active");
+    await new Promise((res) => setTimeout(res, 400));
+    completeStage(2);
+
+    // ── Stage 3: Product design ──────────────────────────────────────────────
+    setStage(3, "active");
     const r1 = await actionRunProduct(form, research);
     if (!r1.success) {
-      markStep(1, "error");
+      setStage(3, "error");
       setErrorMessage(r1.error);
       setRunning(false);
+      stopTimer();
       return;
     }
     product = r1.data;
-    markStep(1, "complete");
+    completeStage(3);
 
-    // ── Step 2: Marketing ─────────────────────────────────────────────────────
-    markStep(2, "active");
-    const r2 = await actionRunMarketing(form, research, product);
+    // ── Stage 4: Product generation ──────────────────────────────────────────
+    setStage(4, "active");
+    const r2 = await actionRunAssets(form, research, product);
     if (!r2.success) {
-      markStep(2, "error");
+      setStage(4, "error");
       setErrorMessage(r2.error);
       setRunning(false);
+      stopTimer();
       return;
     }
-    marketing = r2.data;
-    markStep(2, "complete");
+    assets = r2.data;
+    completeStage(4);
 
-    // ── Step 3: Critic ────────────────────────────────────────────────────────
-    markStep(3, "active");
-    const r3 = await actionRunCritic(form, research, product, marketing);
+    // ── Stage 5: Website building ────────────────────────────────────────────
+    setStage(5, "active");
+    const r3 = await actionRunWebsite(product, research);
     if (!r3.success) {
-      markStep(3, "error");
+      setStage(5, "error");
       setErrorMessage(r3.error);
       setRunning(false);
+      stopTimer();
       return;
     }
-    critic = r3.data;
-    markStep(3, "complete");
+    websiteFiles = r3.data;
+    completeStage(5);
 
-    // ── Step 4: Assets ────────────────────────────────────────────────────────
-    markStep(4, "active");
-    const r4 = await actionRunAssets(form, research, product);
+    // ── Stage 6: Marketing system (marketing + critic combined) ──────────────
+    setStage(6, "active");
+    const r4 = await actionRunMarketing(form, research, product);
     if (!r4.success) {
-      markStep(4, "error");
+      setStage(6, "error");
       setErrorMessage(r4.error);
       setRunning(false);
+      stopTimer();
       return;
     }
-    assets = r4.data;
-    markStep(4, "complete");
+    marketing = r4.data;
 
-    // ── Step 5: Finalize ──────────────────────────────────────────────────────
-    markStep(5, "active");
-    const r5 = await actionFinalizeGeneration(form, research, product, marketing, critic, assets);
+    const r5 = await actionRunCritic(form, research, product, marketing);
     if (!r5.success) {
-      markStep(5, "error");
+      setStage(6, "error");
       setErrorMessage(r5.error);
       setRunning(false);
+      stopTimer();
       return;
     }
-    markStep(5, "complete");
+    critic = r5.data;
+    completeStage(6);
 
-    // Navigate to the workspace
-    router.push(`/workspace/${r5.data.id}`);
+    // ── Stage 7: Finalize project ─────────────────────────────────────────────
+    setStage(7, "active");
+    const r6 = await actionFinalizeProject(form, research, product, marketing, critic, assets, websiteFiles);
+    if (!r6.success) {
+      setStage(7, "error");
+      setErrorMessage(r6.error);
+      setRunning(false);
+      stopTimer();
+      return;
+    }
+    completeStage(7);
+    stopTimer();
+
+    router.push(`/workspace/${r6.data.id}`);
   }
 
-  const showProgress = running || (currentStep >= 0 && stepStatuses.some((s) => s === "complete"));
+  const showQueue = running || (activeStageIndex >= 0 && completedCount > 0);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {/* ── Idea input ── */}
       {!running && (
-        <>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                label="Interests"
-                placeholder="e.g. software development, fitness, personal finance, cooking..."
-                value={form.interests}
-                onChange={(e) => setForm({ ...form, interests: e.target.value })}
-                hint="What topics do you genuinely enjoy or know deeply?"
-                disabled={running}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Input
-                label="Skills"
-                placeholder="e.g. TypeScript, video editing, copywriting, Excel, sales..."
-                value={form.skills}
-                onChange={(e) => setForm({ ...form, skills: e.target.value })}
-                hint="Both professional and personal skills count."
-                disabled={running}
-              />
-            </div>
-            <Select
-              label="Time Available Per Week"
-              options={timeOptions}
-              value={form.timePerWeek}
-              onChange={(e) => setForm({ ...form, timePerWeek: e.target.value })}
+        <div className="space-y-3">
+          <div className="relative">
+            <textarea
+              rows={3}
+              value={idea}
+              onChange={(e) => setIdea(e.target.value)}
+              placeholder={"What do you want to build?\n\nTry: \"I like anime\" · \"I want passive income\" · \"I love fitness\""}
+              className="w-full resize-none rounded-lg px-4 py-3 text-sm leading-relaxed outline-none transition-colors placeholder:leading-relaxed"
+              style={{
+                backgroundColor: "hsl(220 13% 7%)",
+                border: "1px solid hsl(220 13% 20%)",
+                color: "hsl(220 9% 88%)",
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = "hsl(213 94% 62% / 0.5)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = "hsl(220 13% 20%)";
+              }}
               disabled={running}
             />
-            <Select
-              label="Income Goal"
-              options={incomeOptions}
-              value={form.incomeGoal}
-              onChange={(e) => setForm({ ...form, incomeGoal: e.target.value })}
-              disabled={running}
-            />
-            <div className="md:col-span-2">
-              <Select
-                label="Preferred Business Type"
-                options={businessTypeOptions}
-                value={form.businessType}
-                onChange={(e) => setForm({ ...form, businessType: e.target.value })}
-                disabled={running}
-              />
-            </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
-            <Button type="submit" size="md" disabled={!isValid}>
-              Generate Business
-            </Button>
-            <span className="text-xs" style={{ color: "hsl(220 9% 40%)" }}>
-              Uses 1 of your 50 monthly generations
+          {/* Quick-start chips */}
+          <div className="flex flex-wrap gap-1.5">
+            <span className="text-xs mr-1" style={{ color: "hsl(220 9% 38%)" }}>Try:</span>
+            {QUICK_STARTS.map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setIdea(q)}
+                className="text-xs px-2.5 py-1 rounded-full transition-colors"
+                style={{
+                  backgroundColor: "hsl(220 13% 13%)",
+                  border: "1px solid hsl(220 13% 20%)",
+                  color: "hsl(220 9% 55%)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "hsl(220 13% 18%)";
+                  e.currentTarget.style.color = "hsl(220 9% 75%)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "hsl(220 13% 13%)";
+                  e.currentTarget.style.color = "hsl(220 9% 55%)";
+                }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+
+          {/* Submit */}
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={!isValid}
+              className="h-9 px-5 rounded-lg text-sm font-semibold transition-all"
+              style={{
+                backgroundColor: isValid ? "hsl(213 94% 62%)" : "hsl(220 13% 18%)",
+                color: isValid ? "hsl(220 13% 8%)" : "hsl(220 9% 35%)",
+                cursor: isValid ? "pointer" : "not-allowed",
+              }}
+            >
+              Build My Business →
+            </button>
+            <span className="text-xs" style={{ color: "hsl(220 9% 35%)" }}>
+              Free · Uses 1 of 3 monthly builds
             </span>
           </div>
-        </>
+        </div>
       )}
 
-      {/* ── Progress tracker ── */}
-      {showProgress && (
-        <div className="rounded-lg p-5 space-y-4" style={{ border: "1px solid hsl(220 13% 17%)", backgroundColor: "hsl(220 13% 12%)" }}>
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs font-semibold" style={{ color: "hsl(220 9% 75%)" }}>
-              Generating your business brief
-            </p>
-            <span className="text-xs tabular-nums" style={{ color: "hsl(220 9% 40%)" }}>
-              {stepStatuses.filter((s) => s === "complete").length} / {STEPS.length}
-            </span>
+      {/* ── Build queue ── */}
+      {showQueue && (
+        <div
+          className="rounded-xl p-5 space-y-4"
+          style={{ border: "1px solid hsl(220 13% 17%)", backgroundColor: "hsl(220 13% 9%)" }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {running && (
+                <svg
+                  className="w-3.5 h-3.5 animate-spin shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  style={{ color: "hsl(213 94% 62%)" }}
+                >
+                  <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              )}
+              <p className="text-xs font-semibold" style={{ color: "hsl(220 9% 80%)" }}>
+                {running ? "LaunchForge is building your business..." : "Build complete"}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 text-xs tabular-nums" style={{ color: "hsl(220 9% 40%)" }}>
+              {running && estimatedRemaining > 0 && (
+                <span>~{estimatedRemaining}s remaining</span>
+              )}
+              <span style={{ color: progressPct === 100 ? "hsl(151 60% 48%)" : "hsl(213 94% 62%)" }}>
+                {progressPct}%
+              </span>
+            </div>
           </div>
 
           {/* Progress bar */}
-          <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: "hsl(220 13% 20%)" }}>
+          <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: "hsl(220 13% 18%)" }}>
             <div
-              className="h-full rounded-full transition-all duration-500"
+              className="h-full rounded-full transition-all duration-700"
               style={{
-                width: `${(stepStatuses.filter((s) => s === "complete").length / STEPS.length) * 100}%`,
-                backgroundColor: "hsl(213 94% 62%)",
+                width: `${progressPct}%`,
+                backgroundColor: progressPct === 100 ? "hsl(151 60% 48%)" : "hsl(213 94% 62%)",
               }}
             />
           </div>
 
-          {/* Step list */}
-          <div className="space-y-2.5 pt-1">
-            {STEPS.map((step, i) => {
-              const status = stepStatuses[i];
+          {/* Stage list */}
+          <div className="space-y-1 pt-1">
+            {BUILD_STAGES.map((stage, i) => {
+              const status = stageStatuses[i];
+              const isActive = status === "active";
+              const isDone = status === "complete";
+              const isErr = status === "error";
+              const isPending = status === "pending";
+
               return (
-                <div key={i} className="flex items-start gap-3">
+                <div
+                  key={stage.id}
+                  className="flex items-start gap-3 py-1.5 px-2 rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: isActive ? "hsl(220 13% 14%)" : "transparent",
+                  }}
+                >
                   {/* Status icon */}
-                  <div className="shrink-0 mt-0.5 w-4 h-4 flex items-center justify-center">
-                    {status === "complete" && (
+                  <div className="w-5 h-5 flex items-center justify-center shrink-0 mt-0.5">
+                    {isDone && (
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(151 60% 48%)" }}>
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                     )}
-                    {status === "active" && (
+                    {isActive && (
                       <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" style={{ color: "hsl(213 94% 62%)" }}>
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                     )}
-                    {status === "error" && (
+                    {isErr && (
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(0 72% 58%)" }}>
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                       </svg>
                     )}
-                    {status === "pending" && (
-                      <div className="w-3.5 h-3.5 rounded-full" style={{ border: "1.5px solid hsl(220 13% 28%)" }} />
+                    {isPending && (
+                      <div className="w-3.5 h-3.5 rounded-full" style={{ border: "1.5px solid hsl(220 13% 26%)" }} />
                     )}
                   </div>
 
-                  {/* Label */}
-                  <div>
-                    <p
-                      className="text-xs font-medium"
-                      style={{
-                        color:
-                          status === "active" ? "hsl(220 9% 90%)" :
-                          status === "complete" ? "hsl(220 9% 70%)" :
-                          status === "error" ? "hsl(0 72% 62%)" :
-                          "hsl(220 9% 38%)",
-                      }}
-                    >
-                      {step.label}
-                    </p>
-                    {status === "active" && (
-                      <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 45%)" }}>
-                        {step.sublabel}
+                  {/* Stage icon + labels */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base leading-none">{stage.icon}</span>
+                      <p
+                        className="text-xs font-medium"
+                        style={{
+                          color: isDone
+                            ? "hsl(220 9% 55%)"
+                            : isActive
+                            ? "hsl(220 9% 92%)"
+                            : isErr
+                            ? "hsl(0 72% 62%)"
+                            : "hsl(220 9% 33%)",
+                        }}
+                      >
+                        {stage.label}
+                      </p>
+                    </div>
+                    {isActive && (
+                      <p className="text-xs mt-0.5 pl-7" style={{ color: "hsl(220 9% 42%)" }}>
+                        {stage.sublabel}
                       </p>
                     )}
                   </div>
@@ -330,19 +500,24 @@ export function GenerationForm() {
             })}
           </div>
 
-          {/* Error message */}
+          {/* Error */}
           {errorMessage && (
-            <div className="rounded p-3 mt-2" style={{ backgroundColor: "hsl(0 72% 58% / 0.1)", border: "1px solid hsl(0 72% 58% / 0.2)" }}>
-              <p className="text-xs" style={{ color: "hsl(0 72% 62%)" }}>{errorMessage}</p>
+            <div
+              className="rounded-lg p-3 mt-2"
+              style={{ backgroundColor: "hsl(0 72% 58% / 0.08)", border: "1px solid hsl(0 72% 58% / 0.2)" }}
+            >
+              <p className="text-xs" style={{ color: "hsl(0 72% 65%)" }}>{errorMessage}</p>
               <button
                 type="button"
                 className="text-xs mt-2 underline"
-                style={{ color: "hsl(0 72% 62%)" }}
+                style={{ color: "hsl(0 72% 65%)" }}
                 onClick={() => {
                   setRunning(false);
-                  setCurrentStep(-1);
-                  setStepStatuses(Array(STEPS.length).fill("pending"));
+                  setActiveStageIndex(-1);
+                  setStageStatuses(Array(BUILD_STAGES.length).fill("pending"));
                   setErrorMessage(null);
+                  setElapsedSeconds(0);
+                  stopTimer();
                 }}
               >
                 Try again
