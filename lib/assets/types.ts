@@ -2,28 +2,48 @@
 // All generated deliverables conform to this shape regardless of product type.
 
 export type AssetType =
-  // Ebook / Guide
+  // ── Ebook Pack ─────────────────────────────────────────────────────────────
+  | "ebook-doc"
+  | "landing-page"
+  | "sales-email"
+  | "upsell-offer"
+  | "faq-doc"
+  // ── Study Guide Pack ───────────────────────────────────────────────────────
+  | "study-guide-doc"
+  | "flashcard-deck"
+  | "quiz"
+  | "answer-key"
+  | "cheat-sheet"
+  // ── Notion Pack ────────────────────────────────────────────────────────────
+  | "workspace-structure"
+  | "database-schema"
+  | "dashboard-layout"
+  | "setup-guide"
+  | "sales-page"
+  // ── Agency Pack ────────────────────────────────────────────────────────────
+  | "proposal-template"
+  | "onboarding-sop"
+  | "client-workflow"
+  | "outreach-script"
+  | "agency-sales-page"
+  // ── Creator Pack ───────────────────────────────────────────────────────────
+  | "content-calendar"
+  | "brand-guide"
+  | "hook-library"
+  | "sponsorship-pitch"
+  | "media-kit"
+  // ── Legacy (generated content) ─────────────────────────────────────────────
   | "table-of-contents"
   | "introduction"
   | "chapter"
   | "sample-pages"
   | "resource-list"
-  // Course / Study Guide
   | "lesson-outline"
-  | "flashcard-deck"
-  | "quiz"
   | "worksheet"
-  // Agency / Service
-  | "proposal-template"
   | "onboarding-checklist"
   | "sop-document"
-  | "outreach-script"
-  | "client-workflow"
-  // Notion / System
-  | "database-schema"
   | "page-template"
   | "workflow-template"
-  // Generic
   | "overview-document"
   | "quick-start-guide"
   | "faq-template";
@@ -35,6 +55,7 @@ export type ProductCategory =
   | "study-guide"
   | "notion-system"
   | "agency-service"
+  | "creator"
   | "course"
   | "newsletter"
   | "saas"
