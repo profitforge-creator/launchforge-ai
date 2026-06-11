@@ -1,0 +1,16 @@
+// Server component — fetches workspace list and renders sidebar + main content.
+import { getHistoryRecords } from "@/lib/storage/generation-store";
+import { AppSidebar } from "./app-sidebar";
+
+export function SidebarLayout({ children }: { children: React.ReactNode }) {
+  const workspaces = getHistoryRecords();
+
+  return (
+    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "hsl(220 13% 8%)" }}>
+      <AppSidebar workspaces={workspaces} />
+      <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+        {children}
+      </div>
+    </div>
+  );
+}

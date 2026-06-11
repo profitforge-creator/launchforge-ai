@@ -83,7 +83,7 @@ export default function HistoryPage() {
           {records.map((record, i) => (
             <Link
               key={record.id}
-              href={`/dashboard/results/${record.id}`}
+              href={`/workspace/${record.id}`}
               className="grid px-5 py-3.5 items-center transition-colors"
               style={{
                 gridTemplateColumns: "2fr 1fr 1fr 1fr 80px",

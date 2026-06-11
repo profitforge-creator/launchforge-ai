@@ -186,8 +186,8 @@ export function GenerationForm() {
     }
     markStep(5, "complete");
 
-    // Navigate to the results page
-    router.push(`/dashboard/results/${r5.data.id}`);
+    // Navigate to the workspace
+    router.push(`/workspace/${r5.data.id}`);
   }
 
   const showProgress = running || (currentStep >= 0 && stepStatuses.some((s) => s === "complete"));
