@@ -320,8 +320,9 @@ export default function DashboardPage() {
         return;
       }
       research = r0.data;
+      const topCompetitors = research.competitors?.slice(0, 3).map((c) => c.name).join(", ") ?? "none found";
       updateMsg(r0id, {
-        content: `Market researched — demand score ${research.demandScore}/100, ${research.competitors?.length ?? 0} competitors identified.`,
+        content: `Market researched.\n\nNiche: ${research.niche}\nDemand: ${research.demandScore}/100  ·  Competition: ${research.competitionScore}/100  ·  Monetization: ${research.monetizationScore}/100\nTop competitors: ${topCompetitors}\n\n${research.opportunitySummary}`,
         status: "done",
       });
 
@@ -337,7 +338,7 @@ export default function DashboardPage() {
       }
       product = r1.data;
       updateMsg(r1id, {
-        content: `Product designed — ${product.productName}.`,
+        content: `Product designed.\n\n${product.productName} — ${product.tagline}\n\nAudience: ${product.targetAudience}\nPricing: ${product.pricingModel} · ${product.suggestedPrice}\nTime to launch: ${product.timeToLaunch}\n\nDeliverables:\n${product.deliverables?.slice(0, 4).map((d) => `· ${d}`).join("\n")}`,
         status: "done",
       });
 
@@ -352,7 +353,7 @@ export default function DashboardPage() {
         return;
       }
       assets = r2.data;
-      updateMsg(r2id, { content: "Product files created.", status: "done" });
+      updateMsg(r2id, { content: `Product files created — ${assets ? Object.keys(assets).length : 0} asset sets ready.`, status: "done" });
 
       // ── Website ────────────────────────────────────────────────────────────
       const r3id = uid();
@@ -365,8 +366,9 @@ export default function DashboardPage() {
         return;
       }
       websiteFiles = r3.data;
+      const pageFiles = websiteFiles.filter((f) => f.name.endsWith(".tsx")).map((f) => f.path.replace("/website/app/", "/")).join("  ·  ");
       updateMsg(r3id, {
-        content: `Website built — ${websiteFiles.length} files, ready to deploy.`,
+        content: `Website built — ${websiteFiles.length} files.\n\nPages: ${pageFiles || "homepage, pricing, about, faq"}\n\nReady to deploy to Vercel. Open the panel to preview the code.`,
         status: "done",
       });
 
@@ -389,7 +391,11 @@ export default function DashboardPage() {
         return;
       }
       critic = r5.data;
-      updateMsg(r4id, { content: "Marketing system and launch plan complete.", status: "done" });
+      const hooks = marketing.tiktokHooks?.slice(0, 2).map((h) => `"${h}"`).join("\n") ?? "";
+      updateMsg(r4id, {
+        content: `Marketing system complete.\n\nTop hooks:\n${hooks}\n\nLaunch plan ready — open Marketing in the panel for the full calendar.`,
+        status: "done",
+      });
 
       // ── Finalize ───────────────────────────────────────────────────────────
       const r6id = uid();
@@ -403,7 +409,7 @@ export default function DashboardPage() {
       }
 
       updateMsg(r6id, {
-        content: `${product.productName} is ready. Opening your workspace...`,
+        content: `${product.productName} is ready.\n\nYour workspace is opening now. Use the panel on the right to explore Research, Product, Website, Marketing, and Files. Ask me anything to refine or improve any part of it.`,
         status: "done",
       });
 
