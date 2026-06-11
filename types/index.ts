@@ -1,4 +1,4 @@
-// Core business generation types
+// Core business generation types — shared across UI and generation pipeline
 
 export interface BusinessFormData {
   interests: string;
@@ -11,9 +11,13 @@ export interface BusinessFormData {
 export interface OpportunityScore {
   overall: number;
   demand: number;
-  competition: number; // lower is better (less competition)
-  difficulty: number;  // lower is better
+  monetization: number;   // how easily this market pays
+  competition: number;    // lower = less competition (better)
+  difficulty: number;     // lower = easier to build (better)
+  category: ScoreCategory;
 }
+
+export type ScoreCategory = "Exceptional" | "Strong" | "Good" | "Moderate" | "Weak";
 
 export interface Competitor {
   id: string;
@@ -40,6 +44,7 @@ export interface ProductConcept {
 export interface MarketingPlan {
   tiktokHooks: string[];
   contentIdeas: ContentIdea[];
+  contentPillars: string[];
   launchStrategy: LaunchPhase[];
   contentCalendar: CalendarEntry[];
 }
@@ -83,6 +88,7 @@ export interface BusinessResult {
   recommendations: Recommendation[];
   summary: string;
   niche: string;
+  marketGaps: string[];
 }
 
 export interface HistoryRecord {

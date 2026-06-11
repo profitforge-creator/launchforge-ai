@@ -1,6 +1,5 @@
 import type {
   BusinessResult,
-  HistoryRecord,
   UserProfile,
 } from "@/types";
 
@@ -22,9 +21,17 @@ export const MOCK_BUSINESS_RESULT: BusinessResult = {
   scores: {
     overall: 84,
     demand: 91,
+    monetization: 87,
     competition: 62,
     difficulty: 45,
+    category: "Strong",
   },
+  marketGaps: [
+    "No cross-platform command palette designed for freelancers",
+    "Existing tools don't connect GitHub + Linear + Notion in one keyboard shortcut",
+    "No lightweight option between Raycast (Mac-only) and enterprise suites",
+    "Poor onboarding for developers who aren't already power users",
+  ],
   competitors: [
     {
       id: "c1",
@@ -96,6 +103,12 @@ export const MOCK_BUSINESS_RESULT: BusinessResult = {
     timeToLaunch: "8–12 weeks (solo founder)",
   },
   marketing: {
+    contentPillars: [
+      "Developer workflow optimization",
+      "Building in public",
+      "Tool comparisons and reviews",
+      "Keyboard shortcuts and automation",
+    ],
     tiktokHooks: [
       "I saved 2 hours a day with this one terminal trick — here's what I built",
       "Why senior devs have 40 tabs open (and how to fix it)",
@@ -220,53 +233,8 @@ export const MOCK_BUSINESS_RESULT: BusinessResult = {
   ],
 };
 
-export const MOCK_HISTORY: HistoryRecord[] = [
-  {
-    id: "gen_01j8x2k9m3p",
-    createdAt: "2026-06-10T14:32:00Z",
-    niche: "Developer Productivity Tools",
-    overallScore: 84,
-    businessType: "SaaS",
-    productName: "DevFlow",
-    status: "completed",
-  },
-  {
-    id: "gen_01j7w1j8l2o",
-    createdAt: "2026-06-05T09:15:00Z",
-    niche: "Freelance Design Ops",
-    overallScore: 71,
-    businessType: "Service + Digital Product",
-    productName: "DesignBatch",
-    status: "completed",
-  },
-  {
-    id: "gen_01j6v0i7k1n",
-    createdAt: "2026-05-28T16:44:00Z",
-    niche: "Local SEO for Small Business",
-    overallScore: 68,
-    businessType: "Agency / Productized Service",
-    productName: "RankLocal",
-    status: "completed",
-  },
-  {
-    id: "gen_01j5u9h6j0m",
-    createdAt: "2026-05-18T11:22:00Z",
-    niche: "No-Code Automation Templates",
-    overallScore: 79,
-    businessType: "Digital Product",
-    productName: "FlowKit",
-    status: "completed",
-  },
-  {
-    id: "gen_01j4t8g5i9l",
-    createdAt: "2026-05-09T08:00:00Z",
-    niche: "B2B LinkedIn Content",
-    overallScore: 65,
-    businessType: "Productized Service",
-    productName: "PostPilot",
-    status: "draft",
-  },
-];
+// History is now served by lib/storage/generation-store.ts
+// Use getHistoryRecords() instead of this array
 
 export const MOCK_USER: UserProfile = {
   id: "user_01j8x2k9",
