@@ -1,12 +1,9 @@
-// Research Agent
-// Analyzes market demand, competition, monetization potential, and difficulty.
-//
-// AI INTEGRATION POINT:
-//   Override aiRun() to call Claude or Gemini with RESEARCH_SYSTEM_PROMPT.
-//   Expected API: anthropic.messages.create() or google.generativeModel().generateContent()
-//   See /lib/prompts/research-prompts.ts for the exact prompts to use.
+// Research Agent — analyzes market demand, competition, monetization, and difficulty.
+// AI: gemini-2.0-flash with JSON mode
 
 import { BaseAgent } from "./base-agent";
+import { geminiJSON } from "@/lib/ai/gemini";
+import { RESEARCH_SYSTEM_PROMPT, buildResearchPrompt } from "@/lib/prompts/research-prompts";
 import { generateResearchMock } from "@/lib/mock-data/research-mock";
 import type { AgentInput, ResearchAgentOutput } from "@/lib/types/agents";
 
@@ -16,7 +13,13 @@ export class ResearchAgent extends BaseAgent<AgentInput, ResearchAgentOutput> {
   protected async mockRun(input: AgentInput): Promise<ResearchAgentOutput> {
     return generateResearchMock(input);
   }
+
+  protected async aiRun(input: AgentInput): Promise<ResearchAgentOutput> {
+    return geminiJSON<ResearchAgentOutput>(
+      RESEARCH_SYSTEM_PROMPT,
+      buildResearchPrompt(input),
+    );
+  }
 }
 
-// Singleton — import this rather than instantiating per request
 export const researchAgent = new ResearchAgent();

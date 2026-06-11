@@ -1,40 +1,35 @@
 // Abstract base class for all LaunchForge agents.
 //
-// Swap strategy:
-//   1. Mock mode (current): calls mockRun() with artificial delay
-//   2. AI mode (future):    calls aiRun() — Claude or Gemini API
+// Mode selection (automatic):
+//   - GEMINI_API_KEY present in environment → AI mode (calls aiRun)
+//   - GEMINI_API_KEY absent               → Mock mode (calls mockRun with delay)
 //
-// To enable AI mode, set USE_AI_AGENTS=true in environment variables
-// and implement aiRun() in each concrete agent.
+// To add a new AI provider, implement aiRun() in the concrete agent
+// and call your provider's SDK there. The orchestrator and UI are unaffected.
+
+import { isAIEnabled } from "@/lib/ai/gemini";
 
 export abstract class BaseAgent<TInput, TOutput> {
   abstract readonly name: string;
 
-  // Implement this in each concrete agent to return mock data
+  /** Returns mock data — used when GEMINI_API_KEY is not set */
   protected abstract mockRun(input: TInput): Promise<TOutput>;
 
-  // AI INTEGRATION POINT: Override this in each agent to call Claude / Gemini
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  /** Calls the real AI API — implemented in each concrete agent */
   protected async aiRun(_input: TInput): Promise<TOutput> {
-    throw new Error(
-      `${this.name}: aiRun() not implemented. Set USE_AI_AGENTS=false or implement aiRun().`,
-    );
+    throw new Error(`${this.name}: aiRun() not implemented.`);
   }
 
   async run(input: TInput): Promise<TOutput> {
-    const useAI = process.env.USE_AI_AGENTS === "true";
-
-    if (useAI) {
+    if (isAIEnabled()) {
       return this.aiRun(input);
     }
-
-    // Simulate realistic processing time so the pipeline feels authentic
-    await this.simulateDelay(350, 750);
+    // Simulate realistic processing time in mock mode
+    await this.delay(350, 750);
     return this.mockRun(input);
   }
 
-  private simulateDelay(minMs: number, maxMs: number): Promise<void> {
-    const ms = minMs + Math.random() * (maxMs - minMs);
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  private delay(minMs: number, maxMs: number): Promise<void> {
+    return new Promise((r) => setTimeout(r, minMs + Math.random() * (maxMs - minMs)));
   }
 }

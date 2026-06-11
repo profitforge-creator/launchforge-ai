@@ -1,13 +1,9 @@
-// Marketing Agent
-// Generates hooks, content ideas, launch strategy, and a content calendar.
-//
-// AI INTEGRATION POINT:
-//   Override aiRun() with Claude or Gemini call using MARKETING_SYSTEM_PROMPT.
-//   The product name + target audience should be injected into the prompt
-//   so hooks and content ideas are specific to the generated product.
-//   See /lib/prompts/marketing-prompts.ts for exact prompts.
+// Marketing Agent — generates hooks, content calendar, and launch strategy.
+// AI: gemini-2.0-flash with JSON mode
 
 import { BaseAgent } from "./base-agent";
+import { geminiJSON } from "@/lib/ai/gemini";
+import { MARKETING_SYSTEM_PROMPT, buildMarketingPrompt } from "@/lib/prompts/marketing-prompts";
 import { generateMarketingMock } from "@/lib/mock-data/marketing-mock";
 import { detectProfile } from "@/lib/mock-data/research-mock";
 import type {
@@ -29,6 +25,13 @@ export class MarketingAgent extends BaseAgent<MarketingAgentInput, MarketingAgen
   protected async mockRun(input: MarketingAgentInput): Promise<MarketingAgentOutput> {
     const profile = detectProfile(input.formInput);
     return generateMarketingMock(input.formInput, input.research, input.product, profile);
+  }
+
+  protected async aiRun(input: MarketingAgentInput): Promise<MarketingAgentOutput> {
+    return geminiJSON<MarketingAgentOutput>(
+      MARKETING_SYSTEM_PROMPT,
+      buildMarketingPrompt(input.formInput, input.research, input.product),
+    );
   }
 }
 
