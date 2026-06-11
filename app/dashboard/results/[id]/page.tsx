@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getGeneration } from "@/lib/storage/generation-store";
 import { Badge } from "@/components/ui/badge";
 import { ScoreRing } from "@/components/ui/score-ring";
+import { GeneratedAssetsSection } from "@/components/features/generated-assets-section";
 import { formatDate } from "@/lib/utils";
 import type { BusinessResult, Competitor, Recommendation, OpportunityScore } from "@/types";
 
@@ -375,6 +376,18 @@ export default async function ResultsPage({
           {result.recommendations.map((r, i) => <RecommendationCard key={i} r={r} />)}
         </div>
       </section>
+
+      {/* ── F. GENERATED ASSETS ── */}
+      {result.assets && (
+        <section>
+          <SectionHeader
+            label="F"
+            title="Generated Assets"
+            description={`${result.assets.assets.length} ready-to-use deliverables built for your specific product — download and deploy immediately.`}
+          />
+          <GeneratedAssetsSection assetSet={result.assets} />
+        </section>
+      )}
 
       {/* Bottom actions */}
       <div className="flex items-center gap-3 pt-2 pb-4" style={{ borderTop: "1px solid hsl(220 13% 15%)" }}>

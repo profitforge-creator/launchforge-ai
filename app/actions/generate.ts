@@ -15,10 +15,12 @@ import {
   runProductStep,
   runMarketingStep,
   runCriticStep,
+  runAssetStep,
   assembleResult,
 } from "@/lib/generation/orchestrator";
 import { saveGeneration } from "@/lib/storage/generation-store";
 import type { BusinessFormData, BusinessResult } from "@/types";
+import type { AssetSet } from "@/lib/assets/types";
 import type {
   ResearchAgentOutput,
   ProductAgentOutput,
@@ -94,7 +96,23 @@ export async function actionRunCritic(
   }
 }
 
-// ── Step 5: Finalize — assemble + save ───────────────────────────────────────
+// ── Step 5: Assets ────────────────────────────────────────────────────────────
+
+export async function actionRunAssets(
+  form: BusinessFormData,
+  research: ResearchAgentOutput,
+  product: ProductAgentOutput,
+): Promise<StepResult<AssetSet>> {
+  try {
+    const data = await runAssetStep(form, research, product);
+    return { success: true, data };
+  } catch (err) {
+    console.error("[Asset Generator]", err);
+    return { success: false, error: "Asset generation failed. Please try again." };
+  }
+}
+
+// ── Step 6: Finalize — assemble + save ───────────────────────────────────────
 
 export async function actionFinalizeGeneration(
   form: BusinessFormData,
@@ -102,10 +120,11 @@ export async function actionFinalizeGeneration(
   product: ProductAgentOutput,
   marketing: MarketingAgentOutput,
   critic: CriticAgentOutput,
+  assets: AssetSet,
 ): Promise<StepResult<BusinessResult>> {
   try {
     const id = `gen_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
-    const result = assembleResult(id, form, research, product, marketing, critic);
+    const result = assembleResult(id, form, research, product, marketing, critic, assets);
     saveGeneration(result);
     return { success: true, data: result };
   } catch (err) {

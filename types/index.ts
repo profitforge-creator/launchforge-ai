@@ -1,5 +1,7 @@
 // Core business generation types — shared across UI and generation pipeline
 
+export type { GeneratedAsset, AssetSet, AssetType, ExportFormat, ProductCategory } from "@/lib/assets/types";
+
 export interface BusinessFormData {
   interests: string;
   skills: string;
@@ -89,6 +91,7 @@ export interface BusinessResult {
   summary: string;
   niche: string;
   marketGaps: string[];
+  assets?: import("@/lib/assets/types").AssetSet; // undefined for legacy records seeded before this feature
 }
 
 export interface HistoryRecord {

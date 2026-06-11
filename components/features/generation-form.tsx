@@ -10,9 +10,11 @@ import {
   actionRunProduct,
   actionRunMarketing,
   actionRunCritic,
+  actionRunAssets,
   actionFinalizeGeneration,
 } from "@/app/actions/generate";
 import type { BusinessFormData } from "@/types";
+import type { AssetSet } from "@/lib/assets/types";
 import type {
   ResearchAgentOutput,
   ProductAgentOutput,
@@ -60,7 +62,8 @@ const STEPS: PipelineStep[] = [
   { label: "Building product concept",  sublabel: "Generating name, deliverables, and pricing" },
   { label: "Designing marketing plan",  sublabel: "Creating hooks, content calendar, and launch strategy" },
   { label: "Reviewing opportunity",     sublabel: "Identifying weaknesses and improvements" },
-  { label: "Finalizing results",        sublabel: "Assembling your business brief" },
+  { label: "Generating your assets",    sublabel: "Creating downloadable templates, documents, and deliverables" },
+  { label: "Finalizing results",        sublabel: "Assembling your complete business package" },
 ];
 
 type StepStatus = "pending" | "active" | "complete" | "error";
@@ -80,6 +83,7 @@ export function GenerationForm() {
   const [currentStep, setCurrentStep] = useState(-1);
   const [stepStatuses, setStepStatuses] = useState<StepStatus[]>(Array(STEPS.length).fill("pending"));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
 
   const isValid =
     form.interests.trim().length > 2 &&
@@ -109,6 +113,7 @@ export function GenerationForm() {
     let product: ProductAgentOutput | null = null;
     let marketing: MarketingAgentOutput | null = null;
     let critic: CriticAgentOutput | null = null;
+    let assets: AssetSet | null = null;
 
     // ── Step 0: Research ──────────────────────────────────────────────────────
     markStep(0, "active");
@@ -158,19 +163,31 @@ export function GenerationForm() {
     critic = r3.data;
     markStep(3, "complete");
 
-    // ── Step 4: Finalize ──────────────────────────────────────────────────────
+    // ── Step 4: Assets ────────────────────────────────────────────────────────
     markStep(4, "active");
-    const r4 = await actionFinalizeGeneration(form, research, product, marketing, critic);
+    const r4 = await actionRunAssets(form, research, product);
     if (!r4.success) {
       markStep(4, "error");
       setErrorMessage(r4.error);
       setRunning(false);
       return;
     }
+    assets = r4.data;
     markStep(4, "complete");
 
+    // ── Step 5: Finalize ──────────────────────────────────────────────────────
+    markStep(5, "active");
+    const r5 = await actionFinalizeGeneration(form, research, product, marketing, critic, assets);
+    if (!r5.success) {
+      markStep(5, "error");
+      setErrorMessage(r5.error);
+      setRunning(false);
+      return;
+    }
+    markStep(5, "complete");
+
     // Navigate to the results page
-    router.push(`/dashboard/results/${r4.data.id}`);
+    router.push(`/dashboard/results/${r5.data.id}`);
   }
 
   const showProgress = running || (currentStep >= 0 && stepStatuses.some((s) => s === "complete"));

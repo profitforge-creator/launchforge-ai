@@ -15,7 +15,9 @@ import { productAgent } from "@/lib/agents/product-agent";
 import { marketingAgent } from "@/lib/agents/marketing-agent";
 import { criticAgent } from "@/lib/agents/critic-agent";
 import { calculateOpportunityScore } from "@/lib/scoring/opportunity-score";
+import { generateAssets } from "@/lib/assets/asset-generator";
 import type { BusinessFormData, BusinessResult, Recommendation } from "@/types";
+import type { AssetSet } from "@/lib/assets/types";
 import type {
   AgentInput,
   ResearchAgentOutput,
@@ -103,6 +105,7 @@ function assemble(
   product: ProductAgentOutput,
   marketing: MarketingAgentOutput,
   critic: CriticAgentOutput,
+  assets: AssetSet,
 ): BusinessResult {
   const scores = calculateOpportunityScore(
     research.demandScore,
@@ -138,6 +141,7 @@ function assemble(
       contentCalendar: marketing.contentCalendar,
     },
     recommendations: assembleRecommendations(critic),
+    assets,
   };
 }
 
@@ -173,6 +177,15 @@ export async function runCriticStep(
   return criticAgent.run({ formInput: toAgentInput(form), research, product, marketing });
 }
 
+export async function runAssetStep(
+  form: BusinessFormData,
+  research: ResearchAgentOutput,
+  product: ProductAgentOutput,
+): Promise<AssetSet> {
+  // AI INTEGRATION POINT: replace generateAssets() with parallel geminiJSON calls per asset
+  return generateAssets(product, research, form);
+}
+
 export function assembleResult(
   id: string,
   form: BusinessFormData,
@@ -180,6 +193,7 @@ export function assembleResult(
   product: ProductAgentOutput,
   marketing: MarketingAgentOutput,
   critic: CriticAgentOutput,
+  assets: AssetSet,
 ): BusinessResult {
-  return assemble(id, form, research, product, marketing, critic);
+  return assemble(id, form, research, product, marketing, critic, assets);
 }
