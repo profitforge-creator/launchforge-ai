@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { GenerationForm } from "@/components/features/generation-form";
 import { getHistoryRecords } from "@/lib/storage/generation-store";
