@@ -10,6 +10,7 @@ import {
   actionRunAssets,
   actionRunWebsite,
   actionFinalizeProject,
+  actionDiagnoseGemini,
 } from "@/app/actions/generate";
 import type { BusinessFormData, ProjectFile } from "@/types";
 import type { AssetSet } from "@/lib/assets/types";
@@ -142,6 +143,22 @@ function Spinner() {
 // ── Empty / welcome state ─────────────────────────────────────────────────────
 
 function WelcomeState({ onSuggestion }: { onSuggestion: (t: string) => void }) {
+  const [diagResult, setDiagResult] = useState<string | null>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+
+  async function runDiag() {
+    setDiagLoading(true);
+    setDiagResult(null);
+    const r = await actionDiagnoseGemini();
+    const lines = [
+      `Key present: ${r.keyPresent}`,
+      `Key prefix:  ${r.keyPrefix}`,
+      r.error ? `Error: ${r.error}` : `Response: ${r.testResult}`,
+    ];
+    setDiagResult(lines.join("\n"));
+    setDiagLoading(false);
+  }
+
   return (
     <div className="flex flex-col items-center justify-center h-full px-6 py-20 text-center select-none">
       <div
@@ -181,6 +198,36 @@ function WelcomeState({ onSuggestion }: { onSuggestion: (t: string) => void }) {
             {s}
           </button>
         ))}
+
+        {/* Gemini diagnostic */}
+        <div className="mt-4 pt-4" style={{ borderTop: "1px solid hsl(220 13% 14%)" }}>
+          <button
+            onClick={runDiag}
+            disabled={diagLoading}
+            className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+            style={{
+              backgroundColor: "hsl(220 13% 13%)",
+              border: "1px solid hsl(220 13% 20%)",
+              color: "hsl(220 9% 40%)",
+              cursor: diagLoading ? "wait" : "pointer",
+            }}
+          >
+            {diagLoading ? "Testing Gemini..." : "Test Gemini connection"}
+          </button>
+          {diagResult && (
+            <pre
+              className="mt-3 text-left text-xs p-3 rounded-lg whitespace-pre-wrap"
+              style={{
+                backgroundColor: "hsl(220 13% 11%)",
+                border: "1px solid hsl(220 13% 18%)",
+                color: diagResult.includes("Error") ? "hsl(0 72% 62%)" : "hsl(151 60% 52%)",
+                fontFamily: "monospace",
+              }}
+            >
+              {diagResult}
+            </pre>
+          )}
+        </div>
       </div>
     </div>
   );
