@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LaunchForge AI
 
-## Getting Started
+Turn your skills into a business in minutes. LaunchForge AI generates a researched business opportunity — competitor analysis, product concept, and marketing strategy — based on your background.
 
-First, run the development server:
+## Tech Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Auth**: Supabase-ready architecture (mock UI complete)
+- **Payments**: Stripe-ready architecture (mock UI complete)
+- **Deployment**: Vercel
+
+## Folder Structure
+
+```
+launchforge-ai/
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx                  # Landing page
+│   ├── login/page.tsx
+│   ├── signup/page.tsx
+│   ├── forgot-password/page.tsx
+│   └── dashboard/
+│       ├── layout.tsx
+│       ├── page.tsx              # Dashboard + generation form
+│       ├── history/page.tsx
+│       ├── account/page.tsx
+│       └── results/[id]/page.tsx
+├── components/
+│   ├── ui/                       # button, input, select, card, badge, score-ring, skeleton
+│   ├── features/
+│   │   └── generation-form.tsx
+│   └── layout/
+│       ├── site-nav.tsx
+│       └── dashboard-nav.tsx
+├── lib/
+│   ├── utils.ts
+│   └── mock-data.ts
+└── types/
+    └── index.ts
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cd launchforge-ai
+npm install
+npm run dev        # http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Build & Deploy
 
-## Learn More
+```bash
+npm run build      # production build
+npm start          # run production server locally
 
-To learn more about Next.js, take a look at the following resources:
+vercel             # deploy preview
+vercel --prod      # deploy production
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## GitHub
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+git init
+git add .
+git commit -m "feat: LaunchForge AI v1"
+git remote add origin https://github.com/YOUR_USERNAME/launchforge-ai.git
+git push -u origin main
+```
 
-## Deploy on Vercel
+## Environment Variables (Vercel)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+STRIPE_SECRET_KEY=
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
+STRIPE_WEBHOOK_SECRET=
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## AI Integration Points
+
+Search `AI INTEGRATION POINT` in the codebase for all integration locations:
+
+- `components/features/generation-form.tsx` — Replace mock delay with real API call
+- `app/dashboard/results/[id]/page.tsx` — Fetch result by ID from database
+- `app/login/page.tsx` — Supabase `signInWithPassword` + Google OAuth
+- `app/signup/page.tsx` — Supabase `signUp`
+- `app/dashboard/account/page.tsx` — Stripe Customer Portal
