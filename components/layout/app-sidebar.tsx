@@ -59,6 +59,13 @@ function IconUsage() {
     </svg>
   );
 }
+function IconOpportunities() {
+  return (
+    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+    </svg>
+  );
+}
 function IconSettings() {
   return (
     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -259,8 +266,9 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
 
       {/* Main nav */}
       <div className="px-2 py-1 shrink-0 space-y-0.5">
-        <NavItem href="/dashboard"       icon={<IconFolder />}   label="Projects"    exact />
-        <NavItem href="/dashboard/usage" icon={<IconUsage />}    label="Usage"            />
+        <NavItem href="/dashboard"                    icon={<IconFolder />}        label="Projects"       exact />
+        <NavItem href="/dashboard/opportunities"      icon={<IconOpportunities />} label="Opportunities"       />
+        <NavItem href="/dashboard/usage"              icon={<IconUsage />}         label="Usage"               />
         <DisabledNavItem icon={<IconDeploy />}    label="Deployments" badge="Soon" />
         <DisabledNavItem icon={<IconAnalytics />} label="Analytics"   badge="Soon" />
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   actionRunResearch,
   actionRunProduct,
@@ -318,6 +318,20 @@ function CreationState({
       <p className="text-xs mt-3" style={{ color: "hsl(220 9% 22%)" }}>
         Shift+Enter for new line · Enter to build
       </p>
+
+      <div className="mt-6 pt-5 w-full text-center" style={{ borderTop: "1px solid hsl(220 13% 14%)" }}>
+        <p className="text-xs mb-2" style={{ color: "hsl(220 9% 28%)" }}>Not sure what to build?</p>
+        <a
+          href="/dashboard/opportunities"
+          className="inline-flex items-center gap-1.5 text-xs font-medium"
+          style={{ color: "hsl(213 94% 62%)" }}
+        >
+          Browse opportunities
+          <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+          </svg>
+        </a>
+      </div>
     </div>
   );
 }
@@ -326,6 +340,7 @@ function CreationState({
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [building, setBuilding] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -425,6 +440,19 @@ export default function DashboardPage() {
     setBuilding(false);
     router.push(`/workspace/${r6.data.id}`);
   }, [building, router]);
+
+  // Auto-start build when arriving from Opportunity Engine
+  const didAutoStart = useRef(false);
+  useEffect(() => {
+    if (didAutoStart.current || building) return;
+    const from = searchParams.get("from");
+    const idea = searchParams.get("idea");
+    const type = searchParams.get("type") as ProductTypeId | null;
+    if (from === "opportunity" && idea) {
+      didAutoStart.current = true;
+      build(idea, type);
+    }
+  }, [searchParams, build, building]);
 
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: "hsl(220 14% 8%)" }}>
