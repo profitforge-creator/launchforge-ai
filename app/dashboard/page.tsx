@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   actionRunResearch,
@@ -338,7 +338,7 @@ function CreationState({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+function DashboardInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -466,5 +466,13 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense>
+      <DashboardInner />
+    </Suspense>
   );
 }
