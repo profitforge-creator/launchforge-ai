@@ -52,6 +52,13 @@ function IconAnalytics() {
     </svg>
   );
 }
+function IconUsage() {
+  return (
+    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0H3" />
+    </svg>
+  );
+}
 function IconSettings() {
   return (
     <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -252,7 +259,8 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
 
       {/* Main nav */}
       <div className="px-2 py-1 shrink-0 space-y-0.5">
-        <NavItem href="/dashboard" icon={<IconFolder />} label="Projects" exact />
+        <NavItem href="/dashboard"       icon={<IconFolder />}   label="Projects"    exact />
+        <NavItem href="/dashboard/usage" icon={<IconUsage />}    label="Usage"            />
         <DisabledNavItem icon={<IconDeploy />}    label="Deployments" badge="Soon" />
         <DisabledNavItem icon={<IconAnalytics />} label="Analytics"   badge="Soon" />
       </div>
@@ -293,7 +301,7 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
         className="px-2 py-2 shrink-0 space-y-0.5"
         style={{ borderTop: "1px solid hsl(220 13% 12%)" }}
       >
-        <NavItem href="/dashboard/settings" icon={<IconSettings />} label="Settings" />
+        <NavItem href="/dashboard/settings" icon={<IconSettings />} label="Settings"  />
         <div className="flex items-center gap-2 px-2 py-1.5 mt-1">
           <div
             className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold"

@@ -39,6 +39,9 @@ function Nav() {
         <a href="#examples" className="text-xs font-medium transition-colors hidden sm:block" style={{ color: "hsl(220 9% 46%)" }}>
           Examples
         </a>
+        <a href="#pricing" className="text-xs font-medium transition-colors hidden sm:block" style={{ color: "hsl(220 9% 46%)" }}>
+          Pricing
+        </a>
         <Link href="/dashboard" className="text-xs font-medium" style={{ color: "hsl(220 9% 46%)" }}>
           Sign in
         </Link>
@@ -281,6 +284,203 @@ const TRIAL_INCLUDES = [
   "Deployment access",
 ];
 
+// ── Pricing ───────────────────────────────────────────────────────────────────
+
+interface PricingTier {
+  name: string;
+  price: string;
+  period?: string;
+  description: string;
+  cta: string;
+  highlight: boolean;
+  features: { label: string; included: boolean }[];
+}
+
+const PRICING_TIERS: PricingTier[] = [
+  {
+    name: "Starter",
+    price: "$29",
+    period: "/ month",
+    description: "For individuals building their first business.",
+    cta: "Start Starter",
+    highlight: false,
+    features: [
+      { label: "10 projects / month",        included: true  },
+      { label: "50 AI generations / month",  included: true  },
+      { label: "Website generation",         included: true  },
+      { label: "ZIP export",                 included: true  },
+      { label: "AI advisor",                 included: true  },
+      { label: "Deployments",                included: false },
+      { label: "Analytics",                  included: false },
+      { label: "Priority support",           included: false },
+    ],
+  },
+  {
+    name: "Pro",
+    price: "$79",
+    period: "/ month",
+    description: "For serious builders launching multiple products.",
+    cta: "Start Pro",
+    highlight: true,
+    features: [
+      { label: "Unlimited projects",         included: true  },
+      { label: "Unlimited AI generations",   included: true  },
+      { label: "Website generation",         included: true  },
+      { label: "ZIP export",                 included: true  },
+      { label: "AI advisor",                 included: true  },
+      { label: "Deployments",                included: true  },
+      { label: "Analytics",                  included: true  },
+      { label: "Priority support",           included: true  },
+    ],
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    description: "For teams and agencies building at scale.",
+    cta: "Contact us",
+    highlight: false,
+    features: [
+      { label: "Everything in Pro",          included: true  },
+      { label: "Custom integrations",        included: true  },
+      { label: "Dedicated support",          included: true  },
+      { label: "SLA guarantee",             included: true  },
+      { label: "Custom deployment targets",  included: true  },
+      { label: "Team accounts",              included: true  },
+      { label: "Audit logs",                 included: true  },
+      { label: "SSO / SAML",                included: true  },
+    ],
+  },
+];
+
+function CheckIcon({ included }: { included: boolean }) {
+  if (included) {
+    return (
+      <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(151 60% 48%)", flexShrink: 0 }}>
+        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(220 9% 24%)", flexShrink: 0 }}>
+      <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function PricingCard({ tier }: { tier: PricingTier }) {
+  return (
+    <div
+      className="rounded-xl p-6 flex flex-col gap-5"
+      style={{
+        border: tier.highlight
+          ? "1px solid hsl(213 94% 62% / 0.3)"
+          : "1px solid hsl(220 13% 15%)",
+        backgroundColor: tier.highlight ? "hsl(213 94% 62% / 0.04)" : "hsl(220 13% 9%)",
+        position: "relative",
+      }}
+    >
+      {tier.highlight && (
+        <div
+          className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-semibold"
+          style={{ backgroundColor: "hsl(213 94% 58%)", color: "hsl(220 14% 7%)" }}
+        >
+          Most popular
+        </div>
+      )}
+
+      <div>
+        <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 36%)", letterSpacing: "0.08em" }}>
+          {tier.name}
+        </p>
+        <div className="flex items-baseline gap-1 mb-2">
+          <span className="text-3xl font-bold" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.03em" }}>
+            {tier.price}
+          </span>
+          {tier.period && (
+            <span className="text-sm" style={{ color: "hsl(220 9% 38%)" }}>{tier.period}</span>
+          )}
+        </div>
+        <p className="text-xs leading-relaxed" style={{ color: "hsl(220 9% 40%)" }}>
+          {tier.description}
+        </p>
+      </div>
+
+      <Link
+        href="/dashboard"
+        className="w-full h-9 rounded-lg text-sm font-semibold flex items-center justify-center transition-colors"
+        style={
+          tier.highlight
+            ? { backgroundColor: "hsl(220 9% 94%)", color: "hsl(220 14% 7%)" }
+            : { border: "1px solid hsl(220 13% 22%)", color: "hsl(220 9% 60%)", backgroundColor: "transparent" }
+        }
+      >
+        {tier.cta}
+      </Link>
+
+      <div className="space-y-2.5 pt-1" style={{ borderTop: "1px solid hsl(220 13% 14%)" }}>
+        {tier.features.map((f) => (
+          <div key={f.label} className="flex items-center gap-2.5">
+            <CheckIcon included={f.included} />
+            <span className="text-xs" style={{ color: f.included ? "hsl(220 9% 56%)" : "hsl(220 9% 28%)" }}>
+              {f.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PricingSection() {
+  return (
+    <section id="pricing" className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-14 text-center">
+          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 32%)", letterSpacing: "0.1em" }}>
+            Pricing
+          </p>
+          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.02em" }}>
+            Start with a free trial. Upgrade when ready.
+          </h2>
+          <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 42%)" }}>
+            3-day full access trial — no credit card required.
+            Upgrade at any time. Cancel at any time.
+          </p>
+        </div>
+
+        {/* Trial callout */}
+        <div
+          className="rounded-xl px-6 py-5 mb-8 flex items-center justify-between gap-4"
+          style={{ border: "1px solid hsl(151 60% 48% / 0.2)", backgroundColor: "hsl(151 60% 48% / 0.04)" }}
+        >
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "hsl(220 9% 86%)" }}>3-Day Full Access Trial</p>
+            <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 40%)" }}>
+              Everything in Pro. No credit card. Cancel anytime.
+            </p>
+          </div>
+          <Link
+            href="/dashboard"
+            className="shrink-0 h-9 px-5 rounded-lg text-sm font-semibold flex items-center"
+            style={{ backgroundColor: "hsl(220 9% 94%)", color: "hsl(220 14% 7%)" }}
+          >
+            Start trial
+          </Link>
+        </div>
+
+        {/* Plan cards */}
+        <div className="grid md:grid-cols-3 gap-5">
+          {PRICING_TIERS.map((tier) => <PricingCard key={tier.name} tier={tier} />)}
+        </div>
+
+        <p className="text-center text-xs mt-8" style={{ color: "hsl(220 9% 28%)" }}>
+          All prices in USD. Billed monthly. Annual billing available on Pro and Enterprise.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -400,6 +600,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── Pricing ── */}
+      <PricingSection />
 
       {/* ── Trial CTA ── */}
       <section className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
