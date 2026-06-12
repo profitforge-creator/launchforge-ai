@@ -47,8 +47,8 @@ function Nav() {
         </Link>
         <Link
           href="/dashboard"
-          className="h-8 px-4 rounded-lg text-xs font-semibold transition-colors"
-          style={{ backgroundColor: "hsl(220 9% 96%)", color: "hsl(220 14% 8%)" }}
+          className="h-8 px-4 rounded-lg text-xs font-medium transition-colors"
+          style={{ border: "1px solid hsl(220 13% 22%)", color: "hsl(220 9% 55%)", backgroundColor: "transparent" }}
         >
           Start Building
         </Link>
