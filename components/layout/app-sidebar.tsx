@@ -267,10 +267,10 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
       {/* Main nav */}
       <div className="px-2 py-1 shrink-0 space-y-0.5">
         <NavItem href="/dashboard"                    icon={<IconFolder />}        label="Projects"       exact />
+        <NavItem href="/dashboard/deployments"        icon={<IconDeploy />}        label="Deployments"         />
         <NavItem href="/dashboard/opportunities"      icon={<IconOpportunities />} label="Opportunities"       />
         <NavItem href="/dashboard/analytics"          icon={<IconAnalytics />}     label="Analytics"           />
         <NavItem href="/dashboard/usage"              icon={<IconUsage />}         label="Usage"               />
-        <DisabledNavItem icon={<IconDeploy />} label="Deployments" badge="Soon" />
       </div>
 
       <Divider />

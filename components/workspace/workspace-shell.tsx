@@ -7,6 +7,7 @@ import { ProductTab }   from "./tabs/product-tab";
 import { WebsiteTab }   from "./tabs/website-tab";
 import { MarketingTab } from "./tabs/marketing-tab";
 import { FilesTab }     from "./tabs/files-tab";
+import { LaunchTab }    from "./tabs/launch-tab";
 import { ChatTab }      from "./tabs/chat-tab";
 import { actionRegenerateSection } from "@/app/actions/generate";
 import { formatRelativeDate } from "@/lib/utils";
@@ -15,7 +16,7 @@ import type { BusinessResult } from "@/types";
 
 // ── Tab types ─────────────────────────────────────────────────────────────────
 
-type WorkspaceTab = "overview" | "research" | "product" | "website" | "marketing" | "files";
+type WorkspaceTab = "overview" | "research" | "product" | "website" | "marketing" | "files" | "launch";
 
 const TABS: { id: WorkspaceTab; label: string }[] = [
   { id: "overview",   label: "Overview"   },
@@ -24,6 +25,7 @@ const TABS: { id: WorkspaceTab; label: string }[] = [
   { id: "website",    label: "Website"    },
   { id: "marketing",  label: "Marketing"  },
   { id: "files",      label: "Files"      },
+  { id: "launch",     label: "Launch"     },
 ];
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -220,6 +222,7 @@ export function WorkspaceShell({ result: initialResult }: { result: BusinessResu
           {activeTab === "website"   && <WebsiteTab   result={result} />}
           {activeTab === "marketing" && <MarketingTab marketing={result.marketing} onRegenerate={() => regenerate("marketing")} regenerating={regenerating} />}
           {activeTab === "files"     && <FilesTab     result={result} projectId={result.id} />}
+          {activeTab === "launch"    && <LaunchTab    result={result} />}
         </div>
 
         {chatOpen && <ChatPanel workspaceId={result.id} onClose={() => setChatOpen(false)} />}

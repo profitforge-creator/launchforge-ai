@@ -31,6 +31,27 @@ export interface AnalyticsData {
   scoreDistribution: { label: string; score: number }[];
 }
 
+export interface ProjectListItem {
+  id: string;
+  name: string;
+  type: string;
+  createdAt: string;
+  hasWebsite: boolean;
+  hasMarketing: boolean;
+}
+
+export async function actionGetProjectList(): Promise<ProjectListItem[]> {
+  const generations = getAllGenerations();
+  return generations.map((g) => ({
+    id: g.id,
+    name: g.product.name,
+    type: g.formData.businessType ?? "open",
+    createdAt: g.createdAt,
+    hasWebsite: (g.projectFiles?.filter((f) => f.folder === "website") ?? []).length > 0,
+    hasMarketing: (g.marketing?.launchStrategy?.length ?? 0) > 0,
+  }));
+}
+
 export async function actionGetAnalyticsData(): Promise<AnalyticsData> {
   const generations = getAllGenerations();
 
