@@ -1,9 +1,41 @@
 import { Badge } from "@/components/ui/badge";
 import type { MarketingPlan } from "@/types";
 
-export function MarketingTab({ marketing }: { marketing: MarketingPlan }) {
+export function MarketingTab({
+  marketing,
+  onRegenerate,
+  regenerating = false,
+}: {
+  marketing: MarketingPlan;
+  onRegenerate?: () => void;
+  regenerating?: boolean;
+}) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-3xl">
+      {/* Header with improve button */}
+      {onRegenerate && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold" style={{ color: "hsl(220 9% 80%)" }}>Marketing System</p>
+          <button
+            onClick={onRegenerate}
+            disabled={regenerating}
+            className="flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-medium transition-colors"
+            style={{
+              border: "1px solid hsl(213 94% 62% / 0.25)",
+              color: "hsl(213 94% 65%)",
+              backgroundColor: "hsl(213 94% 62% / 0.04)",
+              opacity: regenerating ? 0.4 : 1,
+              cursor: regenerating ? "not-allowed" : "pointer",
+            }}
+          >
+            <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+            {regenerating ? "Regenerating…" : "Improve Marketing"}
+          </button>
+        </div>
+      )}
+
       {/* Content pillars */}
       {marketing.contentPillars.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

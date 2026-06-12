@@ -51,6 +51,13 @@ export function getHistoryRecords(): HistoryRecord[] {
   return getAllGenerations().map(toHistoryRecord);
 }
 
+export function patchGeneration(id: string, patch: Partial<BusinessResult>): boolean {
+  const current = store.get(id);
+  if (!current) return false;
+  store.set(id, { ...current, ...patch });
+  return true;
+}
+
 export function updateProjectFile(projectId: string, path: string, content: string): boolean {
   const result = store.get(projectId);
   if (!result || !result.projectFiles) return false;

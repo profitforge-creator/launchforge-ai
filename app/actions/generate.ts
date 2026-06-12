@@ -10,8 +10,9 @@ import {
   runWebsiteStep,
   assembleResult,
 } from "@/lib/generation/orchestrator";
-import { saveGeneration } from "@/lib/storage/generation-store";
+import { saveGeneration, getGeneration, patchGeneration } from "@/lib/storage/generation-store";
 import { rollbackProjectIncrement } from "@/lib/ai/rate-limiter";
+import { geminiJSON } from "@/lib/ai/gemini";
 import type { BusinessFormData, BusinessResult, ProjectFile } from "@/types";
 import type { AssetSet } from "@/lib/assets/types";
 import type {
@@ -64,6 +65,123 @@ export async function actionDiagnoseGemini(): Promise<{
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { keyPresent, keyPrefix, testResult: "", error: msg };
+  }
+}
+
+// ── Idea generation ───────────────────────────────────────────────────────────
+
+interface GeneratedIdea {
+  title: string;
+  type: string;
+  description: string;
+  audience: string;
+}
+
+export async function actionGenerateIdeas(
+  context?: string,
+): Promise<StepResult<GeneratedIdea[]>> {
+  try {
+    const prompt = context?.trim()
+      ? `Generate 4 concrete business ideas based on this context: "${context}". Each idea should be a specific, actionable product concept.`
+      : "Generate 4 diverse, concrete business ideas suitable for a solo founder to build. Cover different niches and product types.";
+
+    const data = await geminiJSON<{ ideas: GeneratedIdea[] }>(
+      `You generate business idea concepts for solo founders. For each idea respond with a JSON array. Each idea has: title (product name, 2-4 words), type (one of: Digital Product, Course, SaaS, Agency Offer, Membership), description (1 sentence, specific and actionable), audience (who it's for, 5-8 words). Return: {"ideas": [...]}`,
+      prompt,
+    );
+    return { success: true, data: data.ideas ?? [] };
+  } catch (err) {
+    return { success: false, error: extractError(err, "IdeaGen") };
+  }
+}
+
+// ── Section regeneration ──────────────────────────────────────────────────────
+
+export async function actionRegenerateSection(
+  projectId: string,
+  section: "product" | "website" | "marketing",
+): Promise<StepResult<BusinessResult>> {
+  try {
+    const existing = getGeneration(projectId);
+    if (!existing) return { success: false, error: "Project not found." };
+
+    // Reconstruct minimal research output from stored data
+    const research: ResearchAgentOutput = {
+      niche: existing.niche,
+      targetMarket: existing.formData.interests,
+      demandScore: existing.scores.demand,
+      competitionScore: existing.scores.competition,
+      monetizationScore: existing.scores.monetization,
+      difficultyScore: existing.scores.difficulty,
+      opportunitySummary: existing.summary,
+      competitors: existing.competitors,
+      marketGaps: existing.marketGaps,
+    };
+
+    if (section === "product") {
+      const result = await runProductStep(existing.formData, research);
+      // Map ProductAgentOutput → ProductConcept
+      const newProduct = {
+        name: result.productName,
+        tagline: result.tagline,
+        description: result.description,
+        targetAudience: result.targetAudience,
+        deliverables: result.deliverables,
+        pricingModel: result.pricingModel,
+        suggestedPrice: result.suggestedPrice,
+        timeToLaunch: result.timeToLaunch,
+      };
+      patchGeneration(projectId, { product: newProduct });
+      const updated = getGeneration(projectId)!;
+      return { success: true, data: updated };
+    }
+
+    if (section === "website") {
+      // Build ProductAgentOutput from stored product
+      const productAgent: ProductAgentOutput = {
+        productName: existing.product.name,
+        tagline: existing.product.tagline,
+        description: existing.product.description,
+        targetAudience: existing.product.targetAudience,
+        deliverables: existing.product.deliverables,
+        pricingModel: existing.product.pricingModel,
+        suggestedPrice: existing.product.suggestedPrice,
+        timeToLaunch: existing.product.timeToLaunch,
+      };
+      const newFiles = await runWebsiteStep(productAgent, research);
+      const existingNonWebsite = existing.projectFiles?.filter((f) => f.folder !== "website") ?? [];
+      patchGeneration(projectId, { projectFiles: [...existingNonWebsite, ...newFiles] });
+      const updated = getGeneration(projectId)!;
+      return { success: true, data: updated };
+    }
+
+    if (section === "marketing") {
+      const productAgent: ProductAgentOutput = {
+        productName: existing.product.name,
+        tagline: existing.product.tagline,
+        description: existing.product.description,
+        targetAudience: existing.product.targetAudience,
+        deliverables: existing.product.deliverables,
+        pricingModel: existing.product.pricingModel,
+        suggestedPrice: existing.product.suggestedPrice,
+        timeToLaunch: existing.product.timeToLaunch,
+      };
+      const result = await runMarketingStep(existing.formData, research, productAgent);
+      const newMarketing = {
+        tiktokHooks: result.tiktokHooks,
+        contentIdeas: result.contentIdeas,
+        contentPillars: result.contentPillars,
+        launchStrategy: result.launchStrategy,
+        contentCalendar: result.contentCalendar,
+      };
+      patchGeneration(projectId, { marketing: newMarketing });
+      const updated = getGeneration(projectId)!;
+      return { success: true, data: updated };
+    }
+
+    return { success: false, error: "Unknown section." };
+  } catch (err) {
+    return { success: false, error: extractError(err, `Regenerate:${section}`) };
   }
 }
 
