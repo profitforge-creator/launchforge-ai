@@ -9,13 +9,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LaunchForge AI — Turn Your Skills Into a Business",
+  title: "LaunchForge — Build a Business. Not Another AI Tool.",
   description:
-    "Get a researched business idea, competitor analysis, product concept, and marketing strategy instantly.",
-  keywords: ["business idea generator", "startup ideas", "side project", "solopreneur"],
+    "Describe an idea. LaunchForge researches the market, creates the product, builds the website, and prepares the launch.",
+  keywords: ["business builder", "startup", "solopreneur", "ai business", "product launch"],
   openGraph: {
-    title: "LaunchForge AI",
-    description: "Turn Your Skills Into a Business in Minutes",
+    title: "LaunchForge",
+    description: "Build a Business. Not Another AI Tool.",
     type: "website",
   },
 };
