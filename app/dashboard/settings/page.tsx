@@ -1,8 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import type { ConnectedService } from "@/lib/account/types";
-import { DEFAULT_SERVICES, PLAN_LIMITS, PLAN_PRICES } from "@/lib/account/types";
+import Link from "next/link";
+import { PLAN_LIMITS } from "@/lib/account/types";
+import {
+  actionGetAllIntegrationStatuses,
+  type IntegrationKey,
+  type IntegrationStatus,
+} from "@/app/actions/integrations";
 
 // ── Local profile store (localStorage) ───────────────────────────────────────
 
@@ -304,55 +309,91 @@ function ProfileSection() {
   );
 }
 
-function AccountSection({ services, setServices }: { services: ConnectedService[]; setServices: React.Dispatch<React.SetStateAction<ConnectedService[]>> }) {
-  function toggleService(id: ConnectedService["id"]) {
-    setServices((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, status: s.status === "connected" ? "disconnected" : "connected" }
-          : s,
-      ),
-    );
-  }
+// Real integration status pulled from server on mount.
+// "Connected" is only shown when a token has been authenticated against the real API.
+function AccountSection() {
+  const [statuses, setStatuses] = useState<Record<IntegrationKey, IntegrationStatus> | null>(null);
 
-  const statusColor = (s: ConnectedService["status"]) =>
-    s === "connected" ? "hsl(151 60% 48%)" : "hsl(220 9% 30%)";
+  useEffect(() => {
+    actionGetAllIntegrationStatuses().then(setStatuses);
+  }, []);
+
+  const SERVICES: { id: IntegrationKey; label: string; description: string }[] = [
+    { id: "github",   label: "GitHub",   description: "Source control and deployment triggers" },
+    { id: "vercel",   label: "Vercel",   description: "One-click website deployment"           },
+    { id: "stripe",   label: "Stripe",   description: "Payment and subscription management"    },
+    { id: "supabase", label: "Supabase", description: "Database and authentication"            },
+    { id: "webflow",  label: "Webflow",  description: "No-code website publishing"            },
+  ];
 
   return (
     <div className="space-y-5">
       <SectionTitle title="Account" sub="Account details, plan status, and connected services." />
 
       <Card>
-        <Row label="Email"          value="hesirq@gmail.com"                sub="Primary sign-in address" />
-        <Row label="Account status" value="Active"                          sub="Your account is in good standing" />
-        <Row label="Current plan"   value="3-Day Trial"                     sub="Full access trial" action={<Btn>Upgrade</Btn>} last />
+        <Row label="Email"          value="hesirq@gmail.com" sub="Primary sign-in address" />
+        <Row label="Account status" value="Active"           sub="Your account is in good standing" />
+        <Row label="Current plan"   value="3-Day Trial"      sub="Full access trial" action={<Btn>Upgrade</Btn>} last />
       </Card>
 
       <div>
-        <p className="text-xs font-medium mb-3 px-0.5" style={{ color: "hsl(220 9% 40%)" }}>Connected services</p>
+        <div className="flex items-center justify-between mb-3 px-0.5">
+          <p className="text-xs font-medium" style={{ color: "hsl(220 9% 40%)" }}>Connected services</p>
+          <Link
+            href="/dashboard/deployments"
+            className="text-xs font-medium transition-colors"
+            style={{ color: "hsl(213 94% 56%)" }}
+          >
+            Manage in Deployments →
+          </Link>
+        </div>
         <Card>
-          {services.map((svc, i) => (
-            <Row
-              key={svc.id}
-              label={svc.label}
-              sub={svc.description}
-              last={i === services.length - 1}
-              value={
-                <span className="text-xs font-medium" style={{ color: statusColor(svc.status) }}>
-                  {svc.status === "connected" ? "Connected" : "Disconnected"}
-                </span>
-              }
-              action={
-                <Btn
-                  onClick={() => toggleService(svc.id)}
-                  variant={svc.status === "connected" ? "danger" : "default"}
-                >
-                  {svc.status === "connected" ? "Disconnect" : "Connect"}
-                </Btn>
-              }
-            />
-          ))}
+          {SERVICES.map((svc, i) => {
+            const status = statuses?.[svc.id];
+            const isConnected = status?.connected === true;
+            const isLoading   = statuses === null;
+
+            return (
+              <Row
+                key={svc.id}
+                label={svc.label}
+                sub={svc.description}
+                last={i === SERVICES.length - 1}
+                value={
+                  isLoading ? (
+                    <span className="text-xs" style={{ color: "hsl(220 9% 28%)" }}>—</span>
+                  ) : isConnected ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md"
+                      style={{ backgroundColor: "hsl(151 60% 48% / 0.1)", color: "hsl(151 60% 50%)", border: "1px solid hsl(151 60% 48% / 0.2)" }}
+                    >
+                      <span className="w-1 h-1 rounded-full" style={{ backgroundColor: "hsl(151 60% 48%)" }} />
+                      Connected
+                    </span>
+                  ) : (
+                    <span className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Not connected</span>
+                  )
+                }
+                action={
+                  <Link
+                    href="/dashboard/deployments"
+                    className="h-8 px-4 rounded-lg text-xs font-medium flex items-center transition-colors"
+                    style={{
+                      border: "1px solid hsl(220 13% 22%)",
+                      color: "hsl(220 9% 58%)",
+                      backgroundColor: "transparent",
+                    }}
+                  >
+                    {isConnected ? "Manage" : "Connect"}
+                  </Link>
+                }
+              />
+            );
+          })}
         </Card>
+        <p className="text-xs mt-2 px-0.5" style={{ color: "hsl(220 9% 26%)", lineHeight: 1.6 }}>
+          Connections are authenticated against each platform's API. Status reflects real account authentication.
+        </p>
       </div>
     </div>
   );
@@ -619,7 +660,6 @@ function AboutSection() {
 
 export default function SettingsPage() {
   const [active, setActive] = useState<SettingsSection>("profile");
-  const [services, setServices] = useState<ConnectedService[]>(DEFAULT_SERVICES);
 
   return (
     <div className="flex gap-8 max-w-4xl">
@@ -649,7 +689,7 @@ export default function SettingsPage() {
       {/* Content */}
       <div className="flex-1 min-w-0">
         {active === "profile"       && <ProfileSection />}
-        {active === "account"       && <AccountSection services={services} setServices={setServices} />}
+        {active === "account"       && <AccountSection />}
         {active === "plan"          && <PlanSection />}
         {active === "notifications" && <NotificationsSection />}
         {active === "security"      && <SecuritySection />}
