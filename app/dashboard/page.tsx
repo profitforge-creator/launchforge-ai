@@ -40,12 +40,15 @@ interface GeneratedIdea {
 // ── Product types ─────────────────────────────────────────────────────────────
 
 const PRODUCT_TYPES = [
-  { id: "digital-product", label: "Digital Product",  sub: "Templates, toolkits, guides" },
-  { id: "course",          label: "Course / Guide",   sub: "Teach what you know"          },
-  { id: "saas",            label: "SaaS / App",       sub: "Software tool or platform"    },
-  { id: "agency",          label: "Agency Offer",     sub: "Productized service"          },
-  { id: "membership",      label: "Membership",       sub: "Recurring community or access"},
-  { id: "open",            label: "Not sure yet",     sub: "I'll describe my idea"        },
+  { id: "course",      label: "Course",        sub: "Teach what you know"             },
+  { id: "ebook",       label: "Ebook",         sub: "Publish your expertise"          },
+  { id: "template",    label: "Template",      sub: "Done-for-you system or kit"      },
+  { id: "saas",        label: "SaaS",          sub: "Software tool or platform"       },
+  { id: "agency",      label: "Agency",        sub: "Productized service"             },
+  { id: "membership",  label: "Membership",    sub: "Recurring community or access"   },
+  { id: "coaching",    label: "Coaching",      sub: "1:1 or group coaching program"   },
+  { id: "newsletter",  label: "Newsletter",    sub: "Build an audience via email"     },
+  { id: "open",        label: "Not sure yet",  sub: "I'll describe my idea"           },
 ] as const;
 
 type ProductTypeId = typeof PRODUCT_TYPES[number]["id"];
@@ -186,12 +189,15 @@ function CreationState({
 
   const canBuild = input.trim().length >= 3;
   const placeholder =
-    selectedType === "course"         ? "e.g. I want to teach people how to build habits..." :
-    selectedType === "saas"           ? "e.g. A tool that helps developers track their time..." :
-    selectedType === "agency"         ? "e.g. Done-for-you Instagram content for local businesses..." :
-    selectedType === "membership"     ? "e.g. A community for indie hackers to share revenue..." :
-    selectedType === "digital-product"? "e.g. Notion template for freelance client management..." :
-                                        "Describe your idea, interest, or problem to solve...";
+    selectedType === "course"     ? "e.g. I want to teach people how to build habits..."        :
+    selectedType === "ebook"      ? "e.g. A guide on freelance pricing for designers..."          :
+    selectedType === "template"   ? "e.g. Notion template for freelance client management..."     :
+    selectedType === "saas"       ? "e.g. A tool that helps developers track their time..."       :
+    selectedType === "agency"     ? "e.g. Done-for-you Instagram content for local businesses..." :
+    selectedType === "membership" ? "e.g. A community for indie hackers to share revenue..."      :
+    selectedType === "coaching"   ? "e.g. 90-day program to help founders build a hiring system..." :
+    selectedType === "newsletter" ? "e.g. A weekly newsletter on AI tools for marketers..."       :
+                                    "Describe your idea, interest, or problem to solve...";
 
   return (
     <div className="flex flex-col items-center justify-center h-full px-6 py-10 max-w-2xl mx-auto w-full">
@@ -381,7 +387,7 @@ export default function DashboardPage() {
     // Website
     const r3id = uid();
     addMsg({ id: r3id, role: "assistant", content: "Building the website...", status: "loading" });
-    const r3 = await actionRunWebsite(product, research);
+    const r3 = await actionRunWebsite(product, research, form.businessType ?? "open");
     if (!r3.success) { updateMsg(r3id, { content: r3.error, status: "error" }); setBuilding(false); return; }
     websiteFiles = r3.data;
     const pageList = websiteFiles.filter((f) => f.name.endsWith(".tsx")).map((f) => f.path.replace("/website/app/", "/")).join("  ·  ");

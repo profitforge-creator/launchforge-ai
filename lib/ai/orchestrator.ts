@@ -21,10 +21,10 @@
 import { geminiJSON } from "@/lib/ai/gemini";
 import { GEMINI_PRO_MODEL } from "@/lib/ai/gemini";
 import { RESEARCH_SYSTEM_PROMPT, buildResearchPrompt } from "@/lib/prompts/research-prompts";
-import { PRODUCT_SYSTEM_PROMPT, buildProductPrompt } from "@/lib/prompts/product-prompts";
-import { MARKETING_SYSTEM_PROMPT, buildMarketingPrompt } from "@/lib/prompts/marketing-prompts";
+import { getProductSystemPrompt, buildProductPrompt } from "@/lib/prompts/product-prompts";
+import { getMarketingSystemPrompt, buildMarketingPrompt } from "@/lib/prompts/marketing-prompts";
 import { CRITIC_SYSTEM_PROMPT, buildCriticPrompt } from "@/lib/prompts/critic-prompts";
-import { WEBSITE_SYSTEM_PROMPT, buildWebsitePrompt } from "@/lib/prompts/website-prompts";
+import { getWebsiteSystemPrompt, buildWebsitePrompt } from "@/lib/prompts/website-prompts";
 import type { WebsiteContent } from "@/lib/prompts/website-prompts";
 import { generateWebsiteFiles } from "@/lib/generation/website-generator";
 import { buildProjectFiles } from "@/lib/project/files";
@@ -72,7 +72,7 @@ export async function runProduct(
 ): Promise<ProductAgentOutput> {
   const input = toAgentInput(form);
   return geminiJSON<ProductAgentOutput>(
-    PRODUCT_SYSTEM_PROMPT,
+    getProductSystemPrompt(input.businessType),
     buildProductPrompt(input, research),
   );
 }
@@ -82,10 +82,11 @@ export async function runProduct(
 export async function runWebsiteContent(
   product: ProductAgentOutput,
   research: ResearchAgentOutput,
+  businessType = "open",
 ): Promise<WebsiteContent> {
   return geminiJSON<WebsiteContent>(
-    WEBSITE_SYSTEM_PROMPT,
-    buildWebsitePrompt(product, research),
+    getWebsiteSystemPrompt(businessType),
+    buildWebsitePrompt(product, research, businessType),
   );
 }
 
@@ -96,8 +97,9 @@ export async function runWebsiteContent(
 export async function runWebsite(
   product: ProductAgentOutput,
   research: ResearchAgentOutput,
+  businessType = "open",
 ): Promise<ProjectFile[]> {
-  const content = await runWebsiteContent(product, research);
+  const content = await runWebsiteContent(product, research, businessType);
   return generateWebsiteFiles(product, research, content);
 }
 
@@ -110,7 +112,7 @@ export async function runMarketing(
 ): Promise<MarketingAgentOutput> {
   const input = toAgentInput(form);
   return geminiJSON<MarketingAgentOutput>(
-    MARKETING_SYSTEM_PROMPT,
+    getMarketingSystemPrompt(input.businessType),
     buildMarketingPrompt(input, research, product),
   );
 }

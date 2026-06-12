@@ -86,7 +86,7 @@ export async function actionGenerateIdeas(
       : "Generate 4 diverse, concrete business ideas suitable for a solo founder to build. Cover different niches and product types.";
 
     const data = await geminiJSON<{ ideas: GeneratedIdea[] }>(
-      `You generate business idea concepts for solo founders. For each idea respond with a JSON array. Each idea has: title (product name, 2-4 words), type (one of: Digital Product, Course, SaaS, Agency Offer, Membership), description (1 sentence, specific and actionable), audience (who it's for, 5-8 words). Return: {"ideas": [...]}`,
+      `You generate business idea concepts for solo founders. For each idea respond with a JSON array. Each idea has: title (product name, 2-4 words), type (one of: course, ebook, template, saas, agency, membership, coaching, newsletter), description (1 sentence, specific and actionable), audience (who it's for, 5-8 words). Return: {"ideas": [...]}`,
       prompt,
     );
     return { success: true, data: data.ideas ?? [] };
@@ -148,7 +148,7 @@ export async function actionRegenerateSection(
         suggestedPrice: existing.product.suggestedPrice,
         timeToLaunch: existing.product.timeToLaunch,
       };
-      const newFiles = await runWebsiteStep(productAgent, research);
+      const newFiles = await runWebsiteStep(productAgent, research, existing.formData.businessType ?? "open");
       const existingNonWebsite = existing.projectFiles?.filter((f) => f.folder !== "website") ?? [];
       patchGeneration(projectId, { projectFiles: [...existingNonWebsite, ...newFiles] });
       const updated = getGeneration(projectId)!;
@@ -234,9 +234,10 @@ export async function actionRunAssets(
 export async function actionRunWebsite(
   product: ProductAgentOutput,
   research: ResearchAgentOutput,
+  businessType = "open",
 ): Promise<StepResult<ProjectFile[]>> {
   try {
-    const data = await runWebsiteStep(product, research);
+    const data = await runWebsiteStep(product, research, businessType);
     return { success: true, data };
   } catch (err) {
     return { success: false, error: extractError(err, "Website") };
