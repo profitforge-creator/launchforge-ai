@@ -97,19 +97,12 @@ function Nav() {
       }}
     >
       <Logo />
-      <div className="flex items-center gap-5">
-        <a href="#features"     className="text-xs font-medium hidden sm:block" style={{ color: "hsl(220 9% 44%)" }}>Features</a>
-        <a href="#how-it-works" className="text-xs font-medium hidden sm:block" style={{ color: "hsl(220 9% 44%)" }}>How it works</a>
-        <a href="#pricing"      className="text-xs font-medium hidden sm:block" style={{ color: "hsl(220 9% 44%)" }}>Pricing</a>
-        <Link href="/dashboard" className="text-xs font-medium" style={{ color: "hsl(220 9% 48%)" }}>
+      <div className="flex items-center gap-6">
+        <a href="#features"     className="text-xs font-medium hidden sm:block" style={{ color: "hsl(220 9% 40%)" }}>Features</a>
+        <a href="#how-it-works" className="text-xs font-medium hidden md:block" style={{ color: "hsl(220 9% 40%)" }}>How it works</a>
+        <a href="#pricing"      className="text-xs font-medium hidden sm:block" style={{ color: "hsl(220 9% 40%)" }}>Pricing</a>
+        <Link href="/dashboard" className="text-xs font-medium" style={{ color: "hsl(220 9% 46%)" }}>
           Sign in
-        </Link>
-        <Link
-          href="/dashboard"
-          className="h-8 px-4 rounded-lg text-xs font-medium transition-all"
-          style={{ border: "1px solid hsl(220 13% 22%)", color: "hsl(220 9% 55%)", backgroundColor: "transparent" }}
-        >
-          Start Building
         </Link>
       </div>
     </nav>
@@ -120,7 +113,7 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="relative pt-36 pb-28 px-6 overflow-hidden">
+    <section className="relative pt-28 pb-24 px-6 overflow-hidden">
       {/* Background: grid + glow */}
       <div className="absolute inset-0 pointer-events-none select-none" aria-hidden>
         <div
@@ -192,21 +185,26 @@ function Hero() {
         </p>
 
         {/* CTAs */}
-        <div className="flex items-center justify-center gap-3 flex-wrap mb-12">
+        <div className="flex flex-col items-center gap-4 mb-12">
           <Link
             href="/dashboard"
-            className="h-11 px-7 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-[0.98]"
-            style={{ backgroundColor: "hsl(220 9% 96%)", color: "hsl(220 14% 7%)" }}
+            className="h-12 px-10 rounded-xl text-sm font-semibold transition-all hover:opacity-92 active:scale-[0.98] inline-flex items-center"
+            style={{
+              backgroundColor: "hsl(220 9% 96%)",
+              color: "hsl(220 14% 7%)",
+              boxShadow: "0 0 0 1px hsl(220 9% 86% / 0.15), 0 4px 24px hsl(220 14% 5% / 0.5)",
+              letterSpacing: "-0.01em",
+            }}
           >
-            Start Building
+            Start Building — Free Trial
           </Link>
           <a
             href="#demo"
-            className="h-11 px-6 rounded-xl text-sm font-medium flex items-center gap-2 transition-all"
-            style={{ border: "1px solid hsl(220 13% 19%)", color: "hsl(220 9% 56%)" }}
+            className="flex items-center gap-1.5 text-xs font-medium transition-all"
+            style={{ color: "hsl(220 9% 38%)" }}
           >
             <IconPlay />
-            Watch Demo
+            <span>Watch a demo build</span>
           </a>
         </div>
 
