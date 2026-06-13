@@ -18,10 +18,8 @@ import {
   actionTestGitHubOAuth,
   actionValidateSupabaseEnv,
   actionValidateStripeEnv,
-  type IntegrationKey,
-  type IntegrationStatus,
-  type ConnectResult,
 } from "@/app/actions/integrations";
+import type { IntegrationKey, IntegrationStatus, ConnectResult } from "@/lib/storage/integration-store";
 
 type OAuthConfig = { github: boolean; stripe: boolean; webflow: boolean };
 type EnvDiagnostics = Awaited<ReturnType<typeof actionGetEnvDiagnostics>>;

@@ -3,11 +3,8 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { PLAN_LIMITS } from "@/lib/account/types";
-import {
-  actionGetAllIntegrationStatuses,
-  type IntegrationKey,
-  type IntegrationStatus,
-} from "@/app/actions/integrations";
+import { actionGetAllIntegrationStatuses } from "@/app/actions/integrations";
+import type { IntegrationKey, IntegrationStatus } from "@/lib/storage/integration-store";
 
 // ── Local profile store (localStorage) ───────────────────────────────────────
 

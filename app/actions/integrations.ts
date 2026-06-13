@@ -11,7 +11,6 @@ import {
   type StoredIntegration,
 } from "@/lib/storage/integration-store";
 
-export type { IntegrationKey, ConnectResult, IntegrationStatus };
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────
 //
