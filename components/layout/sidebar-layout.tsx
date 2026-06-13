@@ -8,7 +8,7 @@ export function SidebarLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "hsl(220 13% 8%)" }}>
       <AppSidebar workspaces={workspaces} />
-      <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+      <div className="flex-1 min-w-0 min-h-0 overflow-y-auto">
         {children}
       </div>
     </div>

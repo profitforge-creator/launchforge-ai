@@ -318,7 +318,8 @@ function resolveVercelFromEnv(): IntegrationStatus | null {
 
 function resolveGitHubFromEnv(): IntegrationStatus | null {
   if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) return null;
-  return { connected: true, source: "env", connectedAt: new Date().toISOString(), metadata: { name: "OAuth App", app_id: process.env.GITHUB_CLIENT_ID } };
+  // Credentials present but not yet validated — user clicks "Test Connection" to confirm.
+  return { connected: false, source: "env" };
 }
 
 function resolveSupabaseFromEnv(): IntegrationStatus | null {
@@ -471,40 +472,35 @@ export async function actionValidateSupabaseEnv(): Promise<ConnectResult> {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return { success: false };
 
-  // Extract project reference ID from URL (https://<ref>.supabase.co)
   const refMatch = url.match(/https?:\/\/([^.]+)\.supabase\.co/);
   const projectRef = refMatch?.[1] ?? undefined;
 
+  const signal = AbortSignal.timeout(10_000);
+  const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
+
   try {
-    // Verify connectivity via the REST root (returns OpenAPI spec at 200)
     const res = await fetch(`${url}/rest/v1/`, {
-      headers: {
-        apikey:        key,
-        Authorization: `Bearer ${key}`,
-      },
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
       cache: "no-store",
+      signal,
     });
-    // 200 = success; 406 = content-type negotiation (still reachable); anything else = error
     if (!res.ok && res.status !== 406) {
       if (res.status === 401 || res.status === 403) {
         return { success: false, error: "Supabase anon key is invalid or project is paused." };
       }
       return { success: false, error: `Supabase returned ${res.status}.` };
     }
-
     return {
       success: true,
       status: {
         connected:   true,
         source:      "env",
         connectedAt: new Date().toISOString(),
-        metadata: {
-          name:       projectRef ? `Project ${projectRef}` : "Supabase Project",
-          projectRef,
-        },
+        metadata: { name: projectRef ? `Project ${projectRef}` : "Supabase Project", projectRef },
       },
     };
-  } catch {
+  } catch (e) {
+    if (isAbort(e)) return { success: false, error: "Supabase connection timed out." };
     return { success: false, error: "Network error reaching Supabase." };
   }
 }
@@ -517,10 +513,14 @@ export async function actionValidateStripeEnv(): Promise<ConnectResult> {
     return { success: false, error: "STRIPE_SECRET_KEY has an invalid format." };
   }
 
+  const signal = AbortSignal.timeout(10_000);
+  const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
+
   try {
     const res = await fetch("https://api.stripe.com/v1/account", {
       headers: { Authorization: `Bearer ${key}` },
       cache: "no-store",
+      signal,
     });
     if (res.status === 401) {
       return { success: false, error: "Stripe key is invalid or revoked." };
@@ -544,7 +544,8 @@ export async function actionValidateStripeEnv(): Promise<ConnectResult> {
         },
       },
     };
-  } catch {
+  } catch (e) {
+    if (isAbort(e)) return { success: false, error: "Stripe connection timed out." };
     return { success: false, error: "Network error reaching Stripe API." };
   }
 }
@@ -584,7 +585,8 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
           connectedAt: stored.connectedAt,
           metadata:    stored.metadata as IntegrationStatus["metadata"],
         };
-      } else if (envFallbacks[key]?.connected) {
+      } else if (envFallbacks[key] !== undefined) {
+        // Include env fallbacks even when connected:false (e.g. Vercel/GitHub token present but unvalidated)
         result[key] = envFallbacks[key]!;
       } else {
         result[key] = { connected: false };

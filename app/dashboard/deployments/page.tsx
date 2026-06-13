@@ -323,10 +323,9 @@ function PlatformCard({
   const isConnecting  = state === "connecting";
   const isEnvSource   = status.source === "env";
   const isVerifying   = isConnecting && isEnvSource;
-  // Show "Test Connection" button when:
-  // - Vercel: token present in env but not yet tested (connected:false, source:"env")
-  // - GitHub: OAuth app credentials present but not yet tested
-  const needsTestBtn  = isEnvSource && !isConnecting && !isConnected && (id === "vercel" || id === "github");
+  // Show test/retry button for any env-sourced platform that isn't connected yet
+  // (Vercel & GitHub: user-triggered; Supabase & Stripe: also shows as retry after error)
+  const needsTestBtn  = isEnvSource && !isConnecting && !isConnected;
 
   const borderColor = isConnected
     ? "hsl(151 60% 48% / 0.2)"
@@ -488,12 +487,14 @@ function PlatformCard({
       {/* ENV-sourced + needs test button (Vercel or GitHub) */}
       {needsTestBtn && (
         <div className="mt-auto space-y-2">
-          {/* "Token configured" notice */}
           <div
             className="rounded-lg px-3 py-2 text-xs"
             style={{ backgroundColor: "hsl(213 94% 62% / 0.06)", border: "1px solid hsl(213 94% 62% / 0.15)", color: "hsl(213 94% 62%)" }}
           >
-            {id === "vercel" ? "Vercel token configured via environment variable." : "OAuth credentials configured via environment variable."}
+            {id === "vercel"   && "Vercel token configured via environment variable."}
+            {id === "github"   && "GitHub OAuth credentials configured via environment variable."}
+            {id === "supabase" && "Supabase credentials configured via environment variable."}
+            {id === "stripe"   && "Stripe key configured via environment variable."}
           </div>
           <button
             onClick={() => onTestConnection(id)}
@@ -502,22 +503,32 @@ function PlatformCard({
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 78%)"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 14%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 60%)"; }}
           >
-            {id === "vercel" ? "Test Vercel connection" : "Test Connection"}
+            {state === "error" ? `Retry ${meta.name} connection` : `Test ${meta.name} connection`}
           </button>
         </div>
       )}
 
-      {/* Not connected: show connect button */}
+      {/* Not connected: show connect button (with OAuth note for Webflow) */}
       {!isConnected && !isEnvSource && !showForm && (
-        <button
-          onClick={() => onShowForm(id)}
-          className="mt-auto h-8 rounded-lg text-xs font-medium transition-all"
-          style={{ backgroundColor: "hsl(220 13% 15%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 55%)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 70%)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 15%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 55%)"; }}
-        >
-          Connect {meta.name}
-        </button>
+        <div className="mt-auto space-y-2">
+          {id === "webflow" && (
+            <div
+              className="rounded-lg px-3 py-2 text-xs"
+              style={{ backgroundColor: "hsl(38 90% 55% / 0.06)", border: "1px solid hsl(38 90% 55% / 0.18)", color: "hsl(38 90% 60%)" }}
+            >
+              Webflow OAuth is not configured. Connect via API token below.
+            </div>
+          )}
+          <button
+            onClick={() => onShowForm(id)}
+            className="w-full h-8 rounded-lg text-xs font-medium transition-all"
+            style={{ backgroundColor: "hsl(220 13% 15%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 55%)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 70%)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 15%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 55%)"; }}
+          >
+            Connect {meta.name}
+          </button>
+        </div>
       )}
 
       {isConnected && !isEnvSource && !showManage && (
@@ -819,12 +830,13 @@ export default function DeploymentsPage() {
       if (result.success && result.status) {
         return { ...prev, [key]: { state: "connected", status: result.status, error: null, showForm: false, showManage: false } };
       }
-      // error present = configured but invalid; error absent = not configured (silent)
       if (result.error) {
+        // Validation ran but failed — stay in error state, preserve source so env-sourced cards keep their test button
         return { ...prev, [key]: { ...prev[key], state: "error", error: result.error } };
       }
-      // Not configured — revert to disconnected
-      return { ...prev, [key]: makePlatformUI({ connected: false }) };
+      // Silent failure (env vars not present) — preserve source from previous status so env-sourced cards don't lose their state
+      const prevStatus = prev[key].status;
+      return { ...prev, [key]: { ...makePlatformUI({ connected: false }), status: { connected: false, source: prevStatus.source } } };
     });
   }
 
@@ -847,11 +859,11 @@ export default function DeploymentsPage() {
 
       // Build initial UI.
       // Supabase and Stripe auto-validate in the background (set to "connecting").
-      // Vercel and GitHub are user-triggered (stay "idle").
+      // Vercel and GitHub are user-triggered (test button appears, stay "idle").
       const ui = {} as Record<IntegrationKey, PlatformUIState>;
       PLATFORM_KEYS.forEach((k) => {
         const s = statuses[k];
-        const autoValidate = s.source === "env" && s.connected && (k === "supabase" || k === "stripe");
+        const autoValidate = s.source === "env" && (k === "supabase" || k === "stripe");
         ui[k] = { ...makePlatformUI(s), state: autoValidate ? "connecting" : (s.connected ? "connected" : "idle") };
       });
       setPlatforms(ui);
@@ -934,12 +946,14 @@ export default function DeploymentsPage() {
     setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], state: "connecting", error: null } } : prev);
     try {
       let result: ConnectResult;
-      if (id === "vercel")  result = await actionValidateVercelEnv();
-      else if (id === "github") result = await actionTestGitHubOAuth();
+      if      (id === "vercel")   result = await actionValidateVercelEnv();
+      else if (id === "github")   result = await actionTestGitHubOAuth();
+      else if (id === "supabase") result = await actionValidateSupabaseEnv();
+      else if (id === "stripe")   result = await actionValidateStripeEnv();
       else result = { success: false, error: "No test action for this platform." };
       applyResult(id, result);
     } catch {
-      applyResult(id, { success: false, error: "Test connection failed." });
+      applyResult(id, { success: false, error: `${id} connection test failed.` });
     }
   }
 
