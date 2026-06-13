@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { setOAuthState } from "@/lib/auth/persist-integration";
+import { getAppOrigin } from "@/lib/auth/app-url";
 
 export async function GET(request: Request) {
-  const origin = new URL(request.url).origin;
+  const origin   = getAppOrigin(request.url);
   const clientId = process.env.GITHUB_CLIENT_ID;
 
   if (!clientId) {

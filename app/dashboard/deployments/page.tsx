@@ -12,6 +12,7 @@ import {
   actionConnectSupabase,
   actionDisconnectIntegration,
   actionGetAllIntegrationStatuses,
+  actionGetOAuthConfig,
   actionValidateVercelEnv,
   actionTestGitHubOAuth,
   actionValidateSupabaseEnv,
@@ -20,6 +21,8 @@ import {
   type IntegrationStatus,
   type ConnectResult,
 } from "@/app/actions/integrations";
+
+type OAuthConfig = { github: boolean; stripe: boolean; webflow: boolean };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -296,10 +299,19 @@ function ConnectForm({
 
 // ── Platform card ─────────────────────────────────────────────────────────────
 
+const NOT_CONFIGURED_HINTS: Record<IntegrationKey, string> = {
+  vercel:   "Set VERCEL_TOKEN in your server environment.",
+  github:   "Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to enable GitHub OAuth.",
+  stripe:   "Set STRIPE_SECRET_KEY (billing) or STRIPE_CLIENT_ID (Connect) in environment.",
+  supabase: "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in environment.",
+  webflow:  "Set WEBFLOW_CLIENT_ID and WEBFLOW_CLIENT_SECRET to enable Webflow OAuth.",
+};
+
 function PlatformCard({
   id,
   ui,
   oauthPath,
+  oauthConfigured,
   onConnect,
   onDisconnect,
   onShowForm,
@@ -311,6 +323,7 @@ function PlatformCard({
   id: IntegrationKey;
   ui: PlatformUIState;
   oauthPath?: string;
+  oauthConfigured?: boolean;
   onConnect: (id: IntegrationKey, token: string) => Promise<void>;
   onDisconnect: (id: IntegrationKey) => Promise<void>;
   onShowForm: (id: IntegrationKey) => void;
@@ -510,10 +523,10 @@ function PlatformCard({
         </div>
       )}
 
-      {/* Not connected: OAuth redirect (GitHub/Stripe/Webflow) or token form (Vercel/Supabase) */}
-      {!isConnected && !isEnvSource && !showForm && (
+      {/* Not connected + not env-sourced: OAuth redirect or "not configured" info */}
+      {!isConnected && !isEnvSource && (
         <div className="mt-auto">
-          {oauthPath ? (
+          {oauthPath && oauthConfigured ? (
             // Real OAuth — full-page redirect to provider authorization screen
             <a
               href={oauthPath}
@@ -526,16 +539,14 @@ function PlatformCard({
               <IconExternal />
             </a>
           ) : (
-            // Manual token form (Vercel, Supabase)
-            <button
-              onClick={() => onShowForm(id)}
-              className="w-full h-8 rounded-lg text-xs font-medium transition-all"
-              style={{ backgroundColor: "hsl(220 13% 15%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 55%)" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 70%)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 15%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 55%)"; }}
+            // Not configured — show env var hint instead of a broken redirect or token form
+            <div
+              className="rounded-lg px-3 py-2.5 text-xs space-y-0.5"
+              style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 18%)" }}
             >
-              Connect {meta.name}
-            </button>
+              <p className="font-medium" style={{ color: "hsl(220 9% 44%)" }}>Not configured</p>
+              <p style={{ color: "hsl(220 9% 30%)" }}>{NOT_CONFIGURED_HINTS[id]}</p>
+            </div>
           )}
         </div>
       )}
@@ -840,6 +851,7 @@ export default function DeploymentsPage() {
   const [loading,     setLoading]     = useState(true);
   const [loadError,   setLoadError]   = useState<string | null>(null);
   const [oauthBanner, setOauthBanner] = useState<{ type: "error" | "success"; message: string } | null>(null);
+  const [oauthConfig, setOauthConfig] = useState<OAuthConfig>({ github: false, stripe: false, webflow: false });
 
   // Apply a ConnectResult to a platform slot
   function applyResult(key: IntegrationKey, result: ConnectResult) {
@@ -883,7 +895,9 @@ export default function DeploymentsPage() {
       actionGetProjectList(),
       actionGetAllIntegrationStatuses(),
       actionGetDeployments(),
-    ]).then(([list, statuses, deploysResult]) => {
+      actionGetOAuthConfig(),
+    ]).then(([list, statuses, deploysResult, oauthCfg]) => {
+      setOauthConfig(oauthCfg);
       // Enrich projects with Supabase deployment records (keyed by project_id)
       const deployMap = new Map<string, DeploymentRecord>();
       for (const d of deploysResult.data) deployMap.set(d.project_id, d);
@@ -938,6 +952,7 @@ export default function DeploymentsPage() {
       const message = err instanceof Error ? err.message : String(err);
       console.error("[DeploymentsPage] Failed to load:", message, err);
       setLoadError(message);
+      setOauthConfig({ github: false, stripe: false, webflow: false });
       // Fall back to all-disconnected so the page still renders
       const fallback = {} as Record<IntegrationKey, PlatformUIState>;
       PLATFORM_KEYS.forEach((k) => { fallback[k] = makePlatformUI({ connected: false }); });
@@ -1144,6 +1159,12 @@ export default function DeploymentsPage() {
                 id={key}
                 ui={platforms[key]}
                 oauthPath={OAUTH_PATHS[key]}
+                oauthConfigured={
+                  key === "github"  ? oauthConfig.github  :
+                  key === "stripe"  ? oauthConfig.stripe  :
+                  key === "webflow" ? oauthConfig.webflow :
+                  false
+                }
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
                 onShowForm={(id) => setShowForm(id, true)}

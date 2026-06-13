@@ -3,12 +3,13 @@
 
 import { NextResponse } from "next/server";
 import { consumeOAuthState, persistIntegration } from "@/lib/auth/persist-integration";
+import { getAppOrigin } from "@/lib/auth/app-url";
 
 const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
 export async function GET(request: Request) {
   const url    = new URL(request.url);
-  const origin = url.origin;
+  const origin = getAppOrigin(request.url);
 
   const errRedirect = (msg: string) => {
     const u = new URL("/dashboard/deployments", origin);

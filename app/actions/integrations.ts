@@ -317,9 +317,9 @@ function resolveVercelFromEnv(): IntegrationStatus | null {
 }
 
 function resolveGitHubFromEnv(): IntegrationStatus | null {
-  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) return null;
-  // Credentials present but not yet validated — user clicks "Test Connection" to confirm.
-  return { connected: false, source: "env" };
+  // GitHub connects via OAuth flow — env credentials don't pre-connect the user.
+  // actionGetOAuthConfig() tells the client whether to show the OAuth button.
+  return null;
 }
 
 function resolveSupabaseFromEnv(): IntegrationStatus | null {
@@ -604,6 +604,21 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
     console.error("[actionGetAllIntegrationStatuses] unexpected error:", err);
     return allDisconnected();
   }
+}
+
+// Returns which OAuth providers have valid credentials configured in env.
+// Used by the Deployments page to decide whether to show an OAuth button
+// or a "not configured" info panel for each platform.
+export async function actionGetOAuthConfig(): Promise<{
+  github:  boolean;
+  stripe:  boolean;
+  webflow: boolean;
+}> {
+  return {
+    github:  !!(process.env.GITHUB_CLIENT_ID  && process.env.GITHUB_CLIENT_SECRET),
+    stripe:  !!(process.env.STRIPE_CLIENT_ID),
+    webflow: !!(process.env.WEBFLOW_CLIENT_ID  && process.env.WEBFLOW_CLIENT_SECRET),
+  };
 }
 
 export async function actionGetIntegrationStatus(service: IntegrationKey): Promise<IntegrationStatus> {
