@@ -323,7 +323,10 @@ function PlatformCard({
   const isConnecting  = state === "connecting";
   const isEnvSource   = status.source === "env";
   const isVerifying   = isConnecting && isEnvSource;
-  const needsTestBtn  = isEnvSource && !isConnecting && id === "github" && !status.metadata?.username;
+  // Show "Test Connection" button when:
+  // - Vercel: token present in env but not yet tested (connected:false, source:"env")
+  // - GitHub: OAuth app credentials present but not yet tested
+  const needsTestBtn  = isEnvSource && !isConnecting && !isConnected && (id === "vercel" || id === "github");
 
   const borderColor = isConnected
     ? "hsl(151 60% 48% / 0.2)"
@@ -482,17 +485,26 @@ function PlatformCard({
         </div>
       )}
 
-      {/* ENV-sourced + needs test button (GitHub) */}
+      {/* ENV-sourced + needs test button (Vercel or GitHub) */}
       {needsTestBtn && (
-        <button
-          onClick={() => onTestConnection(id)}
-          className="mt-auto h-8 rounded-lg text-xs font-medium transition-all"
-          style={{ backgroundColor: "hsl(220 13% 14%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 55%)" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 72%)"; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 14%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 55%)"; }}
-        >
-          Test Connection
-        </button>
+        <div className="mt-auto space-y-2">
+          {/* "Token configured" notice */}
+          <div
+            className="rounded-lg px-3 py-2 text-xs"
+            style={{ backgroundColor: "hsl(213 94% 62% / 0.06)", border: "1px solid hsl(213 94% 62% / 0.15)", color: "hsl(213 94% 62%)" }}
+          >
+            {id === "vercel" ? "Vercel token configured via environment variable." : "OAuth credentials configured via environment variable."}
+          </div>
+          <button
+            onClick={() => onTestConnection(id)}
+            className="w-full h-8 rounded-lg text-xs font-medium transition-all"
+            style={{ backgroundColor: "hsl(220 13% 14%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 60%)" }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 78%)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 14%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 60%)"; }}
+          >
+            {id === "vercel" ? "Test Vercel connection" : "Test Connection"}
+          </button>
+        </div>
       )}
 
       {/* Not connected: show connect button */}
@@ -833,24 +845,22 @@ export default function DeploymentsPage() {
       }));
       setProjects(enriched);
 
-      // Build initial UI — mark env-sourced platforms (except GitHub) as "connecting"
-      // so they show "Verifying…" while real API validation runs in the background.
+      // Build initial UI.
+      // Supabase and Stripe auto-validate in the background (set to "connecting").
+      // Vercel and GitHub are user-triggered (stay "idle").
       const ui = {} as Record<IntegrationKey, PlatformUIState>;
       PLATFORM_KEYS.forEach((k) => {
         const s = statuses[k];
-        const needsValidation = s.connected && s.source === "env" && k !== "github";
-        ui[k] = { ...makePlatformUI(s), state: needsValidation ? "connecting" : (s.connected ? "connected" : "idle") };
+        const autoValidate = s.source === "env" && s.connected && (k === "supabase" || k === "stripe");
+        ui[k] = { ...makePlatformUI(s), state: autoValidate ? "connecting" : (s.connected ? "connected" : "idle") };
       });
       setPlatforms(ui);
       setLoading(false);
 
       // ── Background validation (no outbound calls blocked page render) ──────
       // Vercel: auto-validate if env-sourced and not already user-connected
-      if (statuses.vercel.source === "env") {
-        actionValidateVercelEnv()
-          .then((r) => applyResult("vercel", r))
-          .catch(() => applyResult("vercel", { success: false, error: "Could not reach Vercel API." }));
-      }
+      // Vercel: user-triggered via "Test Vercel connection" button — not auto-validated.
+      // When VERCEL_TOKEN is present, the card shows "token configured" + the button.
 
       // Supabase: auto-validate
       if (statuses.supabase.source === "env") {
@@ -919,11 +929,14 @@ export default function DeploymentsPage() {
     });
   }
 
-  // Test connection handler — validates env-based OAuth credentials (GitHub)
+  // Test connection handler — validates env-based credentials on user request
   async function handleTestConnection(id: IntegrationKey) {
     setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], state: "connecting", error: null } } : prev);
     try {
-      const result = id === "github" ? await actionTestGitHubOAuth() : { success: false, error: "No test action for this platform." };
+      let result: ConnectResult;
+      if (id === "vercel")  result = await actionValidateVercelEnv();
+      else if (id === "github") result = await actionTestGitHubOAuth();
+      else result = { success: false, error: "No test action for this platform." };
       applyResult(id, result);
     } catch {
       applyResult(id, { success: false, error: "Test connection failed." });

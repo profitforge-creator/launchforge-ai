@@ -311,7 +311,9 @@ export async function actionDisconnectIntegration(service: IntegrationKey): Prom
 // called from the client after the page renders.
 function resolveVercelFromEnv(): IntegrationStatus | null {
   if (!process.env.VERCEL_TOKEN) return null;
-  return { connected: true, source: "env", connectedAt: new Date().toISOString(), metadata: { name: "Vercel" } };
+  // Token is present but NOT yet validated. connected:false until the user
+  // clicks "Test Vercel connection" and actionValidateVercelEnv() succeeds.
+  return { connected: false, source: "env" };
 }
 
 function resolveGitHubFromEnv(): IntegrationStatus | null {
@@ -341,47 +343,65 @@ function resolveStripeFromEnv(): IntegrationStatus | null {
 
 export async function actionValidateVercelEnv(): Promise<ConnectResult> {
   const token = process.env.VERCEL_TOKEN;
-  if (!token) return { success: false };
+  if (!token) return { success: false, error: "VERCEL_TOKEN is not set in server environment." };
+
+  // All Vercel API requests share a single 10-second deadline.
+  // AbortSignal.timeout() is available in Node.js 18+ (Vercel runtime).
+  const signal = AbortSignal.timeout(10_000);
+
+  const isAbort = (e: unknown) =>
+    e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
   try {
+    // ── Primary: GET https://api.vercel.com/v2/user ──────────────────────────
     const userRes = await fetch("https://api.vercel.com/v2/user", {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
+      signal,
     });
+
     if (!userRes.ok) {
       const code = userRes.status;
-      return { success: false, error: code === 401 || code === 403 ? "VERCEL_TOKEN is invalid or expired." : `Vercel API returned ${code}.` };
+      if (code === 401 || code === 403) return { success: false, error: "VERCEL_TOKEN is invalid or has been revoked." };
+      return { success: false, error: `Vercel API returned HTTP ${code}.` };
     }
+
     const userData = await userRes.json();
     const user = userData.user ?? {};
 
-    // Team name — present only on Pro/Enterprise accounts
+    // ── Optional: GET https://api.vercel.com/v2/teams/{id} ───────────────────
     let teamName: string | undefined;
     if (user.defaultTeamId) {
       try {
         const teamRes = await fetch(`https://api.vercel.com/v2/teams/${user.defaultTeamId}`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
+          signal,
         });
         if (teamRes.ok) {
           const team = await teamRes.json();
-          teamName = team.name ?? team.slug;
+          teamName = team.name ?? team.slug ?? undefined;
         }
-      } catch { /* skip */ }
+      } catch (e) {
+        if (isAbort(e)) throw e; // re-throw so outer catch handles timeout
+      }
     }
 
-    // Deployment count (first page only, capped at 100)
+    // ── Optional: GET https://api.vercel.com/v6/deployments?limit=100 ────────
     let deploymentCount = 0;
     try {
       const depRes = await fetch("https://api.vercel.com/v6/deployments?limit=100", {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
+        signal,
       });
       if (depRes.ok) {
         const depData = await depRes.json();
         deploymentCount = Array.isArray(depData.deployments) ? depData.deployments.length : 0;
       }
-    } catch { /* skip */ }
+    } catch (e) {
+      if (isAbort(e)) throw e;
+    }
 
     return {
       success: true,
@@ -398,7 +418,8 @@ export async function actionValidateVercelEnv(): Promise<ConnectResult> {
         },
       },
     };
-  } catch {
+  } catch (e) {
+    if (isAbort(e)) return { success: false, error: "Vercel connection timed out." };
     return { success: false, error: "Network error reaching Vercel API." };
   }
 }
