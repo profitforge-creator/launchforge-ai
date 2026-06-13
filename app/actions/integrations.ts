@@ -428,7 +428,10 @@ export async function actionValidateVercelEnv(): Promise<ConnectResult> {
 export async function actionTestGitHubOAuth(): Promise<ConnectResult> {
   const clientId     = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return { success: false };
+  if (!clientId || !clientSecret) return { success: false, error: "GITHUB_CLIENT_ID or GITHUB_CLIENT_SECRET is not set." };
+
+  const signal = AbortSignal.timeout(10_000);
+  const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
   try {
     const credentials = btoa(`${clientId}:${clientSecret}`);
@@ -440,6 +443,7 @@ export async function actionTestGitHubOAuth(): Promise<ConnectResult> {
         "User-Agent":           "launchforge-ai",
       },
       cache: "no-store",
+      signal,
     });
     if (res.status === 401) {
       return { success: false, error: "GitHub OAuth credentials are invalid — check GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET." };
@@ -458,11 +462,12 @@ export async function actionTestGitHubOAuth(): Promise<ConnectResult> {
         metadata: {
           name:    "OAuth App",
           app_id:  clientId,
-          ...(limit !== null && { repoCount: limit }), // reuse field for rate limit display
+          ...(limit !== null && { repoCount: limit }),
         },
       },
     };
-  } catch {
+  } catch (e) {
+    if (isAbort(e)) return { success: false, error: "GitHub connection timed out." };
     return { success: false, error: "Network error reaching GitHub API." };
   }
 }

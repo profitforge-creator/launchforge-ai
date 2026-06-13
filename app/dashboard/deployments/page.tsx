@@ -874,18 +874,26 @@ export default function DeploymentsPage() {
       // Vercel: user-triggered via "Test Vercel connection" button — not auto-validated.
       // When VERCEL_TOKEN is present, the card shows "token configured" + the button.
 
-      // Supabase: auto-validate
+      // Supabase: auto-validate (10s timeout inside server action)
       if (statuses.supabase.source === "env") {
         actionValidateSupabaseEnv()
           .then((r) => applyResult("supabase", r))
-          .catch(() => applyResult("supabase", { success: false, error: "Could not reach Supabase." }));
+          .catch(() => applyResult("supabase", { success: false, error: "Could not reach Supabase." }))
+          .finally(() => setPlatforms((prev) => {
+            if (!prev || prev.supabase.state !== "connecting") return prev;
+            return { ...prev, supabase: { ...prev.supabase, state: "error", error: "Supabase validation did not complete." } };
+          }));
       }
 
-      // Stripe: auto-validate
+      // Stripe: auto-validate (10s timeout inside server action)
       if (statuses.stripe.source === "env") {
         actionValidateStripeEnv()
           .then((r) => applyResult("stripe", r))
-          .catch(() => applyResult("stripe", { success: false, error: "Could not reach Stripe API." }));
+          .catch(() => applyResult("stripe", { success: false, error: "Could not reach Stripe API." }))
+          .finally(() => setPlatforms((prev) => {
+            if (!prev || prev.stripe.state !== "connecting") return prev;
+            return { ...prev, stripe: { ...prev.stripe, state: "error", error: "Stripe validation did not complete." } };
+          }));
       }
       // GitHub: user-triggered via "Test Connection" button — not auto-validated
 
@@ -902,46 +910,55 @@ export default function DeploymentsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Connect handler — calls the real server action for each service
+  // Connect handler — calls the real API-validating server action for each service.
+  // API endpoints used:
+  //   vercel:   GET https://api.vercel.com/v2/user  (Bearer VERCEL_TOKEN)
+  //   github:   GET https://api.github.com/user     (Bearer <user PAT>)
+  //   webflow:  GET https://api.webflow.com/v2/token/introspect
+  //   stripe:   GET https://api.stripe.com/v1/account
+  //   supabase: GET https://api.supabase.com/v1/projects
   async function handleConnect(id: IntegrationKey, token: string) {
-    setPlatforms((prev) => prev ? {
-      ...prev,
-      [id]: { ...prev[id], state: "connecting", error: null },
-    } : prev);
+    setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], state: "connecting", error: null } } : prev);
+    try {
+      let result: ConnectResult;
+      if      (id === "vercel")   result = await actionConnectVercel(token);
+      else if (id === "github")   result = await actionConnectGitHub(token);
+      else if (id === "webflow")  result = await actionConnectWebflow(token);
+      else if (id === "stripe")   result = await actionConnectStripe(token);
+      else if (id === "supabase") result = await actionConnectSupabase(token);
+      else result = { success: false, error: "Unknown platform." };
 
-    const connectors: Record<IntegrationKey, (token: string) => Promise<typeof import("@/app/actions/integrations").actionConnectVercel extends (...args: never[]) => infer R ? Awaited<R> : never>> = {
-      vercel:   actionConnectVercel,
-      github:   actionConnectGitHub,
-      webflow:  actionConnectWebflow,
-      stripe:   actionConnectStripe,
-      supabase: actionConnectSupabase,
-    };
-
-    const result = await connectors[id](token);
-
-    setPlatforms((prev) => {
-      if (!prev) return prev;
       if (result.success && result.status) {
-        return {
+        setPlatforms((prev) => prev ? {
           ...prev,
-          [id]: {
-            state: "connected",
-            status: result.status,
-            error: null,
-            showForm: false,
-            showManage: false,
-          },
-        };
+          [id]: { state: "connected", status: result.status!, error: null, showForm: false, showManage: false },
+        } : prev);
       } else {
-        return {
+        setPlatforms((prev) => prev ? {
           ...prev,
           [id]: { ...prev[id], state: "error", error: result.error ?? "Connection failed." },
-        };
+        } : prev);
       }
-    });
+    } catch {
+      setPlatforms((prev) => prev ? {
+        ...prev,
+        [id]: { ...prev[id], state: "error", error: "Connection failed — check your token and try again." },
+      } : prev);
+    } finally {
+      // Safety net: if still "connecting" after try/catch (e.g. unhandled throw), reset to error
+      setPlatforms((prev) => {
+        if (!prev || prev[id].state !== "connecting") return prev;
+        return { ...prev, [id]: { ...prev[id], state: "error", error: "Connection did not complete." } };
+      });
+    }
   }
 
-  // Test connection handler — validates env-based credentials on user request
+  // Test connection handler — validates env-based credentials on user request.
+  // API endpoints used:
+  //   vercel:   GET https://api.vercel.com/v2/user            (Bearer process.env.VERCEL_TOKEN)
+  //   github:   GET https://api.github.com/rate_limit         (Basic GITHUB_CLIENT_ID:GITHUB_CLIENT_SECRET)
+  //   supabase: GET ${SUPABASE_URL}/rest/v1/                   (apikey SUPABASE_ANON_KEY)
+  //   stripe:   GET https://api.stripe.com/v1/account         (Bearer STRIPE_SECRET_KEY)
   async function handleTestConnection(id: IntegrationKey) {
     setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], state: "connecting", error: null } } : prev);
     try {
@@ -953,17 +970,24 @@ export default function DeploymentsPage() {
       else result = { success: false, error: "No test action for this platform." };
       applyResult(id, result);
     } catch {
-      applyResult(id, { success: false, error: `${id} connection test failed.` });
+      applyResult(id, { success: false, error: `${id} connection test failed — check server logs.` });
+    } finally {
+      // Safety net: if still "connecting" after try/catch, reset to error
+      setPlatforms((prev) => {
+        if (!prev || prev[id].state !== "connecting") return prev;
+        return { ...prev, [id]: { ...prev[id], state: "error", error: "Connection test did not complete." } };
+      });
     }
   }
 
   // Disconnect handler — calls real server action
   async function handleDisconnect(id: IntegrationKey) {
-    await actionDisconnectIntegration(id);
-    setPlatforms((prev) => prev ? {
-      ...prev,
-      [id]: makePlatformUI({ connected: false }),
-    } : prev);
+    try {
+      await actionDisconnectIntegration(id);
+    } finally {
+      // Always reset to disconnected, even if the server action throws
+      setPlatforms((prev) => prev ? { ...prev, [id]: makePlatformUI({ connected: false }) } : prev);
+    }
   }
 
   function setShowForm(id: IntegrationKey, show: boolean) {
