@@ -45,22 +45,27 @@ async function clearCookie(service: IntegrationKey): Promise<void> {
 // Restores any cookie-persisted integrations into the in-memory store.
 // Called at the start of status queries so data survives restarts.
 async function restoreFromCookies(): Promise<void> {
-  const jar = await cookies();
-  const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
-  for (const key of ALL_KEYS) {
-    if (getIntegration(key)) continue; // already in memory
-    const raw = jar.get(`${COOKIE_PREFIX}${key}`)?.value;
-    if (!raw) continue;
-    try {
-      const { token, metadata, connectedAt } = JSON.parse(raw) as {
-        token: string;
-        metadata: Record<string, unknown>;
-        connectedAt: string;
-      };
-      saveIntegration({ service: key, token, metadata, connectedAt });
-    } catch {
-      // corrupt cookie — ignore
+  try {
+    const jar = await cookies();
+    const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
+    for (const key of ALL_KEYS) {
+      if (getIntegration(key)) continue;
+      const raw = jar.get(`${COOKIE_PREFIX}${key}`)?.value;
+      if (!raw) continue;
+      try {
+        const { token, metadata, connectedAt } = JSON.parse(raw) as {
+          token: string;
+          metadata: Record<string, unknown>;
+          connectedAt: string;
+        };
+        saveIntegration({ service: key, token, metadata, connectedAt });
+      } catch {
+        // corrupt cookie — ignore
+      }
     }
+  } catch (err) {
+    console.error("[restoreFromCookies] cookies() failed:", err);
+    // proceed with empty in-memory store
   }
 }
 
@@ -301,59 +306,30 @@ export async function actionDisconnectIntegration(service: IntegrationKey): Prom
 // baked into the deployment. Results are NOT persisted to cookie — env vars
 // are always re-checked on each status query so they stay fresh.
 
-async function resolveVercelFromEnv(): Promise<IntegrationStatus | null> {
+// Check env vars synchronously — no outbound API calls on every page load.
+// Use actionCheckVercelEnv() / actionCheckGitHubEnv() (in deployments.ts)
+// when explicit token validation is needed.
+function resolveVercelFromEnv(): IntegrationStatus | null {
   const token = process.env.VERCEL_TOKEN;
   if (!token) return null;
-  try {
-    const res = await fetch("https://api.vercel.com/v2/user", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (!res.ok) return { connected: false };
-    const body = await res.json();
-    const user = body.user ?? {};
-    return {
-      connected:   true,
-      source:      "env",
-      connectedAt: new Date().toISOString(),
-      metadata: {
-        name:     user.name     ?? user.username ?? undefined,
-        username: user.username ?? undefined,
-        email:    user.email    ?? undefined,
-      },
-    };
-  } catch {
-    return { connected: false };
-  }
+  return {
+    connected:   true,
+    source:      "env",
+    connectedAt: new Date().toISOString(),
+    metadata:    { name: "Environment variable" },
+  };
 }
 
-async function resolveGitHubFromEnv(): Promise<IntegrationStatus | null> {
+function resolveGitHubFromEnv(): IntegrationStatus | null {
   const clientId     = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
-  try {
-    // btoa is the Web-standard base64 encoder — works in Node.js and Edge Runtime.
-    // Buffer.from() is Node.js-only and throws in Vercel Edge Runtime.
-    const credentials = btoa(`${clientId}:${clientSecret}`);
-    const res = await fetch("https://api.github.com/rate_limit", {
-      headers: {
-        Authorization:          `Basic ${credentials}`,
-        Accept:                 "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent":           "launchforge-ai",
-      },
-      cache: "no-store",
-    });
-    if (!res.ok) return { connected: false };
-    return {
-      connected:   true,
-      source:      "env",
-      connectedAt: new Date().toISOString(),
-      metadata: { name: "OAuth App", app_id: clientId },
-    };
-  } catch {
-    return { connected: false };
-  }
+  return {
+    connected:   true,
+    source:      "env",
+    connectedAt: new Date().toISOString(),
+    metadata:    { name: "OAuth App", app_id: clientId },
+  };
 }
 
 // ── Status queries ────────────────────────────────────────────────────────────
@@ -370,12 +346,9 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
     await restoreFromCookies();
 
     // 2. For Vercel and GitHub: if the user hasn't connected manually, fall back
-    //    to env-var credentials — run both checks concurrently.
-    //    Both helpers have their own try/catch and never throw.
-    const [vercelEnv, githubEnv] = await Promise.all([
-      getIntegration("vercel") ? Promise.resolve(null) : resolveVercelFromEnv(),
-      getIntegration("github") ? Promise.resolve(null) : resolveGitHubFromEnv(),
-    ]);
+    //    to env-var presence check (synchronous — no outbound API calls).
+    const vercelEnv = getIntegration("vercel") ? null : resolveVercelFromEnv();
+    const githubEnv = getIntegration("github") ? null : resolveGitHubFromEnv();
 
     const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
     const result = {} as Record<IntegrationKey, IntegrationStatus>;
