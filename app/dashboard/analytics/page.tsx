@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { actionGetAnalyticsData } from "@/app/actions/analytics";
 import type { AnalyticsData, ProjectAnalyticsSummary } from "@/app/actions/analytics";
+import { actionGetDeployments, type DeploymentRecord } from "@/app/actions/deployments";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -17,13 +18,6 @@ interface Goal {
   type: "auto" | "manual" | "locked";
   autoKey?: string;
   createdAt: string;
-}
-
-interface DeployRecord {
-  url: string;
-  domain?: string;
-  deployedAt: string;
-  environment: "production" | "preview";
 }
 
 // ── Utility ───────────────────────────────────────────────────────────────────
@@ -300,11 +294,13 @@ function OverviewTab({
   goals,
   businessScore,
   deployCount,
+  deployMap,
 }: {
   data: AnalyticsData;
   goals: Goal[];
   businessScore: number;
   deployCount: number;
+  deployMap: Map<string, DeploymentRecord>;
 }) {
   const completedGoals = goals.filter((g) => g.completed).length;
   const activeProjects = data.projects.filter((p) => !p.hasWebsite || p.score < 80).length;
@@ -563,16 +559,9 @@ function OverviewTab({
             </div>
           ) : (
             data.projects
-              .filter((p) => {
-                const raw = typeof window !== "undefined" ? localStorage.getItem(`lf_deploy_${p.id}`) : null;
-                return !!raw;
-              })
+              .filter((p) => deployMap.has(p.id))
               .map((p, i, arr) => {
-                let deploy: DeployRecord | null = null;
-                try {
-                  const raw = localStorage.getItem(`lf_deploy_${p.id}`);
-                  if (raw) deploy = JSON.parse(raw);
-                } catch {}
+                const deploy = deployMap.get(p.id) ?? null;
                 return (
                   <div
                     key={p.id}
@@ -588,10 +577,10 @@ function OverviewTab({
                     </Link>
                     <span style={{ color: "hsl(220 9% 52%)" }}>1</span>
                     <span style={{ color: "hsl(220 9% 42%)" }}>
-                      {deploy?.deployedAt ? formatRelative(deploy.deployedAt) : "—"}
+                      {deploy?.created_at ? formatRelative(deploy.created_at) : "—"}
                     </span>
                     <span style={{ color: "hsl(220 9% 38%)" }}>
-                      {deploy?.url ? (deploy.url.includes("vercel") ? "Vercel" : "Manual") : "—"}
+                      {deploy?.platform ? (deploy.platform === "vercel" ? "Vercel" : deploy.platform === "github" ? "GitHub" : "Manual") : "—"}
                     </span>
                   </div>
                 );
@@ -953,25 +942,27 @@ const TABS: { id: AnalyticsTab; label: string; locked?: boolean }[] = [
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
-  const [tab,     setTab]     = useState<AnalyticsTab>("overview");
-  const [data,    setData]    = useState<AnalyticsData | null>(null);
-  const [goals,   setGoals]   = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tab,       setTab]       = useState<AnalyticsTab>("overview");
+  const [data,      setData]      = useState<AnalyticsData | null>(null);
+  const [goals,     setGoals]     = useState<Goal[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [deployMap, setDeployMap] = useState<Map<string, DeploymentRecord>>(new Map());
 
   // Count deploy records for sidebar and overview
-  const [deployCount, setDeployCount] = useState(0);
+  const deployCount = deployMap.size;
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const result = await actionGetAnalyticsData();
+    const [result, deploysResult] = await Promise.all([
+      actionGetAnalyticsData(),
+      actionGetDeployments(),
+    ]);
     setData(result);
 
-    // Count localStorage deploy records
-    let count = 0;
-    result.projects.forEach((p) => {
-      if (localStorage.getItem(`lf_deploy_${p.id}`)) count++;
-    });
-    setDeployCount(count);
+    // Build project_id → DeploymentRecord map from Supabase
+    const map = new Map<string, DeploymentRecord>();
+    for (const d of deploysResult.data) map.set(d.project_id, d);
+    setDeployMap(map);
     setLoading(false);
   }, []);
 
@@ -1063,7 +1054,7 @@ export default function AnalyticsPage() {
               </p>
             </div>
 
-            {tab === "overview"    && <OverviewTab data={data} goals={goals} businessScore={businessScore} deployCount={deployCount} />}
+            {tab === "overview"    && <OverviewTab data={data} goals={goals} businessScore={businessScore} deployCount={deployCount} deployMap={deployMap} />}
             {tab === "revenue"     && <RevenueTab />}
             {tab === "traffic"     && <TrafficTab />}
             {tab === "deployments" && <DeploymentsTab />}

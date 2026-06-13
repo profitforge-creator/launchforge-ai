@@ -20,6 +20,9 @@ export interface StoredIntegration {
 // Sanitized view sent to the client — no tokens
 export interface IntegrationStatus {
   connected: boolean;
+  // "user" = token pasted by the user via the Connect form
+  // "env"  = token present in the server's environment variables (read-only from UI)
+  source?: "user" | "env";
   connectedAt?: string;
   metadata?: {
     name?: string;
@@ -32,6 +35,7 @@ export interface IntegrationStatus {
     planName?: string;
     country?: string;
     mode?: "live" | "test";
+    app_id?: string;
   };
 }
 

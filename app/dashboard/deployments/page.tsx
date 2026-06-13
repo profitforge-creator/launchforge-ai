@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { actionGetProjectList, type ProjectListItem } from "@/app/actions/analytics";
+import { actionGetDeployments, type DeploymentRecord } from "@/app/actions/deployments";
 import {
   actionConnectVercel,
   actionConnectGitHub,
@@ -17,15 +18,8 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface DeployRecord {
-  url: string;
-  domain?: string;
-  deployedAt: string;
-  environment: "production" | "preview";
-}
-
 interface ProjectWithDeploy extends ProjectListItem {
-  deploy: DeployRecord | null;
+  deploy: DeploymentRecord | null;
 }
 
 type ConnectionState = "idle" | "connecting" | "connected" | "error";
@@ -318,8 +312,9 @@ function PlatformCard({
 }) {
   const meta = PLATFORM_META[id];
   const { state, status, error, showForm, showManage } = ui;
-  const isConnected = state === "connected" || (state === "idle" && status.connected);
+  const isConnected  = state === "connected" || (state === "idle" && status.connected);
   const isConnecting = state === "connecting";
+  const isEnvSource  = isConnected && status.source === "env";
 
   const borderColor = isConnected
     ? "hsl(151 60% 48% / 0.2)"
@@ -440,6 +435,16 @@ function PlatformCard({
       )}
 
       {/* Actions */}
+      {/* ENV-sourced: read-only, no connect/disconnect controls */}
+      {isEnvSource && (
+        <div
+          className="mt-auto rounded-lg px-3 py-2 text-xs"
+          style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 18%)", color: "hsl(220 9% 36%)" }}
+        >
+          Connected via environment variable — managed in server config.
+        </div>
+      )}
+
       {!isConnected && !showForm && (
         <button
           onClick={() => onShowForm(id)}
@@ -452,7 +457,7 @@ function PlatformCard({
         </button>
       )}
 
-      {isConnected && !showManage && (
+      {isConnected && !isEnvSource && !showManage && (
         <button
           onClick={() => onShowManage(id)}
           className="mt-auto h-8 rounded-lg text-xs font-medium"
@@ -462,7 +467,7 @@ function PlatformCard({
         </button>
       )}
 
-      {isConnected && showManage && (
+      {isConnected && !isEnvSource && showManage && (
         <div className="mt-auto flex gap-2">
           <button
             onClick={async () => { await onDisconnect(id); onHideManage(id); }}
@@ -576,7 +581,7 @@ function DeploymentsTable({ projects }: { projects: ProjectWithDeploy[] }) {
               </td>
               <td className="px-4 py-3">
                 <span className="text-xs" style={{ color: "hsl(220 9% 38%)" }}>
-                  {p.deploy?.deployedAt ? formatDate(p.deploy.deployedAt) : "—"}
+                  {p.deploy?.created_at ? formatDate(p.deploy.created_at) : "—"}
                 </span>
               </td>
               <td className="px-4 py-3">
@@ -749,14 +754,16 @@ export default function DeploymentsPage() {
     Promise.all([
       actionGetProjectList(),
       actionGetAllIntegrationStatuses(),
-    ]).then(([list, statuses]) => {
-      // Enrich projects with localStorage deploy records
-      const enriched: ProjectWithDeploy[] = list.map((p) => {
-        const raw = localStorage.getItem(`lf_deploy_${p.id}`);
-        let deploy: DeployRecord | null = null;
-        if (raw) { try { deploy = JSON.parse(raw); } catch {} }
-        return { ...p, deploy };
-      });
+      actionGetDeployments(),
+    ]).then(([list, statuses, deploysResult]) => {
+      // Enrich projects with Supabase deployment records (keyed by project_id)
+      const deployMap = new Map<string, DeploymentRecord>();
+      for (const d of deploysResult.data) deployMap.set(d.project_id, d);
+
+      const enriched: ProjectWithDeploy[] = list.map((p) => ({
+        ...p,
+        deploy: deployMap.get(p.id) ?? null,
+      }));
       setProjects(enriched);
 
       // Build per-platform UI state from REAL server-side statuses
@@ -833,9 +840,9 @@ export default function DeploymentsPage() {
     projects.forEach((p) => {
       activityEvents.push({ id: `proj-${p.id}`, type: "project", label: "Project Created", description: `${p.name} generated`, timestamp: p.createdAt });
       if (p.deploy) {
-        activityEvents.push({ id: `dep-${p.id}`, type: "deploy", label: "Deployment Added", description: `${p.name} — ${p.deploy.url.replace(/^https?:\/\//, "").split("/")[0]}`, timestamp: p.deploy.deployedAt });
+        activityEvents.push({ id: `dep-${p.id}`, type: "deploy", label: "Deployment Added", description: `${p.name} — ${p.deploy.url.replace(/^https?:\/\//, "").split("/")[0]}`, timestamp: p.deploy.created_at });
         if (p.deploy.domain) {
-          activityEvents.push({ id: `dom-${p.id}`, type: "domain", label: "Domain Connected", description: `${p.deploy.domain} → ${p.name}`, timestamp: p.deploy.deployedAt });
+          activityEvents.push({ id: `dom-${p.id}`, type: "domain", label: "Domain Connected", description: `${p.deploy.domain} → ${p.name}`, timestamp: p.deploy.created_at });
         }
       }
     });

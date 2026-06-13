@@ -295,11 +295,77 @@ export async function actionDisconnectIntegration(service: IntegrationKey): Prom
   await clearCookie(service);
 }
 
+// ── Env-var fallbacks ─────────────────────────────────────────────────────────
+//
+// If no user-pasted token exists for Vercel or GitHub, check the env vars
+// baked into the deployment. Results are NOT persisted to cookie — env vars
+// are always re-checked on each status query so they stay fresh.
+
+async function resolveVercelFromEnv(): Promise<IntegrationStatus | null> {
+  const token = process.env.VERCEL_TOKEN;
+  if (!token) return null;
+  try {
+    const res = await fetch("https://api.vercel.com/v2/user", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!res.ok) return { connected: false };
+    const body = await res.json();
+    const user = body.user ?? {};
+    return {
+      connected:   true,
+      source:      "env",
+      connectedAt: new Date().toISOString(),
+      metadata: {
+        name:     user.name     ?? user.username ?? undefined,
+        username: user.username ?? undefined,
+        email:    user.email    ?? undefined,
+      },
+    };
+  } catch {
+    return { connected: false };
+  }
+}
+
+async function resolveGitHubFromEnv(): Promise<IntegrationStatus | null> {
+  const clientId     = process.env.GITHUB_CLIENT_ID;
+  const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
+  try {
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    const res = await fetch("https://api.github.com/rate_limit", {
+      headers: {
+        Authorization:          `Basic ${credentials}`,
+        Accept:                 "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent":           "launchforge-ai",
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) return { connected: false };
+    return {
+      connected:   true,
+      source:      "env",
+      connectedAt: new Date().toISOString(),
+      metadata: { name: "OAuth App", app_id: clientId },
+    };
+  } catch {
+    return { connected: false };
+  }
+}
+
 // ── Status queries ────────────────────────────────────────────────────────────
 
 export async function actionGetAllIntegrationStatuses(): Promise<Record<IntegrationKey, IntegrationStatus>> {
-  // Restore any cookie-persisted tokens into the in-memory store first
+  // 1. Restore any cookie-persisted (user-pasted) tokens into the in-memory store
   await restoreFromCookies();
+
+  // 2. For Vercel and GitHub: if the user hasn't connected manually, fall back
+  //    to env-var credentials — run both checks concurrently
+  const [vercelEnv, githubEnv] = await Promise.all([
+    getIntegration("vercel") ? Promise.resolve(null) : resolveVercelFromEnv(),
+    getIntegration("github") ? Promise.resolve(null) : resolveGitHubFromEnv(),
+  ]);
 
   const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
   const result = {} as Record<IntegrationKey, IntegrationStatus>;
@@ -309,9 +375,14 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
     if (stored) {
       result[key] = {
         connected:   true,
+        source:      "user",
         connectedAt: stored.connectedAt,
         metadata:    stored.metadata as IntegrationStatus["metadata"],
       };
+    } else if (key === "vercel" && vercelEnv?.connected) {
+      result[key] = vercelEnv;
+    } else if (key === "github" && githubEnv?.connected) {
+      result[key] = githubEnv;
     } else {
       result[key] = { connected: false };
     }
@@ -326,6 +397,7 @@ export async function actionGetIntegrationStatus(service: IntegrationKey): Promi
   if (!stored) return { connected: false };
   return {
     connected:   true,
+    source:      "user",
     connectedAt: stored.connectedAt,
     metadata:    stored.metadata as IntegrationStatus["metadata"],
   };

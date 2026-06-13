@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { actionGetProjectList, type ProjectListItem } from "@/app/actions/analytics";
-
-interface DeployRecord {
-  url: string;
-  domain?: string;
-  deployedAt: string;
-  environment: "production" | "preview";
-}
+import { actionGetDeployment, type DeploymentRecord } from "@/app/actions/deployments";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("en-US", {
@@ -20,18 +14,28 @@ function formatDate(iso: string) {
 
 export default function DeploymentDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [project, setProject] = useState<ProjectListItem | null>(null);
-  const [deploy, setDeploy] = useState<DeployRecord | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [project, setProject]   = useState<ProjectListItem | null>(null);
+  const [deploy,  setDeploy]    = useState<DeploymentRecord | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error,   setError]     = useState<string | null>(null);
 
   useEffect(() => {
-    actionGetProjectList().then((list) => {
-      const found = list.find((p) => p.id === id) ?? null;
-      setProject(found);
-      if (found) {
-        const raw = localStorage.getItem(`lf_deploy_${id}`);
-        if (raw) { try { setDeploy(JSON.parse(raw)); } catch {} }
+    Promise.all([
+      actionGetProjectList(),
+      actionGetDeployment(id),
+    ]).then(([list, deployResult]) => {
+      setProject(list.find((p) => p.id === id) ?? null);
+      if (deployResult.error) {
+        console.error("[DeploymentDetailPage]", deployResult.error);
+        setError(deployResult.error);
+      } else {
+        setDeploy(deployResult.data);
       }
+      setLoading(false);
+    }).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[DeploymentDetailPage] unexpected:", msg);
+      setError(msg);
       setLoading(false);
     });
   }, [id]);
@@ -86,6 +90,17 @@ export default function DeploymentDetailPage() {
           </Link>
         </div>
 
+        {/* Supabase error banner */}
+        {error && (
+          <div
+            className="rounded-xl px-5 py-4 mb-5"
+            style={{ backgroundColor: "hsl(0 60% 12%)", border: "1px solid hsl(0 60% 22%)" }}
+          >
+            <p className="text-xs font-semibold mb-1" style={{ color: "hsl(0 70% 58%)" }}>Failed to load deployment data</p>
+            <p className="text-xs font-mono" style={{ color: "hsl(0 60% 44%)" }}>{error}</p>
+          </div>
+        )}
+
         {/* Details */}
         <div
           className="rounded-xl overflow-hidden mb-5"
@@ -97,10 +112,11 @@ export default function DeploymentDetailPage() {
           <div style={{ backgroundColor: "hsl(220 14% 9%)" }}>
             {[
               { label: "Status",      value: deploy ? "Live" : "Not deployed" },
+              { label: "Platform",    value: deploy?.platform ?? "—" },
               { label: "Environment", value: deploy?.environment ?? "—" },
               { label: "URL",         value: deploy?.url ?? "—", link: deploy?.url },
               { label: "Domain",      value: deploy?.domain ?? "—", link: deploy?.domain ? `https://${deploy.domain}` : undefined },
-              { label: "Deployed at", value: deploy?.deployedAt ? formatDate(deploy.deployedAt) : "—" },
+              { label: "Deployed at", value: deploy?.created_at ? formatDate(deploy.created_at) : "—" },
             ].map((row, i, arr) => (
               <div
                 key={row.label}
@@ -119,7 +135,7 @@ export default function DeploymentDetailPage() {
                     {row.value}
                   </a>
                 ) : (
-                  <span className="text-xs font-medium" style={{ color: "hsl(220 9% 68%)" }}>{row.value}</span>
+                  <span className="text-xs font-medium capitalize" style={{ color: "hsl(220 9% 68%)" }}>{row.value}</span>
                 )}
               </div>
             ))}
@@ -143,7 +159,7 @@ export default function DeploymentDetailPage() {
           </div>
         </div>
 
-        {!deploy && (
+        {!deploy && !error && (
           <div className="mt-5 text-center">
             <Link
               href={`/workspace/${project.id}`}

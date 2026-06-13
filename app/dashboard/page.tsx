@@ -14,6 +14,7 @@ import {
   actionGenerateIdeas,
 } from "@/app/actions/generate";
 import { actionGetProjectList, type ProjectListItem } from "@/app/actions/analytics";
+import { actionGetDeployments, type DeploymentRecord } from "@/app/actions/deployments";
 import type { BusinessFormData, ProjectFile } from "@/types";
 import type { AssetSet } from "@/lib/assets/types";
 import type {
@@ -39,15 +40,8 @@ interface GeneratedIdea {
   audience: string;
 }
 
-interface DeployRecord {
-  url: string;
-  domain?: string;
-  deployedAt: string;
-  environment: "production" | "preview";
-}
-
 interface ProjectEnriched extends ProjectListItem {
-  deploy: DeployRecord | null;
+  deploy: DeploymentRecord | null;
   status: "Deployed" | "Ready" | "Building";
   health: "Excellent" | "Good" | "Needs Attention";
 }
@@ -99,13 +93,13 @@ function formatRelative(iso: string) {
   return formatDate(iso);
 }
 
-function deriveProjectStatus(p: ProjectListItem, deploy: DeployRecord | null): "Deployed" | "Ready" | "Building" {
+function deriveProjectStatus(p: ProjectListItem, deploy: DeploymentRecord | null): "Deployed" | "Ready" | "Building" {
   if (deploy) return "Deployed";
   if (p.hasWebsite) return "Ready";
   return "Building";
 }
 
-function deriveProjectHealth(p: ProjectListItem, deploy: DeployRecord | null): "Excellent" | "Good" | "Needs Attention" {
+function deriveProjectHealth(p: ProjectListItem, deploy: DeploymentRecord | null): "Excellent" | "Good" | "Needs Attention" {
   if (deploy && p.hasWebsite && p.hasMarketing) return "Excellent";
   if (p.hasWebsite || p.hasMarketing) return "Good";
   return "Needs Attention";
@@ -630,7 +624,7 @@ function RecentActivity({ projects }: { projects: ProjectEnriched[] }) {
       events.push({
         label: `Deployed "${p.name}"`,
         detail: p.deploy.domain ?? p.deploy.url.replace(/^https?:\/\//, "").split("/")[0],
-        time: p.deploy.deployedAt,
+        time: p.deploy.created_at,
         color: "hsl(151 60% 48%)",
       });
     }
@@ -819,13 +813,17 @@ function DashboardInner() {
   const [loadingPx, setLoadingPx] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load projects
+  // Load projects + Supabase deploy records
   useEffect(() => {
-    actionGetProjectList().then((list) => {
+    Promise.all([
+      actionGetProjectList(),
+      actionGetDeployments(),
+    ]).then(([list, deploysResult]) => {
+      const deployMap = new Map<string, DeploymentRecord>();
+      for (const d of deploysResult.data) deployMap.set(d.project_id, d);
+
       const enriched: ProjectEnriched[] = list.map((p) => {
-        let deploy: DeployRecord | null = null;
-        const raw = localStorage.getItem(`lf_deploy_${p.id}`);
-        if (raw) { try { deploy = JSON.parse(raw); } catch {} }
+        const deploy = deployMap.get(p.id) ?? null;
         return {
           ...p,
           deploy,
@@ -834,6 +832,9 @@ function DashboardInner() {
         };
       });
       setProjects(enriched);
+      setLoadingPx(false);
+    }).catch((err: unknown) => {
+      console.error("[DashboardInner] failed to load:", err);
       setLoadingPx(false);
     });
   }, []);
