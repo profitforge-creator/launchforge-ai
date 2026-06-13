@@ -492,17 +492,24 @@ export async function actionValidateSupabaseEnv(): Promise<ConnectResult> {
   const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
   try {
-    const res = await fetch(`${url}/rest/v1/`, {
+    // Use the Auth health endpoint — does not require a table, always returns
+    // a JSON body regardless of RLS, schema, or project contents.
+    const res = await fetch(`${url}/auth/v1/health`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });
-    console.log("[Supabase validate] status:", res.status);
-    // Only auth failures are real failures — 200, 400, 406, etc. all mean the
-    // endpoint is reachable and the key was accepted by PostgREST.
+
+    let body = "";
+    try { body = await res.text(); } catch { /* ignore */ }
+    console.log("[Supabase validate] status:", res.status, "body:", body.slice(0, 200));
+
+    // Only hard auth failures count as errors.
     if (res.status === 401 || res.status === 403) {
-      return { success: false, error: "Supabase anon key is invalid or the project is paused." };
+      return { success: false, error: "Supabase anon key is invalid or unauthorized (HTTP " + res.status + ")." };
     }
+
+    // 200, 204, 400, 404 all mean the project is reachable.
     return {
       success: true,
       status: {
