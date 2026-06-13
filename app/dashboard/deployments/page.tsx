@@ -742,6 +742,7 @@ export default function DeploymentsPage() {
   const [projects,   setProjects]   = useState<ProjectWithDeploy[]>([]);
   const [platforms,  setPlatforms]  = useState<Record<IntegrationKey, PlatformUIState> | null>(null);
   const [loading,    setLoading]    = useState(true);
+  const [loadError,  setLoadError]  = useState<string | null>(null);
 
   // Load everything on mount
   useEffect(() => {
@@ -762,6 +763,11 @@ export default function DeploymentsPage() {
       const ui = {} as Record<IntegrationKey, PlatformUIState>;
       PLATFORM_KEYS.forEach((k) => { ui[k] = makePlatformUI(statuses[k]); });
       setPlatforms(ui);
+      setLoading(false);
+    }).catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[DeploymentsPage] Failed to load:", message, err);
+      setLoadError(message);
       setLoading(false);
     });
   }, []);
@@ -847,7 +853,7 @@ export default function DeploymentsPage() {
     ? Object.fromEntries(PLATFORM_KEYS.map((k) => [k, platforms[k].status])) as Record<IntegrationKey, IntegrationStatus>
     : Object.fromEntries(PLATFORM_KEYS.map((k) => [k, { connected: false }])) as Record<IntegrationKey, IntegrationStatus>;
 
-  if (loading || !platforms) {
+  if (loading) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: "hsl(220 14% 8%)" }}>
         <div className="max-w-5xl mx-auto px-8 py-8 space-y-4">
@@ -859,6 +865,35 @@ export default function DeploymentsPage() {
             {[0,1,2].map((i) => <div key={i} className="h-36 rounded-xl animate-pulse" style={{ backgroundColor: "hsl(220 13% 13%)" }} />)}
           </div>
           <div className="h-48 rounded-xl animate-pulse" style={{ backgroundColor: "hsl(220 13% 13%)" }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError || !platforms) {
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: "hsl(220 14% 8%)" }}>
+        <div className="max-w-5xl mx-auto px-8 py-8">
+          <div className="mb-8">
+            <h1 className="text-xl font-semibold mb-1" style={{ color: "hsl(220 9% 88%)", letterSpacing: "-0.01em" }}>Deployments</h1>
+            <p className="text-sm" style={{ color: "hsl(220 9% 38%)" }}>Connect your platforms and track live businesses.</p>
+          </div>
+          <div
+            className="rounded-xl px-6 py-8"
+            style={{ backgroundColor: "hsl(0 60% 12%)", border: "1px solid hsl(0 60% 22%)" }}
+          >
+            <p className="text-sm font-semibold mb-1" style={{ color: "hsl(0 70% 58%)" }}>Failed to load deployments</p>
+            <p className="text-xs font-mono mt-2 leading-relaxed" style={{ color: "hsl(0 60% 44%)" }}>
+              {loadError ?? "Unknown error — check the browser console for details."}
+            </p>
+            <button
+              onClick={() => { setLoadError(null); setLoading(true); window.location.reload(); }}
+              className="mt-4 h-8 px-4 rounded-lg text-xs font-medium"
+              style={{ backgroundColor: "hsl(0 60% 18%)", border: "1px solid hsl(0 60% 28%)", color: "hsl(0 70% 60%)" }}
+            >
+              Retry
+            </button>
+          </div>
         </div>
       </div>
     );
