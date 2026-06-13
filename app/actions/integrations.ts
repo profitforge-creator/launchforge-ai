@@ -343,12 +343,11 @@ function resolveStripeFromEnv(): IntegrationStatus | null {
 
 export async function actionValidateVercelEnv(): Promise<ConnectResult> {
   const token = process.env.VERCEL_TOKEN;
+  console.log("[Vercel validate] hasToken:", !!token);
   if (!token) return { success: false, error: "VERCEL_TOKEN is not set in server environment." };
 
-  // All Vercel API requests share a single 10-second deadline.
-  // AbortSignal.timeout() is available in Node.js 18+ (Vercel runtime).
-  const signal = AbortSignal.timeout(10_000);
-
+  // Each request gets its own 10-second budget so a slow sub-request
+  // cannot consume the primary request's time and cause a false timeout.
   const isAbort = (e: unknown) =>
     e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
@@ -357,8 +356,10 @@ export async function actionValidateVercelEnv(): Promise<ConnectResult> {
     const userRes = await fetch("https://api.vercel.com/v2/user", {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
-      signal,
+      signal: AbortSignal.timeout(10_000),
     });
+
+    console.log("[Vercel validate] user status:", userRes.status);
 
     if (!userRes.ok) {
       const code = userRes.status;
@@ -376,14 +377,16 @@ export async function actionValidateVercelEnv(): Promise<ConnectResult> {
         const teamRes = await fetch(`https://api.vercel.com/v2/teams/${user.defaultTeamId}`, {
           headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
-          signal,
+          signal: AbortSignal.timeout(10_000),
         });
         if (teamRes.ok) {
           const team = await teamRes.json();
           teamName = team.name ?? team.slug ?? undefined;
         }
       } catch (e) {
-        if (isAbort(e)) throw e; // re-throw so outer catch handles timeout
+        // Non-fatal — team info is supplemental.
+        if (isAbort(e)) console.warn("[Vercel validate] team request timed out (non-fatal)");
+        else console.warn("[Vercel validate] team request failed (non-fatal):", e);
       }
     }
 
@@ -393,14 +396,16 @@ export async function actionValidateVercelEnv(): Promise<ConnectResult> {
       const depRes = await fetch("https://api.vercel.com/v6/deployments?limit=100", {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
-        signal,
+        signal: AbortSignal.timeout(10_000),
       });
       if (depRes.ok) {
         const depData = await depRes.json();
         deploymentCount = Array.isArray(depData.deployments) ? depData.deployments.length : 0;
       }
     } catch (e) {
-      if (isAbort(e)) throw e;
+      // Non-fatal — deployment count is supplemental.
+      if (isAbort(e)) console.warn("[Vercel validate] deployments request timed out (non-fatal)");
+      else console.warn("[Vercel validate] deployments request failed (non-fatal):", e);
     }
 
     return {
@@ -419,8 +424,10 @@ export async function actionValidateVercelEnv(): Promise<ConnectResult> {
       },
     };
   } catch (e) {
-    if (isAbort(e)) return { success: false, error: "Vercel connection timed out." };
-    return { success: false, error: "Network error reaching Vercel API." };
+    if (isAbort(e)) return { success: false, error: "Vercel connection timed out after 10s." };
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[Vercel validate] error:", msg);
+    return { success: false, error: `Network error reaching Vercel API: ${msg}` };
   }
 }
 
@@ -474,25 +481,27 @@ export async function actionTestGitHubOAuth(): Promise<ConnectResult> {
 export async function actionValidateSupabaseEnv(): Promise<ConnectResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return { success: false };
+  console.log("[Supabase validate] hasUrl:", !!url, "hasKey:", !!key);
+  if (!url && !key) return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set in server environment." };
+  if (!url)         return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not set in server environment." };
+  if (!key)         return { success: false, error: "NEXT_PUBLIC_SUPABASE_ANON_KEY is not set in server environment." };
 
   const refMatch = url.match(/https?:\/\/([^.]+)\.supabase\.co/);
   const projectRef = refMatch?.[1] ?? undefined;
 
-  const signal = AbortSignal.timeout(10_000);
   const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
   try {
     const res = await fetch(`${url}/rest/v1/`, {
       headers: { apikey: key, Authorization: `Bearer ${key}` },
       cache: "no-store",
-      signal,
+      signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok && res.status !== 406) {
-      if (res.status === 401 || res.status === 403) {
-        return { success: false, error: "Supabase anon key is invalid or project is paused." };
-      }
-      return { success: false, error: `Supabase returned ${res.status}.` };
+    console.log("[Supabase validate] status:", res.status);
+    // Only auth failures are real failures — 200, 400, 406, etc. all mean the
+    // endpoint is reachable and the key was accepted by PostgREST.
+    if (res.status === 401 || res.status === 403) {
+      return { success: false, error: "Supabase anon key is invalid or the project is paused." };
     }
     return {
       success: true,
@@ -504,33 +513,36 @@ export async function actionValidateSupabaseEnv(): Promise<ConnectResult> {
       },
     };
   } catch (e) {
-    if (isAbort(e)) return { success: false, error: "Supabase connection timed out." };
-    return { success: false, error: "Network error reaching Supabase." };
+    if (isAbort(e)) return { success: false, error: "Supabase connection timed out after 10s." };
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[Supabase validate] error:", msg);
+    return { success: false, error: `Network error reaching Supabase: ${msg}` };
   }
 }
 
 export async function actionValidateStripeEnv(): Promise<ConnectResult> {
   const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) return { success: false };
+  console.log("[Stripe validate] hasKey:", !!key, "prefix:", key?.slice(0, 7) ?? "none");
+  if (!key) return { success: false, error: "STRIPE_SECRET_KEY is not configured in server environment." };
 
   if (!key.startsWith("sk_") && !key.startsWith("rk_")) {
-    return { success: false, error: "STRIPE_SECRET_KEY has an invalid format." };
+    return { success: false, error: "STRIPE_SECRET_KEY has an invalid format — must start with sk_ or rk_." };
   }
 
-  const signal = AbortSignal.timeout(10_000);
   const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
   try {
     const res = await fetch("https://api.stripe.com/v1/account", {
       headers: { Authorization: `Bearer ${key}` },
       cache: "no-store",
-      signal,
+      signal: AbortSignal.timeout(10_000),
     });
+    console.log("[Stripe validate] status:", res.status);
     if (res.status === 401) {
-      return { success: false, error: "Stripe key is invalid or revoked." };
+      return { success: false, error: "Stripe key is invalid or revoked — check STRIPE_SECRET_KEY." };
     }
     if (!res.ok) {
-      return { success: false, error: `Stripe API returned ${res.status}.` };
+      return { success: false, error: `Stripe API returned HTTP ${res.status}.` };
     }
     const account = await res.json();
     const isLive = key.startsWith("sk_live_") || key.startsWith("rk_live_");
@@ -549,8 +561,10 @@ export async function actionValidateStripeEnv(): Promise<ConnectResult> {
       },
     };
   } catch (e) {
-    if (isAbort(e)) return { success: false, error: "Stripe connection timed out." };
-    return { success: false, error: "Network error reaching Stripe API." };
+    if (isAbort(e)) return { success: false, error: "Stripe connection timed out after 10s." };
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[Stripe validate] error:", msg);
+    return { success: false, error: `Network error reaching Stripe API: ${msg}` };
   }
 }
 
