@@ -13,6 +13,7 @@ import {
   actionDisconnectIntegration,
   actionGetAllIntegrationStatuses,
   actionGetOAuthConfig,
+  actionGetEnvDiagnostics,
   actionValidateVercelEnv,
   actionTestGitHubOAuth,
   actionValidateSupabaseEnv,
@@ -23,6 +24,7 @@ import {
 } from "@/app/actions/integrations";
 
 type OAuthConfig = { github: boolean; stripe: boolean; webflow: boolean };
+type EnvDiagnostics = Awaited<ReturnType<typeof actionGetEnvDiagnostics>>;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -850,8 +852,9 @@ export default function DeploymentsPage() {
   const [platforms,   setPlatforms]   = useState<Record<IntegrationKey, PlatformUIState> | null>(null);
   const [loading,     setLoading]     = useState(true);
   const [loadError,   setLoadError]   = useState<string | null>(null);
-  const [oauthBanner, setOauthBanner] = useState<{ type: "error" | "success"; message: string } | null>(null);
-  const [oauthConfig, setOauthConfig] = useState<OAuthConfig>({ github: false, stripe: false, webflow: false });
+  const [oauthBanner,    setOauthBanner]    = useState<{ type: "error" | "success"; message: string } | null>(null);
+  const [oauthConfig,    setOauthConfig]    = useState<OAuthConfig>({ github: false, stripe: false, webflow: false });
+  const [envDiagnostics, setEnvDiagnostics] = useState<EnvDiagnostics | null>(null);
 
   // Apply a ConnectResult to a platform slot
   function applyResult(key: IntegrationKey, result: ConnectResult) {
@@ -869,6 +872,14 @@ export default function DeploymentsPage() {
       return { ...prev, [key]: { ...makePlatformUI({ connected: false }), status: { connected: false, source: prevStatus.source } } };
     });
   }
+
+  // Diagnostics: check env var presence server-side and log to console.
+  // Results appear in Vercel function logs and in the diagnostics panel on this page.
+  useEffect(() => {
+    actionGetEnvDiagnostics()
+      .then(setEnvDiagnostics)
+      .catch((e) => console.error("[DeploymentsPage] env diagnostics failed:", e));
+  }, []);
 
   // Read oauth_error / oauth_success query params set by callback routes, then clean URL
   useEffect(() => {
@@ -891,26 +902,48 @@ export default function DeploymentsPage() {
 
   // Load everything on mount, then validate env-based integrations in the background
   useEffect(() => {
-    Promise.all([
+    // Promise.allSettled — one failing action (e.g. Supabase DB unavailable) cannot
+    // kill the platform cards. Each result is handled independently.
+    Promise.allSettled([
       actionGetProjectList(),
       actionGetAllIntegrationStatuses(),
       actionGetDeployments(),
       actionGetOAuthConfig(),
-    ]).then(([list, statuses, deploysResult, oauthCfg]) => {
+    ]).then(([projectsRes, statusesRes, deploysRes, oauthRes]) => {
+
+      // ── OAuth config ────────────────────────────────────────────────────────
+      const oauthCfg: OAuthConfig = oauthRes.status === "fulfilled"
+        ? oauthRes.value
+        : { github: false, stripe: false, webflow: false };
+      if (oauthRes.status === "rejected") {
+        console.error("[DeploymentsPage] actionGetOAuthConfig failed:", oauthRes.reason);
+      }
       setOauthConfig(oauthCfg);
-      // Enrich projects with Supabase deployment records (keyed by project_id)
+
+      // ── Integration statuses ────────────────────────────────────────────────
+      const statuses: Record<IntegrationKey, IntegrationStatus> = statusesRes.status === "fulfilled"
+        ? statusesRes.value
+        : Object.fromEntries(PLATFORM_KEYS.map((k) => [k, { connected: false } as IntegrationStatus])) as Record<IntegrationKey, IntegrationStatus>;
+      if (statusesRes.status === "rejected") {
+        console.error("[DeploymentsPage] actionGetAllIntegrationStatuses failed:", statusesRes.reason);
+        setLoadError("Could not load integration statuses — check server logs.");
+      }
+
+      // ── Projects + deployments ──────────────────────────────────────────────
+      const list = projectsRes.status === "fulfilled" ? projectsRes.value : [];
+      const deploysResult = deploysRes.status === "fulfilled" ? deploysRes.value : { data: [] };
+      if (projectsRes.status === "rejected") {
+        console.error("[DeploymentsPage] actionGetProjectList failed:", projectsRes.reason);
+      }
+
       const deployMap = new Map<string, DeploymentRecord>();
       for (const d of deploysResult.data) deployMap.set(d.project_id, d);
-
-      const enriched: ProjectWithDeploy[] = list.map((p) => ({
-        ...p,
-        deploy: deployMap.get(p.id) ?? null,
-      }));
+      const enriched: ProjectWithDeploy[] = list.map((p) => ({ ...p, deploy: deployMap.get(p.id) ?? null }));
       setProjects(enriched);
 
-      // Build initial UI.
+      // ── Build initial platform UI ───────────────────────────────────────────
       // Supabase and Stripe auto-validate in the background (set to "connecting").
-      // Vercel and GitHub are user-triggered (test button appears, stay "idle").
+      // Vercel and GitHub stay "idle" until the user clicks "Test Connection".
       const ui = {} as Record<IntegrationKey, PlatformUIState>;
       PLATFORM_KEYS.forEach((k) => {
         const s = statuses[k];
@@ -920,10 +953,7 @@ export default function DeploymentsPage() {
       setPlatforms(ui);
       setLoading(false);
 
-      // ── Background validation (no outbound calls blocked page render) ──────
-      // Vercel: auto-validate if env-sourced and not already user-connected
-      // Vercel: user-triggered via "Test Vercel connection" button — not auto-validated.
-      // When VERCEL_TOKEN is present, the card shows "token configured" + the button.
+      // ── Background validation ───────────────────────────────────────────────
 
       // Supabase: auto-validate (10s timeout inside server action)
       if (statuses.supabase.source === "env") {
@@ -946,18 +976,8 @@ export default function DeploymentsPage() {
             return { ...prev, stripe: { ...prev.stripe, state: "error", error: "Stripe validation did not complete." } };
           }));
       }
-      // GitHub: user-triggered via "Test Connection" button — not auto-validated
 
-    }).catch((err: unknown) => {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error("[DeploymentsPage] Failed to load:", message, err);
-      setLoadError(message);
-      setOauthConfig({ github: false, stripe: false, webflow: false });
-      // Fall back to all-disconnected so the page still renders
-      const fallback = {} as Record<IntegrationKey, PlatformUIState>;
-      PLATFORM_KEYS.forEach((k) => { fallback[k] = makePlatformUI({ connected: false }); });
-      setPlatforms(fallback);
-      setLoading(false);
+      // GitHub: user-triggered via "Test Connection" — not auto-validated
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1198,6 +1218,32 @@ export default function DeploymentsPage() {
           <DomainsSection projects={projects} />
           <ActivityFeed events={activityEvents} />
         </div>
+
+        {/* Server env diagnostics — shows which env vars are visible to server actions */}
+        {envDiagnostics && (
+          <div className="mt-8 rounded-xl p-5" style={{ backgroundColor: "hsl(220 13% 11%)", border: "1px solid hsl(220 13% 16%)" }}>
+            <p className="text-xs font-semibold mb-3" style={{ color: "hsl(220 9% 52%)" }}>
+              Server Environment — env var presence as seen by server actions (true/false only, no secrets)
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {(Object.entries(envDiagnostics) as [string, boolean][]).map(([key, val]) => (
+                <div
+                  key={key}
+                  className="flex items-center justify-between rounded-lg px-3 py-2"
+                  style={{ backgroundColor: "hsl(220 13% 9%)", border: `1px solid ${val ? "hsl(151 60% 48% / 0.2)" : "hsl(0 60% 36% / 0.3)"}` }}
+                >
+                  <span className="text-xs font-mono" style={{ color: "hsl(220 9% 44%)" }}>{key}</span>
+                  <span
+                    className="text-xs font-semibold ml-2"
+                    style={{ color: val ? "hsl(151 60% 50%)" : "hsl(0 70% 55%)" }}
+                  >
+                    {val ? "true" : "false"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-8 pt-6" style={{ borderTop: "1px solid hsl(220 13% 13%)" }}>

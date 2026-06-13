@@ -621,6 +621,37 @@ export async function actionGetOAuthConfig(): Promise<{
   };
 }
 
+// Checks which env vars are present server-side and logs them.
+// Safe: logs only true/false — never prints actual secret values.
+// Check Vercel function logs or local console after the Deployments page loads.
+export async function actionGetEnvDiagnostics(): Promise<{
+  hasVercelToken:        boolean;
+  hasGithubClientId:     boolean;
+  hasGithubClientSecret: boolean;
+  hasStripeSecret:       boolean;
+  hasStripeClientId:     boolean;
+  hasSupabaseUrl:        boolean;
+  hasSupabaseAnon:       boolean;
+  hasAppUrl:             boolean;
+  hasWebflowClientId:    boolean;
+  hasWebflowSecret:      boolean;
+}> {
+  const result = {
+    hasVercelToken:        !!process.env.VERCEL_TOKEN,
+    hasGithubClientId:     !!process.env.GITHUB_CLIENT_ID,
+    hasGithubClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
+    hasStripeSecret:       !!process.env.STRIPE_SECRET_KEY,
+    hasStripeClientId:     !!process.env.STRIPE_CLIENT_ID,
+    hasSupabaseUrl:        !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasSupabaseAnon:       !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    hasAppUrl:             !!process.env.NEXT_PUBLIC_APP_URL,
+    hasWebflowClientId:    !!process.env.WEBFLOW_CLIENT_ID,
+    hasWebflowSecret:      !!process.env.WEBFLOW_CLIENT_SECRET,
+  };
+  console.log("[LaunchForge env diagnostics]", JSON.stringify(result, null, 2));
+  return result;
+}
+
 export async function actionGetIntegrationStatus(service: IntegrationKey): Promise<IntegrationStatus> {
   try {
     await restoreFromCookies();
