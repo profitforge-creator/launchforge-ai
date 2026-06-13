@@ -5,6 +5,13 @@ import Link from "next/link";
 import { actionGetProjectList, type ProjectListItem } from "@/app/actions/analytics";
 import { actionGetDeployments, type DeploymentRecord } from "@/app/actions/deployments";
 import {
+  actionCreateProject,
+  actionGetLFProjects,
+  actionDeleteLFProject,
+  type LFProject,
+  type CreateProjectStep,
+} from "@/app/actions/projects";
+import {
   actionConnectVercel,
   actionConnectGitHub,
   actionConnectWebflow,
@@ -82,6 +89,296 @@ function formatRelative(iso: string) {
   const days = Math.floor(hrs / 24);
   if (days < 7)  return `${days}d ago`;
   return formatDate(iso);
+}
+
+// ── New Project Modal ─────────────────────────────────────────────────────────
+
+function StepIcon({ status }: { status: CreateProjectStep["status"] }) {
+  if (status === "done")    return <span style={{ color: "hsl(151 60% 50%)" }}>✓</span>;
+  if (status === "error")   return <span style={{ color: "hsl(0 70% 55%)" }}>✗</span>;
+  if (status === "skipped") return <span style={{ color: "hsl(220 9% 36%)" }}>—</span>;
+  return <span style={{ color: "hsl(220 9% 36%)" }}>·</span>;
+}
+
+function NewProjectModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (p: LFProject) => void;
+}) {
+  const [name, setName]               = useState("");
+  const [description, setDescription] = useState("");
+  const [busy, setBusy]               = useState(false);
+  const [steps, setSteps]             = useState<CreateProjectStep[] | null>(null);
+  const [done, setDone]               = useState<LFProject | null>(null);
+  const [fatalError, setFatalError]   = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    setFatalError(null);
+    try {
+      const result = await actionCreateProject(name.trim(), description.trim() || undefined);
+      setSteps(result.steps);
+      if (result.project) {
+        setDone(result.project);
+        onCreated(result.project);
+      }
+    } catch (err) {
+      setFatalError(err instanceof Error ? err.message : "Unexpected error — check server logs.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const supabaseRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https?:\/\/([^.]+)\.supabase\.co/)?.[1];
+  const supabaseDashUrl = supabaseRef ? `https://supabase.com/dashboard/project/${supabaseRef}` : null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl p-6"
+        style={{ backgroundColor: "hsl(220 13% 11%)", border: "1px solid hsl(220 13% 18%)" }}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-sm font-semibold" style={{ color: "hsl(220 9% 88%)" }}>New Project</h2>
+          <button
+            onClick={onClose}
+            className="text-xs opacity-40 hover:opacity-80 transition-opacity"
+            style={{ color: "hsl(220 9% 60%)" }}
+          >✕</button>
+        </div>
+
+        {!steps && (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(220 9% 52%)" }}>
+                Project name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="My SaaS App"
+                required
+                autoFocus
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                style={{
+                  backgroundColor: "hsl(220 13% 9%)",
+                  border: "1px solid hsl(220 13% 20%)",
+                  color: "hsl(220 9% 88%)",
+                }}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "hsl(220 9% 52%)" }}>
+                Description <span style={{ color: "hsl(220 9% 32%)" }}>(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What does this project do?"
+                className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                style={{
+                  backgroundColor: "hsl(220 13% 9%)",
+                  border: "1px solid hsl(220 13% 20%)",
+                  color: "hsl(220 9% 88%)",
+                }}
+              />
+            </div>
+            <p className="text-xs" style={{ color: "hsl(220 9% 32%)", lineHeight: 1.6 }}>
+              Creates a GitHub repo, Vercel project, and Stripe product using your connected accounts.
+            </p>
+            {fatalError && (
+              <p className="text-xs rounded-lg px-3 py-2" style={{ backgroundColor: "hsl(0 60% 12%)", color: "hsl(0 70% 58%)", border: "1px solid hsl(0 60% 24%)" }}>
+                {fatalError}
+              </p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 h-9 rounded-lg text-xs font-medium transition-colors"
+                style={{ backgroundColor: "hsl(220 13% 14%)", color: "hsl(220 9% 52%)", border: "1px solid hsl(220 13% 20%)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={busy || !name.trim()}
+                className="flex-1 h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-2"
+                style={{ backgroundColor: "hsl(213 94% 62% / 0.15)", color: "hsl(213 94% 65%)", border: "1px solid hsl(213 94% 62% / 0.3)", opacity: busy || !name.trim() ? 0.5 : 1 }}
+              >
+                {busy ? <><Spinner /> Setting up…</> : "Create Project"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {steps && (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              {steps.map((s) => (
+                <div key={s.key} className="flex items-start gap-3 py-2 px-3 rounded-lg" style={{ backgroundColor: "hsl(220 13% 9%)" }}>
+                  <span className="text-sm font-bold w-4 shrink-0 mt-px"><StepIcon status={s.status} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium" style={{ color: "hsl(220 9% 78%)" }}>{s.label}</p>
+                    {s.detail && <p className="text-xs mt-0.5 truncate" style={{ color: s.status === "error" ? "hsl(0 70% 55%)" : "hsl(220 9% 38%)" }}>{s.detail}</p>}
+                    {s.url && (
+                      <a href={s.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs mt-0.5" style={{ color: "hsl(213 94% 62%)" }}>
+                        Open <IconExternal />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {supabaseDashUrl && done && (
+                <div className="flex items-start gap-3 py-2 px-3 rounded-lg" style={{ backgroundColor: "hsl(220 13% 9%)" }}>
+                  <span className="text-sm font-bold w-4 shrink-0 mt-px" style={{ color: "hsl(151 60% 50%)" }}>✓</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium" style={{ color: "hsl(220 9% 78%)" }}>Saved to Supabase</p>
+                    <a href={supabaseDashUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs mt-0.5" style={{ color: "hsl(213 94% 62%)" }}>
+                      Open project <IconExternal />
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full h-9 rounded-lg text-xs font-medium mt-2"
+              style={{ backgroundColor: "hsl(220 13% 14%)", color: "hsl(220 9% 60%)", border: "1px solid hsl(220 13% 20%)" }}
+            >
+              Done
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── LF Projects section ───────────────────────────────────────────────────────
+
+function ExternalButton({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 h-6 px-2.5 rounded-md text-xs font-medium transition-colors"
+      style={{ backgroundColor: "hsl(220 13% 14%)", color: "hsl(220 9% 52%)", border: "1px solid hsl(220 13% 20%)" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 80%)"; (e.currentTarget as HTMLElement).style.borderColor = "hsl(220 13% 30%)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 52%)"; (e.currentTarget as HTMLElement).style.borderColor = "hsl(220 13% 20%)"; }}
+    >
+      {label} <IconExternal />
+    </a>
+  );
+}
+
+function LFProjectsSection({
+  projects,
+  onNewProject,
+  onDelete,
+}: {
+  projects: LFProject[];
+  onNewProject: () => void;
+  onDelete: (id: string) => void;
+}) {
+  const supabaseRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.match(/https?:\/\/([^.]+)\.supabase\.co/)?.[1];
+  const supabaseDashUrl = supabaseRef ? `https://supabase.com/dashboard/project/${supabaseRef}` : null;
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold" style={{ color: "hsl(220 9% 78%)" }}>Projects</h2>
+          <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 36%)" }}>
+            {projects.length === 0 ? "No projects yet." : `${projects.length} project${projects.length === 1 ? "" : "s"} — GitHub, Vercel, Stripe provisioned automatically.`}
+          </p>
+        </div>
+        <button
+          onClick={onNewProject}
+          className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-medium"
+          style={{ backgroundColor: "hsl(213 94% 62% / 0.1)", border: "1px solid hsl(213 94% 62% / 0.25)", color: "hsl(213 94% 65%)" }}
+        >
+          <IconPlus /> New Project
+        </button>
+      </div>
+
+      {projects.length === 0 ? (
+        <div
+          className="rounded-xl px-8 py-10 text-center"
+          style={{ backgroundColor: "hsl(220 13% 10%)", border: "1px solid hsl(220 13% 14%)", borderStyle: "dashed" }}
+        >
+          <p className="text-sm font-medium mb-1" style={{ color: "hsl(220 9% 52%)" }}>No projects yet</p>
+          <p className="text-xs mb-4" style={{ color: "hsl(220 9% 32%)", lineHeight: 1.6 }}>
+            Click "New Project" to create a GitHub repo, Vercel project, and Stripe product in one step.
+          </p>
+          <button
+            onClick={onNewProject}
+            className="inline-flex items-center gap-1.5 h-8 px-4 rounded-lg text-xs font-medium"
+            style={{ backgroundColor: "hsl(213 94% 62% / 0.1)", border: "1px solid hsl(213 94% 62% / 0.25)", color: "hsl(213 94% 65%)" }}
+          >
+            <IconPlus /> New Project
+          </button>
+        </div>
+      ) : (
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid hsl(220 13% 15%)" }}>
+          {projects.map((p, i) => (
+            <div
+              key={p.id}
+              className="px-4 py-4"
+              style={{ backgroundColor: "hsl(220 14% 9%)", borderBottom: i < projects.length - 1 ? "1px solid hsl(220 13% 13%)" : "none" }}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <p className="text-sm font-medium truncate" style={{ color: "hsl(220 9% 86%)" }}>{p.name}</p>
+                    <span
+                      className="inline-flex items-center gap-1 text-xs px-1.5 py-px rounded-full font-medium shrink-0"
+                      style={{ backgroundColor: "hsl(151 60% 48% / 0.1)", color: "hsl(151 60% 50%)", border: "1px solid hsl(151 60% 48% / 0.2)" }}
+                    >
+                      <span className="w-1 h-1 rounded-full" style={{ backgroundColor: "hsl(151 60% 50%)" }} />
+                      {p.status}
+                    </span>
+                  </div>
+                  {p.description && (
+                    <p className="text-xs mb-2 truncate" style={{ color: "hsl(220 9% 38%)" }}>{p.description}</p>
+                  )}
+                  <p className="text-xs" style={{ color: "hsl(220 9% 28%)" }}>
+                    {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onDelete(p.id)}
+                  className="shrink-0 text-xs opacity-30 hover:opacity-70 transition-opacity pt-0.5"
+                  title="Delete project record"
+                  style={{ color: "hsl(220 9% 52%)" }}
+                >✕</button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {p.github_repo_url    && <ExternalButton href={p.github_repo_url}    label="GitHub" />}
+                {p.vercel_project_url && <ExternalButton href={p.vercel_project_url} label="Vercel" />}
+                {supabaseDashUrl      && <ExternalButton href={supabaseDashUrl}       label="Supabase" />}
+                {p.stripe_dashboard_url && <ExternalButton href={p.stripe_dashboard_url} label="Stripe" />}
+                {!p.github_repo_url && !p.vercel_project_url && !p.stripe_dashboard_url && (
+                  <span className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>No external resources provisioned</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Platform metadata ─────────────────────────────────────────────────────────
@@ -847,9 +1144,11 @@ const OAUTH_PATHS: Partial<Record<IntegrationKey, string>> = {
 
 export default function DeploymentsPage() {
   const [projects,    setProjects]    = useState<ProjectWithDeploy[]>([]);
+  const [lfProjects,  setLfProjects]  = useState<LFProject[]>([]);
   const [platforms,   setPlatforms]   = useState<Record<IntegrationKey, PlatformUIState> | null>(null);
   const [loading,     setLoading]     = useState(true);
   const [loadError,   setLoadError]   = useState<string | null>(null);
+  const [showNewProject, setShowNewProject] = useState(false);
   const [oauthBanner,    setOauthBanner]    = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [oauthConfig,    setOauthConfig]    = useState<OAuthConfig>({ github: false, stripe: false, webflow: false });
   const [envDiagnostics, setEnvDiagnostics] = useState<EnvDiagnostics | null>(null);
@@ -902,6 +1201,11 @@ export default function DeploymentsPage() {
   useEffect(() => {
     // Promise.allSettled — one failing action (e.g. Supabase DB unavailable) cannot
     // kill the platform cards. Each result is handled independently.
+    actionGetLFProjects().then((r) => {
+      if (r.error) console.error("[DeploymentsPage] actionGetLFProjects failed:", r.error);
+      else setLfProjects(r.data);
+    });
+
     Promise.allSettled([
       actionGetProjectList(),
       actionGetAllIntegrationStatuses(),
@@ -1060,6 +1364,11 @@ export default function DeploymentsPage() {
     }
   }
 
+  async function handleDeleteLFProject(id: string) {
+    setLfProjects((prev) => prev.filter((p) => p.id !== id));
+    await actionDeleteLFProject(id).catch((e) => console.error("[DeploymentsPage] delete failed:", e));
+  }
+
   function setShowForm(id: IntegrationKey, show: boolean) {
     setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], showForm: show, error: null } } : prev);
   }
@@ -1117,6 +1426,12 @@ export default function DeploymentsPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "hsl(220 14% 8%)" }}>
+      {showNewProject && (
+        <NewProjectModal
+          onClose={() => setShowNewProject(false)}
+          onCreated={(p) => setLfProjects((prev) => [p, ...prev])}
+        />
+      )}
       <div className="max-w-5xl mx-auto px-8 py-8">
 
         {/* Header */}
@@ -1194,6 +1509,13 @@ export default function DeploymentsPage() {
             ))}
           </div>
         </div>
+
+        {/* LF Projects */}
+        <LFProjectsSection
+          projects={lfProjects}
+          onNewProject={() => setShowNewProject(true)}
+          onDelete={handleDeleteLFProject}
+        />
 
         {/* Recent Deployments */}
         <div className="mb-8">
