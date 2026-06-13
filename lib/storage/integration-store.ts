@@ -30,12 +30,14 @@ export interface IntegrationStatus {
     email?: string;
     teamName?: string;
     projectCount?: number;
+    deploymentCount?: number;
     repoCount?: number;
     siteCount?: number;
     planName?: string;
     country?: string;
     mode?: "live" | "test";
     app_id?: string;
+    projectRef?: string;
   };
 }
 

@@ -307,29 +307,225 @@ export async function actionDisconnectIntegration(service: IntegrationKey): Prom
 // are always re-checked on each status query so they stay fresh.
 
 // Check env vars synchronously — no outbound API calls on every page load.
-// Use actionCheckVercelEnv() / actionCheckGitHubEnv() (in deployments.ts)
-// when explicit token validation is needed.
+// The actionValidateXxxEnv() functions below do the real API calls and are
+// called from the client after the page renders.
 function resolveVercelFromEnv(): IntegrationStatus | null {
-  const token = process.env.VERCEL_TOKEN;
-  if (!token) return null;
-  return {
-    connected:   true,
-    source:      "env",
-    connectedAt: new Date().toISOString(),
-    metadata:    { name: "Environment variable" },
-  };
+  if (!process.env.VERCEL_TOKEN) return null;
+  return { connected: true, source: "env", connectedAt: new Date().toISOString(), metadata: { name: "Vercel" } };
 }
 
 function resolveGitHubFromEnv(): IntegrationStatus | null {
+  if (!process.env.GITHUB_CLIENT_ID || !process.env.GITHUB_CLIENT_SECRET) return null;
+  return { connected: true, source: "env", connectedAt: new Date().toISOString(), metadata: { name: "OAuth App", app_id: process.env.GITHUB_CLIENT_ID } };
+}
+
+function resolveSupabaseFromEnv(): IntegrationStatus | null {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return null;
+  return { connected: true, source: "env", connectedAt: new Date().toISOString(), metadata: { name: "Supabase" } };
+}
+
+function resolveStripeFromEnv(): IntegrationStatus | null {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return null;
+  const mode = (key.startsWith("sk_live_") || key.startsWith("rk_live_")) ? "live" as const : "test" as const;
+  return { connected: true, source: "env", connectedAt: new Date().toISOString(), metadata: { name: "Stripe", mode } };
+}
+
+// ── Env-validation actions ────────────────────────────────────────────────────
+//
+// These make real API calls and should be called from the client AFTER the
+// page has rendered — NOT inside actionGetAllIntegrationStatuses().
+// Each returns success:false with error:undefined when the env var isn't set
+// (silent, no UI error) or success:false with a real error string when the
+// env var is present but the credentials are invalid.
+
+export async function actionValidateVercelEnv(): Promise<ConnectResult> {
+  const token = process.env.VERCEL_TOKEN;
+  if (!token) return { success: false };
+
+  try {
+    const userRes = await fetch("https://api.vercel.com/v2/user", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!userRes.ok) {
+      const code = userRes.status;
+      return { success: false, error: code === 401 || code === 403 ? "VERCEL_TOKEN is invalid or expired." : `Vercel API returned ${code}.` };
+    }
+    const userData = await userRes.json();
+    const user = userData.user ?? {};
+
+    // Team name — present only on Pro/Enterprise accounts
+    let teamName: string | undefined;
+    if (user.defaultTeamId) {
+      try {
+        const teamRes = await fetch(`https://api.vercel.com/v2/teams/${user.defaultTeamId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (teamRes.ok) {
+          const team = await teamRes.json();
+          teamName = team.name ?? team.slug;
+        }
+      } catch { /* skip */ }
+    }
+
+    // Deployment count (first page only, capped at 100)
+    let deploymentCount = 0;
+    try {
+      const depRes = await fetch("https://api.vercel.com/v6/deployments?limit=100", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (depRes.ok) {
+        const depData = await depRes.json();
+        deploymentCount = Array.isArray(depData.deployments) ? depData.deployments.length : 0;
+      }
+    } catch { /* skip */ }
+
+    return {
+      success: true,
+      status: {
+        connected:   true,
+        source:      "env",
+        connectedAt: new Date().toISOString(),
+        metadata: {
+          name:            user.name ?? user.username,
+          username:        user.username,
+          email:           user.email,
+          teamName,
+          deploymentCount,
+        },
+      },
+    };
+  } catch {
+    return { success: false, error: "Network error reaching Vercel API." };
+  }
+}
+
+export async function actionTestGitHubOAuth(): Promise<ConnectResult> {
   const clientId     = process.env.GITHUB_CLIENT_ID;
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
-  return {
-    connected:   true,
-    source:      "env",
-    connectedAt: new Date().toISOString(),
-    metadata:    { name: "OAuth App", app_id: clientId },
-  };
+  if (!clientId || !clientSecret) return { success: false };
+
+  try {
+    const credentials = btoa(`${clientId}:${clientSecret}`);
+    const res = await fetch("https://api.github.com/rate_limit", {
+      headers: {
+        Authorization:          `Basic ${credentials}`,
+        Accept:                 "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent":           "launchforge-ai",
+      },
+      cache: "no-store",
+    });
+    if (res.status === 401) {
+      return { success: false, error: "GitHub OAuth credentials are invalid — check GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET." };
+    }
+    if (!res.ok) {
+      return { success: false, error: `GitHub API returned ${res.status}.` };
+    }
+    const data = await res.json();
+    const limit = data?.rate?.limit ?? data?.resources?.core?.limit ?? null;
+    return {
+      success: true,
+      status: {
+        connected:   true,
+        source:      "env",
+        connectedAt: new Date().toISOString(),
+        metadata: {
+          name:    "OAuth App",
+          app_id:  clientId,
+          ...(limit !== null && { repoCount: limit }), // reuse field for rate limit display
+        },
+      },
+    };
+  } catch {
+    return { success: false, error: "Network error reaching GitHub API." };
+  }
+}
+
+export async function actionValidateSupabaseEnv(): Promise<ConnectResult> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return { success: false };
+
+  // Extract project reference ID from URL (https://<ref>.supabase.co)
+  const refMatch = url.match(/https?:\/\/([^.]+)\.supabase\.co/);
+  const projectRef = refMatch?.[1] ?? undefined;
+
+  try {
+    // Verify connectivity via the REST root (returns OpenAPI spec at 200)
+    const res = await fetch(`${url}/rest/v1/`, {
+      headers: {
+        apikey:        key,
+        Authorization: `Bearer ${key}`,
+      },
+      cache: "no-store",
+    });
+    // 200 = success; 406 = content-type negotiation (still reachable); anything else = error
+    if (!res.ok && res.status !== 406) {
+      if (res.status === 401 || res.status === 403) {
+        return { success: false, error: "Supabase anon key is invalid or project is paused." };
+      }
+      return { success: false, error: `Supabase returned ${res.status}.` };
+    }
+
+    return {
+      success: true,
+      status: {
+        connected:   true,
+        source:      "env",
+        connectedAt: new Date().toISOString(),
+        metadata: {
+          name:       projectRef ? `Project ${projectRef}` : "Supabase Project",
+          projectRef,
+        },
+      },
+    };
+  } catch {
+    return { success: false, error: "Network error reaching Supabase." };
+  }
+}
+
+export async function actionValidateStripeEnv(): Promise<ConnectResult> {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return { success: false };
+
+  if (!key.startsWith("sk_") && !key.startsWith("rk_")) {
+    return { success: false, error: "STRIPE_SECRET_KEY has an invalid format." };
+  }
+
+  try {
+    const res = await fetch("https://api.stripe.com/v1/account", {
+      headers: { Authorization: `Bearer ${key}` },
+      cache: "no-store",
+    });
+    if (res.status === 401) {
+      return { success: false, error: "Stripe key is invalid or revoked." };
+    }
+    if (!res.ok) {
+      return { success: false, error: `Stripe API returned ${res.status}.` };
+    }
+    const account = await res.json();
+    const isLive = key.startsWith("sk_live_") || key.startsWith("rk_live_");
+    return {
+      success: true,
+      status: {
+        connected:   true,
+        source:      "env",
+        connectedAt: new Date().toISOString(),
+        metadata: {
+          name:    account.settings?.dashboard?.display_name ?? account.business_profile?.name ?? account.id,
+          email:   account.email,
+          mode:    isLive ? "live" as const : "test" as const,
+          country: account.country,
+        },
+      },
+    };
+  } catch {
+    return { success: false, error: "Network error reaching Stripe API." };
+  }
 }
 
 // ── Status queries ────────────────────────────────────────────────────────────
@@ -345,10 +541,15 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
     //    cookies() can throw in certain Next.js contexts — we catch at the outer level.
     await restoreFromCookies();
 
-    // 2. For Vercel and GitHub: if the user hasn't connected manually, fall back
-    //    to env-var presence check (synchronous — no outbound API calls).
-    const vercelEnv = getIntegration("vercel") ? null : resolveVercelFromEnv();
-    const githubEnv = getIntegration("github") ? null : resolveGitHubFromEnv();
+    // 2. For env-var-backed integrations: check presence synchronously.
+    //    No outbound API calls — validation happens in the client via
+    //    actionValidateVercelEnv / actionValidateSupabaseEnv / etc.
+    const envFallbacks: Partial<Record<IntegrationKey, IntegrationStatus>> = {
+      vercel:   resolveVercelFromEnv()   ?? undefined,
+      github:   resolveGitHubFromEnv()   ?? undefined,
+      supabase: resolveSupabaseFromEnv() ?? undefined,
+      stripe:   resolveStripeFromEnv()   ?? undefined,
+    };
 
     const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
     const result = {} as Record<IntegrationKey, IntegrationStatus>;
@@ -362,10 +563,8 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
           connectedAt: stored.connectedAt,
           metadata:    stored.metadata as IntegrationStatus["metadata"],
         };
-      } else if (key === "vercel" && vercelEnv?.connected) {
-        result[key] = vercelEnv;
-      } else if (key === "github" && githubEnv?.connected) {
-        result[key] = githubEnv;
+      } else if (envFallbacks[key]?.connected) {
+        result[key] = envFallbacks[key]!;
       } else {
         result[key] = { connected: false };
       }

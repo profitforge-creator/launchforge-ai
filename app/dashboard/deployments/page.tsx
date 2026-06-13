@@ -12,8 +12,13 @@ import {
   actionConnectSupabase,
   actionDisconnectIntegration,
   actionGetAllIntegrationStatuses,
+  actionValidateVercelEnv,
+  actionTestGitHubOAuth,
+  actionValidateSupabaseEnv,
+  actionValidateStripeEnv,
   type IntegrationKey,
   type IntegrationStatus,
+  type ConnectResult,
 } from "@/app/actions/integrations";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -300,6 +305,7 @@ function PlatformCard({
   onHideForm,
   onShowManage,
   onHideManage,
+  onTestConnection,
 }: {
   id: IntegrationKey;
   ui: PlatformUIState;
@@ -309,12 +315,15 @@ function PlatformCard({
   onHideForm: (id: IntegrationKey) => void;
   onShowManage: (id: IntegrationKey) => void;
   onHideManage: (id: IntegrationKey) => void;
+  onTestConnection: (id: IntegrationKey) => Promise<void>;
 }) {
   const meta = PLATFORM_META[id];
   const { state, status, error, showForm, showManage } = ui;
-  const isConnected  = state === "connected" || (state === "idle" && status.connected);
-  const isConnecting = state === "connecting";
-  const isEnvSource  = isConnected && status.source === "env";
+  const isConnected   = state === "connected" || (state === "idle" && status.connected);
+  const isConnecting  = state === "connecting";
+  const isEnvSource   = status.source === "env";
+  const isVerifying   = isConnecting && isEnvSource;
+  const needsTestBtn  = isEnvSource && !isConnecting && id === "github" && !status.metadata?.username;
 
   const borderColor = isConnected
     ? "hsl(151 60% 48% / 0.2)"
@@ -353,7 +362,7 @@ function PlatformCard({
             )}
             {isConnecting && (
               <span className="inline-flex items-center gap-1 text-xs" style={{ color: "hsl(213 94% 62%)" }}>
-                <Spinner /> Connecting…
+                <Spinner /> {isVerifying ? "Verifying…" : "Connecting…"}
               </span>
             )}
           </div>
@@ -387,10 +396,28 @@ function PlatformCard({
               <span className="text-xs" style={{ color: "hsl(220 9% 50%)" }}>{status.metadata.email}</span>
             </div>
           )}
+          {status.metadata.teamName && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs" style={{ color: "hsl(220 9% 36%)" }}>Team</span>
+              <span className="text-xs font-medium" style={{ color: "hsl(220 9% 56%)" }}>{status.metadata.teamName}</span>
+            </div>
+          )}
+          {typeof status.metadata.deploymentCount === "number" && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs" style={{ color: "hsl(220 9% 36%)" }}>Deployments</span>
+              <span className="text-xs font-medium tabular-nums" style={{ color: "hsl(220 9% 56%)" }}>{status.metadata.deploymentCount}</span>
+            </div>
+          )}
           {typeof status.metadata.projectCount === "number" && (
             <div className="flex items-center justify-between">
               <span className="text-xs" style={{ color: "hsl(220 9% 36%)" }}>Projects</span>
               <span className="text-xs font-medium tabular-nums" style={{ color: "hsl(220 9% 56%)" }}>{status.metadata.projectCount}</span>
+            </div>
+          )}
+          {status.metadata.projectRef && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs" style={{ color: "hsl(220 9% 36%)" }}>Project Ref</span>
+              <span className="text-xs font-mono" style={{ color: "hsl(220 9% 52%)" }}>{status.metadata.projectRef}</span>
             </div>
           )}
           {typeof status.metadata.repoCount === "number" && (
@@ -434,9 +461,19 @@ function PlatformCard({
         </div>
       )}
 
+      {/* Error from validation */}
+      {state === "error" && error && (
+        <div
+          className="rounded-lg px-3 py-2 mb-3 text-xs"
+          style={{ backgroundColor: "hsl(0 60% 12%)", border: "1px solid hsl(0 60% 24%)", color: "hsl(0 70% 58%)" }}
+        >
+          {error}
+        </div>
+      )}
+
       {/* Actions */}
-      {/* ENV-sourced: read-only, no connect/disconnect controls */}
-      {isEnvSource && (
+      {/* ENV-sourced + fully verified: read-only note */}
+      {isEnvSource && isConnected && !needsTestBtn && !isVerifying && (
         <div
           className="mt-auto rounded-lg px-3 py-2 text-xs"
           style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 18%)", color: "hsl(220 9% 36%)" }}
@@ -445,7 +482,21 @@ function PlatformCard({
         </div>
       )}
 
-      {!isConnected && !showForm && (
+      {/* ENV-sourced + needs test button (GitHub) */}
+      {needsTestBtn && (
+        <button
+          onClick={() => onTestConnection(id)}
+          className="mt-auto h-8 rounded-lg text-xs font-medium transition-all"
+          style={{ backgroundColor: "hsl(220 13% 14%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 55%)" }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 72%)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 14%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 55%)"; }}
+        >
+          Test Connection
+        </button>
+      )}
+
+      {/* Not connected: show connect button */}
+      {!isConnected && !isEnvSource && !showForm && (
         <button
           onClick={() => onShowForm(id)}
           className="mt-auto h-8 rounded-lg text-xs font-medium transition-all"
@@ -749,7 +800,23 @@ export default function DeploymentsPage() {
   const [loading,    setLoading]    = useState(true);
   const [loadError,  setLoadError]  = useState<string | null>(null);
 
-  // Load everything on mount
+  // Apply a ConnectResult to a platform slot
+  function applyResult(key: IntegrationKey, result: ConnectResult) {
+    setPlatforms((prev) => {
+      if (!prev) return prev;
+      if (result.success && result.status) {
+        return { ...prev, [key]: { state: "connected", status: result.status, error: null, showForm: false, showManage: false } };
+      }
+      // error present = configured but invalid; error absent = not configured (silent)
+      if (result.error) {
+        return { ...prev, [key]: { ...prev[key], state: "error", error: result.error } };
+      }
+      // Not configured — revert to disconnected
+      return { ...prev, [key]: makePlatformUI({ connected: false }) };
+    });
+  }
+
+  // Load everything on mount, then validate env-based integrations in the background
   useEffect(() => {
     Promise.all([
       actionGetProjectList(),
@@ -766,11 +833,40 @@ export default function DeploymentsPage() {
       }));
       setProjects(enriched);
 
-      // Build per-platform UI state from REAL server-side statuses
+      // Build initial UI — mark env-sourced platforms (except GitHub) as "connecting"
+      // so they show "Verifying…" while real API validation runs in the background.
       const ui = {} as Record<IntegrationKey, PlatformUIState>;
-      PLATFORM_KEYS.forEach((k) => { ui[k] = makePlatformUI(statuses[k]); });
+      PLATFORM_KEYS.forEach((k) => {
+        const s = statuses[k];
+        const needsValidation = s.connected && s.source === "env" && k !== "github";
+        ui[k] = { ...makePlatformUI(s), state: needsValidation ? "connecting" : (s.connected ? "connected" : "idle") };
+      });
       setPlatforms(ui);
       setLoading(false);
+
+      // ── Background validation (no outbound calls blocked page render) ──────
+      // Vercel: auto-validate if env-sourced and not already user-connected
+      if (statuses.vercel.source === "env") {
+        actionValidateVercelEnv()
+          .then((r) => applyResult("vercel", r))
+          .catch(() => applyResult("vercel", { success: false, error: "Could not reach Vercel API." }));
+      }
+
+      // Supabase: auto-validate
+      if (statuses.supabase.source === "env") {
+        actionValidateSupabaseEnv()
+          .then((r) => applyResult("supabase", r))
+          .catch(() => applyResult("supabase", { success: false, error: "Could not reach Supabase." }));
+      }
+
+      // Stripe: auto-validate
+      if (statuses.stripe.source === "env") {
+        actionValidateStripeEnv()
+          .then((r) => applyResult("stripe", r))
+          .catch(() => applyResult("stripe", { success: false, error: "Could not reach Stripe API." }));
+      }
+      // GitHub: user-triggered via "Test Connection" button — not auto-validated
+
     }).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
       console.error("[DeploymentsPage] Failed to load:", message, err);
@@ -781,6 +877,7 @@ export default function DeploymentsPage() {
       setPlatforms(fallback);
       setLoading(false);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Connect handler — calls the real server action for each service
@@ -820,6 +917,17 @@ export default function DeploymentsPage() {
         };
       }
     });
+  }
+
+  // Test connection handler — validates env-based OAuth credentials (GitHub)
+  async function handleTestConnection(id: IntegrationKey) {
+    setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], state: "connecting", error: null } } : prev);
+    try {
+      const result = id === "github" ? await actionTestGitHubOAuth() : { success: false, error: "No test action for this platform." };
+      applyResult(id, result);
+    } catch {
+      applyResult(id, { success: false, error: "Test connection failed." });
+    }
   }
 
   // Disconnect handler — calls real server action
@@ -925,6 +1033,7 @@ export default function DeploymentsPage() {
                 onHideForm={(id) => setShowForm(id, false)}
                 onShowManage={(id) => setShowManage(id, true)}
                 onHideManage={(id) => setShowManage(id, false)}
+                onTestConnection={handleTestConnection}
               />
             ))}
           </div>
