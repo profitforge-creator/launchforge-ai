@@ -186,7 +186,8 @@ export async function actionCheckGitHubEnv(): Promise<EnvIntegrationStatus> {
   try {
     // Verify OAuth app credentials via GitHub's rate_limit endpoint.
     // Basic auth with CLIENT_ID:CLIENT_SECRET authenticates as the OAuth app.
-    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    // btoa is the Web-standard base64 encoder — works in Node.js and Edge Runtime.
+    const credentials = btoa(`${clientId}:${clientSecret}`);
     const res = await fetch("https://api.github.com/rate_limit", {
       headers: {
         Authorization: `Basic ${credentials}`,

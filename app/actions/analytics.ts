@@ -41,15 +41,20 @@ export interface ProjectListItem {
 }
 
 export async function actionGetProjectList(): Promise<ProjectListItem[]> {
-  const generations = getAllGenerations();
-  return generations.map((g) => ({
-    id: g.id,
-    name: g.product.name,
-    type: g.formData.businessType ?? "open",
-    createdAt: g.createdAt,
-    hasWebsite: (g.projectFiles?.filter((f) => f.folder === "website") ?? []).length > 0,
-    hasMarketing: (g.marketing?.launchStrategy?.length ?? 0) > 0,
-  }));
+  try {
+    const generations = getAllGenerations();
+    return generations.map((g) => ({
+      id: g.id,
+      name: g.product.name,
+      type: g.formData.businessType ?? "open",
+      createdAt: g.createdAt,
+      hasWebsite: (g.projectFiles?.filter((f) => f.folder === "website") ?? []).length > 0,
+      hasMarketing: (g.marketing?.launchStrategy?.length ?? 0) > 0,
+    }));
+  } catch (err) {
+    console.error("[actionGetProjectList] unexpected error:", err);
+    return [];
+  }
 }
 
 export async function actionGetAnalyticsData(): Promise<AnalyticsData> {

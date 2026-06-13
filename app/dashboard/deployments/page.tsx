@@ -878,6 +878,13 @@ export default function DeploymentsPage() {
   }
 
   if (loadError || !platforms) {
+    // Determine whether we can safely show the raw error string.
+    // Next.js production server actions return a generic "An error occurred in the
+    // Server Components render..." string — we suppress that and show a safer message.
+    const isNextGenericError =
+      typeof loadError === "string" && loadError.includes("Server Components render");
+    const devError = process.env.NODE_ENV === "development" ? loadError : null;
+
     return (
       <div className="min-h-screen" style={{ backgroundColor: "hsl(220 14% 8%)" }}>
         <div className="max-w-5xl mx-auto px-8 py-8">
@@ -887,16 +894,25 @@ export default function DeploymentsPage() {
           </div>
           <div
             className="rounded-xl px-6 py-8"
-            style={{ backgroundColor: "hsl(0 60% 12%)", border: "1px solid hsl(0 60% 22%)" }}
+            style={{ backgroundColor: "hsl(220 13% 11%)", border: "1px solid hsl(0 60% 22%)" }}
           >
-            <p className="text-sm font-semibold mb-1" style={{ color: "hsl(0 70% 58%)" }}>Failed to load deployments</p>
-            <p className="text-xs font-mono mt-2 leading-relaxed" style={{ color: "hsl(0 60% 44%)" }}>
-              {loadError ?? "Unknown error — check the browser console for details."}
+            <p className="text-sm font-semibold mb-1" style={{ color: "hsl(0 70% 58%)" }}>
+              Deployments unavailable
             </p>
+            <p className="text-xs mt-1 mb-4" style={{ color: "hsl(220 9% 44%)" }}>
+              {isNextGenericError
+                ? "A server error occurred while loading integration status. Check that all required environment variables are set in your Vercel dashboard."
+                : "Could not connect to deployment services. Check that NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and VERCEL_TOKEN are set."}
+            </p>
+            {devError && !isNextGenericError && (
+              <p className="text-xs font-mono mb-4 leading-relaxed" style={{ color: "hsl(0 60% 44%)" }}>
+                {devError}
+              </p>
+            )}
             <button
               onClick={() => { setLoadError(null); setLoading(true); window.location.reload(); }}
-              className="mt-4 h-8 px-4 rounded-lg text-xs font-medium"
-              style={{ backgroundColor: "hsl(0 60% 18%)", border: "1px solid hsl(0 60% 28%)", color: "hsl(0 70% 60%)" }}
+              className="h-8 px-4 rounded-lg text-xs font-medium"
+              style={{ backgroundColor: "hsl(220 13% 16%)", border: "1px solid hsl(220 13% 22%)", color: "hsl(220 9% 60%)" }}
             >
               Retry
             </button>

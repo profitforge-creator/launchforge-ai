@@ -332,7 +332,9 @@ async function resolveGitHubFromEnv(): Promise<IntegrationStatus | null> {
   const clientSecret = process.env.GITHUB_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
   try {
-    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+    // btoa is the Web-standard base64 encoder — works in Node.js and Edge Runtime.
+    // Buffer.from() is Node.js-only and throws in Vercel Edge Runtime.
+    const credentials = btoa(`${clientId}:${clientSecret}`);
     const res = await fetch("https://api.github.com/rate_limit", {
       headers: {
         Authorization:          `Basic ${credentials}`,
@@ -356,49 +358,67 @@ async function resolveGitHubFromEnv(): Promise<IntegrationStatus | null> {
 
 // ── Status queries ────────────────────────────────────────────────────────────
 
-export async function actionGetAllIntegrationStatuses(): Promise<Record<IntegrationKey, IntegrationStatus>> {
-  // 1. Restore any cookie-persisted (user-pasted) tokens into the in-memory store
-  await restoreFromCookies();
-
-  // 2. For Vercel and GitHub: if the user hasn't connected manually, fall back
-  //    to env-var credentials — run both checks concurrently
-  const [vercelEnv, githubEnv] = await Promise.all([
-    getIntegration("vercel") ? Promise.resolve(null) : resolveVercelFromEnv(),
-    getIntegration("github") ? Promise.resolve(null) : resolveGitHubFromEnv(),
-  ]);
-
+function allDisconnected(): Record<IntegrationKey, IntegrationStatus> {
   const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
-  const result = {} as Record<IntegrationKey, IntegrationStatus>;
+  return Object.fromEntries(ALL_KEYS.map((k) => [k, { connected: false }])) as Record<IntegrationKey, IntegrationStatus>;
+}
 
-  for (const key of ALL_KEYS) {
-    const stored = getIntegration(key);
-    if (stored) {
-      result[key] = {
-        connected:   true,
-        source:      "user",
-        connectedAt: stored.connectedAt,
-        metadata:    stored.metadata as IntegrationStatus["metadata"],
-      };
-    } else if (key === "vercel" && vercelEnv?.connected) {
-      result[key] = vercelEnv;
-    } else if (key === "github" && githubEnv?.connected) {
-      result[key] = githubEnv;
-    } else {
-      result[key] = { connected: false };
+export async function actionGetAllIntegrationStatuses(): Promise<Record<IntegrationKey, IntegrationStatus>> {
+  try {
+    // 1. Restore any cookie-persisted (user-pasted) tokens into the in-memory store.
+    //    cookies() can throw in certain Next.js contexts — we catch at the outer level.
+    await restoreFromCookies();
+
+    // 2. For Vercel and GitHub: if the user hasn't connected manually, fall back
+    //    to env-var credentials — run both checks concurrently.
+    //    Both helpers have their own try/catch and never throw.
+    const [vercelEnv, githubEnv] = await Promise.all([
+      getIntegration("vercel") ? Promise.resolve(null) : resolveVercelFromEnv(),
+      getIntegration("github") ? Promise.resolve(null) : resolveGitHubFromEnv(),
+    ]);
+
+    const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
+    const result = {} as Record<IntegrationKey, IntegrationStatus>;
+
+    for (const key of ALL_KEYS) {
+      const stored = getIntegration(key);
+      if (stored) {
+        result[key] = {
+          connected:   true,
+          source:      "user",
+          connectedAt: stored.connectedAt,
+          metadata:    stored.metadata as IntegrationStatus["metadata"],
+        };
+      } else if (key === "vercel" && vercelEnv?.connected) {
+        result[key] = vercelEnv;
+      } else if (key === "github" && githubEnv?.connected) {
+        result[key] = githubEnv;
+      } else {
+        result[key] = { connected: false };
+      }
     }
-  }
 
-  return result;
+    return result;
+  } catch (err) {
+    // Never let this action throw — the Deployments page must always render.
+    console.error("[actionGetAllIntegrationStatuses] unexpected error:", err);
+    return allDisconnected();
+  }
 }
 
 export async function actionGetIntegrationStatus(service: IntegrationKey): Promise<IntegrationStatus> {
-  await restoreFromCookies();
-  const stored = getIntegration(service);
-  if (!stored) return { connected: false };
-  return {
-    connected:   true,
-    source:      "user",
-    connectedAt: stored.connectedAt,
-    metadata:    stored.metadata as IntegrationStatus["metadata"],
-  };
+  try {
+    await restoreFromCookies();
+    const stored = getIntegration(service);
+    if (!stored) return { connected: false };
+    return {
+      connected:   true,
+      source:      "user",
+      connectedAt: stored.connectedAt,
+      metadata:    stored.metadata as IntegrationStatus["metadata"],
+    };
+  } catch (err) {
+    console.error("[actionGetIntegrationStatus] unexpected error:", err);
+    return { connected: false };
+  }
 }
