@@ -299,6 +299,7 @@ function ConnectForm({
 function PlatformCard({
   id,
   ui,
+  oauthPath,
   onConnect,
   onDisconnect,
   onShowForm,
@@ -309,6 +310,7 @@ function PlatformCard({
 }: {
   id: IntegrationKey;
   ui: PlatformUIState;
+  oauthPath?: string;
   onConnect: (id: IntegrationKey, token: string) => Promise<void>;
   onDisconnect: (id: IntegrationKey) => Promise<void>;
   onShowForm: (id: IntegrationKey) => void;
@@ -508,26 +510,33 @@ function PlatformCard({
         </div>
       )}
 
-      {/* Not connected: show connect button (with OAuth note for Webflow) */}
+      {/* Not connected: OAuth redirect (GitHub/Stripe/Webflow) or token form (Vercel/Supabase) */}
       {!isConnected && !isEnvSource && !showForm && (
-        <div className="mt-auto space-y-2">
-          {id === "webflow" && (
-            <div
-              className="rounded-lg px-3 py-2 text-xs"
-              style={{ backgroundColor: "hsl(38 90% 55% / 0.06)", border: "1px solid hsl(38 90% 55% / 0.18)", color: "hsl(38 90% 60%)" }}
+        <div className="mt-auto">
+          {oauthPath ? (
+            // Real OAuth — full-page redirect to provider authorization screen
+            <a
+              href={oauthPath}
+              className="w-full h-8 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+              style={{ backgroundColor: "hsl(213 94% 62% / 0.1)", border: "1px solid hsl(213 94% 62% / 0.25)", color: "hsl(213 94% 65%)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(213 94% 62% / 0.18)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(213 94% 62% / 0.1)"; }}
             >
-              Webflow OAuth is not configured. Connect via API token below.
-            </div>
+              Connect with {meta.name}
+              <IconExternal />
+            </a>
+          ) : (
+            // Manual token form (Vercel, Supabase)
+            <button
+              onClick={() => onShowForm(id)}
+              className="w-full h-8 rounded-lg text-xs font-medium transition-all"
+              style={{ backgroundColor: "hsl(220 13% 15%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 55%)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 70%)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 15%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 55%)"; }}
+            >
+              Connect {meta.name}
+            </button>
           )}
-          <button
-            onClick={() => onShowForm(id)}
-            className="w-full h-8 rounded-lg text-xs font-medium transition-all"
-            style={{ backgroundColor: "hsl(220 13% 15%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 55%)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 18%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 70%)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = "hsl(220 13% 15%)"; (e.currentTarget as HTMLElement).style.color = "hsl(220 9% 55%)"; }}
-          >
-            Connect {meta.name}
-          </button>
         </div>
       )}
 
@@ -817,11 +826,20 @@ function makePlatformUI(status: IntegrationStatus): PlatformUIState {
   };
 }
 
+// OAuth paths — platforms that use full OAuth redirect rather than a token form.
+// Route handlers at these paths initiate the OAuth flow and handle the callback.
+const OAUTH_PATHS: Partial<Record<IntegrationKey, string>> = {
+  github:  "/api/auth/github",
+  stripe:  "/api/auth/stripe",
+  webflow: "/api/auth/webflow",
+};
+
 export default function DeploymentsPage() {
-  const [projects,   setProjects]   = useState<ProjectWithDeploy[]>([]);
-  const [platforms,  setPlatforms]  = useState<Record<IntegrationKey, PlatformUIState> | null>(null);
-  const [loading,    setLoading]    = useState(true);
-  const [loadError,  setLoadError]  = useState<string | null>(null);
+  const [projects,    setProjects]    = useState<ProjectWithDeploy[]>([]);
+  const [platforms,   setPlatforms]   = useState<Record<IntegrationKey, PlatformUIState> | null>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [loadError,   setLoadError]   = useState<string | null>(null);
+  const [oauthBanner, setOauthBanner] = useState<{ type: "error" | "success"; message: string } | null>(null);
 
   // Apply a ConnectResult to a platform slot
   function applyResult(key: IntegrationKey, result: ConnectResult) {
@@ -839,6 +857,25 @@ export default function DeploymentsPage() {
       return { ...prev, [key]: { ...makePlatformUI({ connected: false }), status: { connected: false, source: prevStatus.source } } };
     });
   }
+
+  // Read oauth_error / oauth_success query params set by callback routes, then clean URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthError   = params.get("oauth_error");
+    const oauthSuccess = params.get("oauth_success");
+    if (oauthError) {
+      setOauthBanner({ type: "error", message: decodeURIComponent(oauthError) });
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("oauth_error");
+      window.history.replaceState({}, "", clean.toString());
+    } else if (oauthSuccess) {
+      const name = (oauthSuccess.charAt(0).toUpperCase() + oauthSuccess.slice(1));
+      setOauthBanner({ type: "success", message: `${name} connected successfully.` });
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("oauth_success");
+      window.history.replaceState({}, "", clean.toString());
+    }
+  }, []);
 
   // Load everything on mount, then validate env-based integrations in the background
   useEffect(() => {
@@ -1059,6 +1096,34 @@ export default function DeploymentsPage() {
           </p>
         </div>
 
+        {/* OAuth / load error banners */}
+        {oauthBanner && (
+          <div
+            className="rounded-xl px-4 py-3 mb-6 flex items-start justify-between gap-3 text-sm"
+            style={{
+              backgroundColor: oauthBanner.type === "error" ? "hsl(0 60% 12%)" : "hsl(151 60% 48% / 0.08)",
+              border: `1px solid ${oauthBanner.type === "error" ? "hsl(0 60% 24%)" : "hsl(151 60% 48% / 0.25)"}`,
+              color: oauthBanner.type === "error" ? "hsl(0 70% 58%)" : "hsl(151 60% 52%)",
+            }}
+          >
+            <span>{oauthBanner.message}</span>
+            <button
+              onClick={() => setOauthBanner(null)}
+              className="shrink-0 text-xs opacity-50 hover:opacity-100 transition-opacity"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {loadError && !oauthBanner && (
+          <div
+            className="rounded-xl px-4 py-3 mb-6 text-sm"
+            style={{ backgroundColor: "hsl(38 90% 55% / 0.08)", border: "1px solid hsl(38 90% 55% / 0.2)", color: "hsl(38 90% 60%)" }}
+          >
+            Could not load integration data. Some platforms may appear disconnected.
+          </div>
+        )}
+
         {/* Stats */}
         <StatsGrid projects={projects} integrations={integrationStatusMap} />
 
@@ -1078,6 +1143,7 @@ export default function DeploymentsPage() {
                 key={key}
                 id={key}
                 ui={platforms[key]}
+                oauthPath={OAUTH_PATHS[key]}
                 onConnect={handleConnect}
                 onDisconnect={handleDisconnect}
                 onShowForm={(id) => setShowForm(id, true)}
