@@ -485,16 +485,20 @@ const HEALTH_STYLES: Record<ProjectEnriched["health"], { text: string; dot: stri
   "Needs Attention": { text: "hsl(220 9% 44%)",  dot: "hsl(220 9% 36%)"  },
 };
 
-function ProjectCard({ project }: { project: ProjectEnriched }) {
+function ProjectCard({ project, index = 0 }: { project: ProjectEnriched; index?: number }) {
   const ss = STATUS_STYLES[project.status];
   const hs = HEALTH_STYLES[project.health];
 
   return (
     <div
-      className="rounded-xl flex flex-col overflow-hidden transition-all"
-      style={{ backgroundColor: "hsl(220 13% 10%)", border: "1px solid hsl(220 13% 15%)" }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "hsl(220 13% 22%)"; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "hsl(220 13% 15%)"; }}
+      className="rounded-xl flex flex-col overflow-hidden transition-all animate-rise-in"
+      style={{
+        backgroundColor: "hsl(220 13% 10%)",
+        border: "1px solid hsl(220 13% 15%)",
+        animationDelay: `${Math.min(index, 8) * 45}ms`,
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "hsl(220 13% 22%)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px hsl(220 14% 5% / 0.5)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "hsl(220 13% 15%)"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLElement).style.boxShadow = "none"; }}
     >
       {/* Card body */}
       <div className="px-5 pt-5 pb-4 flex-1">
@@ -764,8 +768,8 @@ function ProjectsOverview({
             </h2>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((p) => (
-              <ProjectCard key={p.id} project={p} />
+            {projects.map((p, i) => (
+              <ProjectCard key={p.id} project={p} index={i} />
             ))}
             {/* "New project" ghost card */}
             <button

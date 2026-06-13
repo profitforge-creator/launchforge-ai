@@ -658,43 +658,75 @@ function AboutSection() {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+function SettingsNavButton({
+  item,
+  isActive,
+  onClick,
+}: {
+  item: { id: SettingsSection; label: string };
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const bg = isActive ? "hsl(220 13% 15%)" : hovered ? "hsl(220 13% 12%)" : "transparent";
+  const fg = isActive ? "hsl(220 9% 88%)" : hovered ? "hsl(220 9% 70%)" : "hsl(220 9% 46%)";
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="relative w-full flex items-center h-8 pl-3.5 pr-3 rounded-lg text-sm text-left transition-colors"
+      style={{ backgroundColor: bg, color: fg, fontWeight: isActive ? 500 : 400 }}
+    >
+      <span
+        className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full transition-all"
+        style={{ width: 3, height: isActive ? 15 : 0, backgroundColor: "hsl(213 94% 62%)", opacity: isActive ? 1 : 0 }}
+      />
+      {item.label}
+    </button>
+  );
+}
+
 export default function SettingsPage() {
   const [active, setActive] = useState<SettingsSection>("profile");
 
   return (
-    <div className="flex gap-8 max-w-4xl">
-      {/* Left nav */}
-      <nav className="shrink-0 w-44 pt-1">
-        <div className="space-y-0.5">
-          {NAV_ITEMS.map((item) => {
-            const isActive = active === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActive(item.id)}
-                className="w-full flex items-center h-8 px-3 rounded-lg text-sm text-left transition-colors"
-                style={{
-                  backgroundColor: isActive ? "hsl(220 13% 14%)" : "transparent",
-                  color: isActive ? "hsl(220 9% 86%)" : "hsl(220 9% 46%)",
-                  fontWeight: isActive ? 500 : 400,
-                }}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+    <div className="max-w-5xl mx-auto px-8 py-8">
+      {/* Page header */}
+      <div className="mb-8">
+        <h1 className="text-xl font-semibold" style={{ color: "hsl(220 9% 88%)", letterSpacing: "-0.01em" }}>
+          Settings
+        </h1>
+        <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 36%)" }}>
+          Manage your profile, plan, integrations, and preferences
+        </p>
+      </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        {active === "profile"       && <ProfileSection />}
-        {active === "account"       && <AccountSection />}
-        {active === "plan"          && <PlanSection />}
-        {active === "notifications" && <NotificationsSection />}
-        {active === "security"      && <SecuritySection />}
-        {active === "support"       && <SupportSection />}
-        {active === "about"         && <AboutSection />}
+      <div className="flex gap-8">
+        {/* Left nav */}
+        <nav className="shrink-0 w-44 pt-1">
+          <div className="space-y-0.5">
+            {NAV_ITEMS.map((item) => (
+              <SettingsNavButton
+                key={item.id}
+                item={item}
+                isActive={active === item.id}
+                onClick={() => setActive(item.id)}
+              />
+            ))}
+          </div>
+        </nav>
+
+        {/* Content */}
+        <div key={active} className="flex-1 min-w-0 animate-rise-in">
+          {active === "profile"       && <ProfileSection />}
+          {active === "account"       && <AccountSection />}
+          {active === "plan"          && <PlanSection />}
+          {active === "notifications" && <NotificationsSection />}
+          {active === "security"      && <SecuritySection />}
+          {active === "support"       && <SupportSection />}
+          {active === "about"         && <AboutSection />}
+        </div>
       </div>
     </div>
   );

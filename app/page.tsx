@@ -129,7 +129,7 @@ function Hero() {
           }}
         />
         <div
-          className="absolute"
+          className="absolute animate-breathe"
           style={{
             top: -160,
             left: "50%",
@@ -208,18 +208,16 @@ function Hero() {
           </a>
         </div>
 
-        {/* Social proof */}
-        <div className="flex items-center justify-center gap-6 flex-wrap">
+        {/* Trust row — honest value props, no fabricated metrics */}
+        <div className="flex items-center justify-center gap-x-6 gap-y-2.5 flex-wrap">
           {[
-            ["2,400+", "founders"],
-            ["12k+", "businesses built"],
-            ["4.9 / 5", "average rating"],
-          ].map(([num, label]) => (
+            "No credit card required",
+            "Full platform access",
+            "Cancel anytime",
+          ].map((label) => (
             <div key={label} className="flex items-center gap-1.5">
-              <span className="text-sm font-semibold tabular-nums" style={{ color: "hsl(220 9% 62%)" }}>
-                {num}
-              </span>
-              <span className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>{label}</span>
+              <span style={{ color: "hsl(151 60% 48%)" }}><IconCheckSm /></span>
+              <span className="text-xs font-medium" style={{ color: "hsl(220 9% 48%)" }}>{label}</span>
             </div>
           ))}
         </div>

@@ -59,11 +59,29 @@
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+/* Slow, subtle "breathing" glow for hero ambiance — calm, not distracting */
+@keyframes breathe {
+  0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;    transform: translateX(-50%) scale(1.06); }
+}
+/* Gentle entrance for interior surfaces */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .animate-fade-in { animation: fadeIn 0.2s ease-out; }
 .animate-slide-up { animation: slideUp 0.25s ease-out; }
+.animate-rise-in { animation: riseIn 0.45s cubic-bezier(0.21, 0.6, 0.35, 1) both; }
+.animate-breathe { animation: breathe 7s ease-in-out infinite; }
 .shimmer {
   background: linear-gradient(90deg, hsl(220 13% 11%) 0%, hsl(220 13% 16%) 50%, hsl(220 13% 11%) 100%);
   background-size: 200% 100%;
   animation: shimmer 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathe,
+  .animate-rise-in,
+  .shimmer { animation: none; }
 }

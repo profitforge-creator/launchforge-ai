@@ -92,17 +92,35 @@ function NavItem({
 }) {
   const pathname = usePathname();
   const isActive = exact ? pathname === href : pathname.startsWith(href);
+  const [hovered, setHovered] = useState(false);
+
+  const bg = isActive ? "hsl(220 13% 15%)" : hovered ? "hsl(220 13% 12%)" : "transparent";
+  const fg = isActive ? "hsl(220 9% 90%)" : hovered ? "hsl(220 9% 72%)" : "hsl(220 9% 52%)";
 
   return (
     <Link
       href={href}
-      className="flex items-center gap-2.5 px-2 h-8 rounded-md text-sm transition-colors"
-      style={{
-        backgroundColor: isActive ? "hsl(220 13% 14%)" : "transparent",
-        color: isActive ? "hsl(220 9% 88%)" : "hsl(220 9% 52%)",
-      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="relative flex items-center gap-2.5 px-2 h-8 rounded-md text-sm transition-colors"
+      style={{ backgroundColor: bg, color: fg }}
     >
-      <span className="shrink-0 opacity-70">{icon}</span>
+      {/* Active accent bar */}
+      <span
+        className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full transition-all"
+        style={{
+          width: 3,
+          height: isActive ? 16 : 0,
+          backgroundColor: "hsl(213 94% 62%)",
+          opacity: isActive ? 1 : 0,
+        }}
+      />
+      <span
+        className="shrink-0 transition-colors"
+        style={{ color: isActive ? "hsl(213 94% 64%)" : "currentColor", opacity: isActive ? 1 : 0.75 }}
+      >
+        {icon}
+      </span>
       <span className="text-xs font-medium truncate flex-1">{label}</span>
       {badge && (
         <span
@@ -113,6 +131,19 @@ function NavItem({
         </span>
       )}
     </Link>
+  );
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="px-2 pt-1 pb-1.5 text-xs font-semibold uppercase select-none"
+      style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.07em", fontSize: 10.5 }}
+    >
+      {children}
+    </p>
   );
 }
 
@@ -144,16 +175,23 @@ function ProjectItem({ record }: { record: HistoryRecord }) {
   const pathname = usePathname();
   const href = `/workspace/${record.id}`;
   const isActive = pathname === href;
+  const [hovered, setHovered] = useState(false);
+
+  const bg = isActive ? "hsl(220 13% 15%)" : hovered ? "hsl(220 13% 12%)" : "transparent";
+  const fg = isActive ? "hsl(220 9% 88%)" : hovered ? "hsl(220 9% 68%)" : "hsl(220 9% 48%)";
 
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 px-2 h-8 rounded-md transition-colors"
-      style={{
-        backgroundColor: isActive ? "hsl(220 13% 14%)" : "transparent",
-        color: isActive ? "hsl(220 9% 88%)" : "hsl(220 9% 48%)",
-      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="relative flex items-center gap-2 pl-3.5 pr-2 h-7 rounded-md transition-colors"
+      style={{ backgroundColor: bg, color: fg }}
     >
+      <span
+        className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-1 rounded-full transition-colors"
+        style={{ backgroundColor: isActive ? "hsl(213 94% 62%)" : "hsl(220 13% 26%)" }}
+      />
       <span className="text-xs truncate flex-1">
         {record.productName || record.niche}
       </span>
@@ -221,11 +259,19 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
     >
       {/* Header */}
       <div className="px-3 pt-3 pb-2 shrink-0">
-        <div className="flex items-center px-1 mb-3">
-          <span className="text-sm font-semibold" style={{ color: "hsl(220 9% 88%)" }}>
+        <Link href="/dashboard" className="flex items-center gap-2 px-1 mb-3">
+          <div
+            className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
+            style={{ backgroundColor: "hsl(213 94% 58%)" }}
+          >
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1L12.196 4V10L7 13L1.804 10V4L7 1Z" fill="hsl(220 14% 7%)" />
+            </svg>
+          </div>
+          <span className="text-sm font-semibold tracking-tight" style={{ color: "hsl(220 9% 90%)" }}>
             LaunchForge
           </span>
-        </div>
+        </Link>
 
         {/* New project */}
         <Link
@@ -265,7 +311,8 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
       </div>
 
       {/* Main nav */}
-      <div className="px-2 py-1 shrink-0 space-y-0.5">
+      <div className="px-2 pt-2 pb-1 shrink-0 space-y-0.5">
+        <SectionLabel>Workspace</SectionLabel>
         <NavItem href="/dashboard"                    icon={<IconFolder />}        label="Projects"       exact />
         <NavItem href="/dashboard/deployments"        icon={<IconDeploy />}        label="Deployments"         />
         <NavItem href="/dashboard/opportunities"      icon={<IconOpportunities />} label="Opportunities"       />
@@ -278,9 +325,21 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
       {/* Project list */}
       <div className="flex-1 overflow-y-auto px-2 py-1 min-h-0 space-y-3">
         {recent.length === 0 ? (
-          <div className="px-2 py-6 text-center">
-            <p className="text-xs" style={{ color: "hsl(220 9% 28%)" }}>
+          <div
+            className="mx-1 mt-2 rounded-lg px-3 py-5 text-center"
+            style={{ border: "1px dashed hsl(220 13% 16%)", backgroundColor: "hsl(220 13% 9.5%)" }}
+          >
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center mx-auto mb-2"
+              style={{ backgroundColor: "hsl(220 13% 13%)", color: "hsl(220 9% 40%)" }}
+            >
+              <IconFolder />
+            </div>
+            <p className="text-xs font-medium" style={{ color: "hsl(220 9% 46%)" }}>
               No projects yet
+            </p>
+            <p className="text-xs mt-1 leading-relaxed" style={{ color: "hsl(220 9% 30%)" }}>
+              Your generated businesses will appear here.
             </p>
           </div>
         ) : (
@@ -310,14 +369,20 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
         style={{ borderTop: "1px solid hsl(220 13% 12%)" }}
       >
         <NavItem href="/dashboard/settings" icon={<IconSettings />} label="Settings"  />
-        <div className="flex items-center gap-2 px-2 py-1.5 mt-1">
+        <div className="flex items-center gap-2.5 px-2 py-2 mt-1">
           <div
-            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold"
-            style={{ backgroundColor: "hsl(220 13% 18%)", color: "hsl(220 9% 55%)" }}
+            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold"
+            style={{ backgroundColor: "hsl(213 94% 62% / 0.14)", color: "hsl(213 94% 66%)", border: "1px solid hsl(213 94% 62% / 0.2)" }}
           >
             U
           </div>
-          <p className="text-xs truncate" style={{ color: "hsl(220 9% 38%)" }}>Trial</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium truncate" style={{ color: "hsl(220 9% 60%)" }}>Your workspace</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(151 60% 48%)" }} />
+              <p className="text-xs truncate" style={{ color: "hsl(220 9% 36%)" }}>Trial · Active</p>
+            </div>
+          </div>
         </div>
       </div>
     </aside>
