@@ -1,38 +1,86 @@
-// Generation Store — persistence abstraction layer
-//
-// Current implementation: in-memory Map (module-level singleton).
-//   - Survives across requests within a single server process
-//   - Cleared on server restart / cold start in serverless
-//
-// AI INTEGRATION POINT (Database):
-//   Replace the Map operations below with Supabase calls:
-//
-//   import { createClient } from "@supabase/supabase-js"
-//   const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-//
-//   saveGeneration  → supabase.from("generations").insert(result)
-//   getGeneration   → supabase.from("generations").select("*").eq("id", id).single()
-//   getHistory      → supabase.from("generations").select("*").order("created_at", { ascending: false })
-//
-// The function signatures stay identical — only the body changes.
-
+import { getCurrentUser, getUserSupabaseClient } from "@/lib/auth/session";
+import { hasSupabaseConfig } from "@/lib/supabase/server";
 import type { BusinessResult, HistoryRecord } from "@/types";
 
-// Module-level singleton store
-const store = new Map<string, BusinessResult>();
+const localStore = new Map<string, BusinessResult>();
 
-export function saveGeneration(result: BusinessResult): void {
-  store.set(result.id, result);
+function useLocalFallback(): boolean {
+  return !hasSupabaseConfig();
 }
 
-export function getGeneration(id: string): BusinessResult | null {
-  return store.get(id) ?? null;
+async function getStorageContext(userId?: string) {
+  const user = userId ? { id: userId } : await getCurrentUser();
+  if (!user) return null;
+
+  if (useLocalFallback()) {
+    return { userId: user.id, supabase: null };
+  }
+
+  const supabase = await getUserSupabaseClient();
+  if (!supabase) return null;
+  return { userId: user.id, supabase };
 }
 
-export function getAllGenerations(): BusinessResult[] {
-  return Array.from(store.values()).sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-  );
+export async function saveGeneration(result: BusinessResult, userId?: string): Promise<void> {
+  const ctx = await getStorageContext(userId);
+  if (!ctx) throw new Error("Authentication required to save generation.");
+
+  if (!ctx.supabase) {
+    localStore.set(result.id, result);
+    return;
+  }
+
+  const { error } = await ctx.supabase
+    .from("generations")
+    .upsert(
+      {
+        id: result.id,
+        user_id: ctx.userId,
+        result,
+        updated_at: new Date().toISOString(),
+        archived_at: null,
+      },
+      { onConflict: "id" },
+    );
+
+  if (error) throw new Error(error.message);
+}
+
+export async function getGeneration(id: string, userId?: string): Promise<BusinessResult | null> {
+  const ctx = await getStorageContext(userId);
+  if (!ctx) return null;
+
+  if (!ctx.supabase) return localStore.get(id) ?? null;
+
+  const { data, error } = await ctx.supabase
+    .from("generations")
+    .select("result")
+    .eq("id", id)
+    .eq("user_id", ctx.userId)
+    .is("archived_at", null)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return (data?.result as BusinessResult | undefined) ?? null;
+}
+
+export async function getAllGenerations(userId?: string): Promise<BusinessResult[]> {
+  const ctx = await getStorageContext(userId);
+  if (!ctx) return [];
+
+  if (!ctx.supabase) {
+    return Array.from(localStore.values()).sort(byCreatedAtDesc);
+  }
+
+  const { data, error } = await ctx.supabase
+    .from("generations")
+    .select("result")
+    .eq("user_id", ctx.userId)
+    .is("archived_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return ((data ?? []).map((row) => row.result as BusinessResult)).sort(byCreatedAtDesc);
 }
 
 export function toHistoryRecord(result: BusinessResult): HistoryRecord {
@@ -47,27 +95,45 @@ export function toHistoryRecord(result: BusinessResult): HistoryRecord {
   };
 }
 
-export function getHistoryRecords(): HistoryRecord[] {
-  return getAllGenerations().map(toHistoryRecord);
+export async function getHistoryRecords(userId?: string): Promise<HistoryRecord[]> {
+  const generations = await getAllGenerations(userId);
+  return generations.map(toHistoryRecord);
 }
 
-export function patchGeneration(id: string, patch: Partial<BusinessResult>): boolean {
-  const current = store.get(id);
+export async function patchGeneration(
+  id: string,
+  patch: Partial<BusinessResult>,
+  userId?: string,
+): Promise<boolean> {
+  const current = await getGeneration(id, userId);
   if (!current) return false;
-  store.set(id, { ...current, ...patch });
+  await saveGeneration({ ...current, ...patch }, userId);
   return true;
 }
 
-export function updateProjectFile(projectId: string, path: string, content: string): boolean {
-  const result = store.get(projectId);
+export async function updateProjectFile(
+  projectId: string,
+  path: string,
+  content: string,
+  userId?: string,
+): Promise<boolean> {
+  const result = await getGeneration(projectId, userId);
   if (!result || !result.projectFiles) return false;
+
   const idx = result.projectFiles.findIndex((f) => f.path === path);
   if (idx === -1) return false;
-  result.projectFiles[idx] = {
-    ...result.projectFiles[idx],
+
+  const nextFiles = [...result.projectFiles];
+  nextFiles[idx] = {
+    ...nextFiles[idx],
     content,
     generatedAt: new Date().toISOString(),
   };
-  store.set(projectId, result);
+
+  await saveGeneration({ ...result, projectFiles: nextFiles }, userId);
   return true;
+}
+
+function byCreatedAtDesc(a: BusinessResult, b: BusinessResult): number {
+  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }

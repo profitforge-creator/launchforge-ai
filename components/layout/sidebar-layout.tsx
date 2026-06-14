@@ -2,8 +2,8 @@
 import { getHistoryRecords } from "@/lib/storage/generation-store";
 import { AppSidebar } from "./app-sidebar";
 
-export function SidebarLayout({ children }: { children: React.ReactNode }) {
-  const workspaces = getHistoryRecords();
+export async function SidebarLayout({ children }: { children: React.ReactNode }) {
+  const workspaces = await getHistoryRecords();
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "hsl(220 13% 8%)" }}>

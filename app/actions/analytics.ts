@@ -42,7 +42,7 @@ export interface ProjectListItem {
 
 export async function actionGetProjectList(): Promise<ProjectListItem[]> {
   try {
-    const generations = getAllGenerations();
+    const generations = await getAllGenerations();
     return generations.map((g) => ({
       id: g.id,
       name: g.product.name,
@@ -58,7 +58,7 @@ export async function actionGetProjectList(): Promise<ProjectListItem[]> {
 }
 
 export async function actionGetAnalyticsData(): Promise<AnalyticsData> {
-  const generations = getAllGenerations();
+  const generations = await getAllGenerations();
 
   const projects: ProjectAnalyticsSummary[] = generations.map((g) => {
     const websiteFiles = g.projectFiles?.filter((f) => f.folder === "website") ?? [];

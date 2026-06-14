@@ -21,6 +21,10 @@ import {
 const COOKIE_PREFIX = "lf_int_";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
+function devLog(...args: unknown[]): void {
+  if (process.env.NODE_ENV !== "production") console.log(...args);
+}
+
 async function persistToCookie(integration: StoredIntegration): Promise<void> {
   const jar = await cookies();
   jar.set(`${COOKIE_PREFIX}${integration.service}`, JSON.stringify({
@@ -343,7 +347,7 @@ function resolveStripeFromEnv(): IntegrationStatus | null {
 
 export async function actionValidateVercelEnv(): Promise<ConnectResult> {
   const token = process.env.VERCEL_TOKEN;
-  console.log("[Vercel validate] hasToken:", !!token);
+  devLog("[Vercel validate] token:", token ? "Loaded" : "Missing");
   if (!token) return { success: false, error: "VERCEL_TOKEN is not set in server environment." };
 
   // Each request gets its own 10-second budget so a slow sub-request
@@ -359,7 +363,7 @@ export async function actionValidateVercelEnv(): Promise<ConnectResult> {
       signal: AbortSignal.timeout(10_000),
     });
 
-    console.log("[Vercel validate] user status:", userRes.status);
+    devLog("[Vercel validate] user status:", userRes.status);
 
     if (!userRes.ok) {
       const code = userRes.status;
@@ -481,7 +485,7 @@ export async function actionTestGitHubOAuth(): Promise<ConnectResult> {
 export async function actionValidateSupabaseEnv(): Promise<ConnectResult> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  console.log("[Supabase validate] hasUrl:", !!url, "hasKey:", !!key);
+  devLog("[Supabase validate] url:", url ? "Loaded" : "Missing", "anon key:", key ? "Loaded" : "Missing");
   if (!url && !key) return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are not set in server environment." };
   if (!url)         return { success: false, error: "NEXT_PUBLIC_SUPABASE_URL is not set in server environment." };
   if (!key)         return { success: false, error: "NEXT_PUBLIC_SUPABASE_ANON_KEY is not set in server environment." };
@@ -500,9 +504,7 @@ export async function actionValidateSupabaseEnv(): Promise<ConnectResult> {
       signal: AbortSignal.timeout(10_000),
     });
 
-    let body = "";
-    try { body = await res.text(); } catch { /* ignore */ }
-    console.log("[Supabase validate] status:", res.status, "body:", body.slice(0, 200));
+    devLog("[Supabase validate] status:", res.status);
 
     // Only hard auth failures count as errors.
     if (res.status === 401 || res.status === 403) {
@@ -529,7 +531,7 @@ export async function actionValidateSupabaseEnv(): Promise<ConnectResult> {
 
 export async function actionValidateStripeEnv(): Promise<ConnectResult> {
   const key = process.env.STRIPE_SECRET_KEY;
-  console.log("[Stripe validate] hasKey:", !!key, "prefix:", key?.slice(0, 7) ?? "none");
+  devLog("[Stripe validate] key:", key ? "Loaded" : "Missing");
   if (!key) return { success: false, error: "STRIPE_SECRET_KEY is not configured in server environment." };
 
   if (!key.startsWith("sk_") && !key.startsWith("rk_")) {
@@ -544,7 +546,7 @@ export async function actionValidateStripeEnv(): Promise<ConnectResult> {
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),
     });
-    console.log("[Stripe validate] status:", res.status);
+    devLog("[Stripe validate] status:", res.status);
     if (res.status === 401) {
       return { success: false, error: "Stripe key is invalid or revoked — check STRIPE_SECRET_KEY." };
     }
@@ -668,7 +670,7 @@ export async function actionGetEnvDiagnostics(): Promise<{
     hasWebflowClientId:    !!process.env.WEBFLOW_CLIENT_ID,
     hasWebflowSecret:      !!process.env.WEBFLOW_CLIENT_SECRET,
   };
-  console.log("[LaunchForge env diagnostics]", JSON.stringify(result, null, 2));
+  devLog("[LaunchForge env diagnostics]", JSON.stringify(result, null, 2));
   return result;
 }
 

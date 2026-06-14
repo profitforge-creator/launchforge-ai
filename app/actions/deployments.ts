@@ -1,11 +1,12 @@
 "use server";
 
-import { getSupabaseClient } from "@/lib/supabase/server";
+import { getUserSupabaseClient, requireUser } from "@/lib/auth/session";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface DeploymentRecord {
   id: string;
+  user_id: string;
   project_id: string;
   platform: "vercel" | "github" | "webflow" | "manual" | string;
   status: "live" | "error" | "building" | string;
@@ -14,9 +15,10 @@ export interface DeploymentRecord {
   environment: "production" | "preview";
   created_at: string;
   updated_at: string;
+  archived_at: string | null;
 }
 
-export type NewDeployment = Omit<DeploymentRecord, "id" | "created_at" | "updated_at">;
+export type NewDeployment = Omit<DeploymentRecord, "id" | "user_id" | "created_at" | "updated_at" | "archived_at">;
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
@@ -24,10 +26,14 @@ export async function actionGetDeployments(
   projectId?: string
 ): Promise<{ data: DeploymentRecord[]; error: string | null }> {
   try {
-    const supabase = getSupabaseClient();
+    const user = await requireUser();
+    const supabase = await getUserSupabaseClient();
+    if (!supabase) return { data: [], error: "Authentication required." };
     let query = supabase
       .from("deployments")
       .select("*")
+      .eq("user_id", user.id)
+      .is("archived_at", null)
       .order("created_at", { ascending: false });
 
     if (projectId) query = query.eq("project_id", projectId);
@@ -49,11 +55,15 @@ export async function actionGetDeployment(
   projectId: string
 ): Promise<{ data: DeploymentRecord | null; error: string | null }> {
   try {
-    const supabase = getSupabaseClient();
+    const user = await requireUser();
+    const supabase = await getUserSupabaseClient();
+    if (!supabase) return { data: null, error: "Authentication required." };
     const { data, error } = await supabase
       .from("deployments")
       .select("*")
       .eq("project_id", projectId)
+      .eq("user_id", user.id)
+      .is("archived_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -74,15 +84,17 @@ export async function actionSaveDeployment(
   record: NewDeployment
 ): Promise<{ data: DeploymentRecord | null; error: string | null }> {
   try {
-    const supabase = getSupabaseClient();
+    const user = await requireUser();
+    const supabase = await getUserSupabaseClient();
+    if (!supabase) return { data: null, error: "Authentication required." };
 
     // Upsert on project_id so each project has one canonical deploy record.
     // A full history would use insert() instead.
     const { data, error } = await supabase
       .from("deployments")
       .upsert(
-        { ...record, updated_at: new Date().toISOString() },
-        { onConflict: "project_id" }
+        { ...record, user_id: user.id, updated_at: new Date().toISOString(), archived_at: null },
+        { onConflict: "user_id,project_id" }
       )
       .select()
       .single();
@@ -103,8 +115,14 @@ export async function actionDeleteDeployment(
   id: string
 ): Promise<{ error: string | null }> {
   try {
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.from("deployments").delete().eq("id", id);
+    const user = await requireUser();
+    const supabase = await getUserSupabaseClient();
+    if (!supabase) return { error: "Authentication required." };
+    const { error } = await supabase
+      .from("deployments")
+      .update({ archived_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", user.id);
     if (error) {
       console.error("[actionDeleteDeployment]", error.message);
       return { error: error.message };

@@ -13,6 +13,7 @@
 import { getGeneration, updateProjectFile } from "@/lib/storage/generation-store";
 import { runConversation } from "@/lib/ai/conversation";
 import { checkChatEditLimit } from "@/lib/ai/rate-limiter";
+import { requireUser } from "@/lib/auth/session";
 import type { FileUpdate } from "@/types";
 
 type ConversationResult =
@@ -23,16 +24,14 @@ export async function actionSendMessage(
   workspaceId: string,
   userMessage: string,
 ): Promise<ConversationResult> {
-  const project = getGeneration(workspaceId);
+  const user = await requireUser();
+  const project = await getGeneration(workspaceId, user.id);
   if (!project) {
     return { success: false, error: "Project not found." };
   }
 
-  // Rate limit: free users get 5 AI edits per project
-  // AI INTEGRATION POINT (Auth): replace "anon" with real userId from session
-  const userId = "anon";
-  const tier = "free"; // TODO: pull real tier from session
-  const rateCheck = checkChatEditLimit(userId, workspaceId, tier);
+  const tier = "free";
+  const rateCheck = checkChatEditLimit(user.id, workspaceId, tier);
   if (!rateCheck.allowed) {
     return { success: false, error: rateCheck.reason, upgradeRequired: true };
   }
@@ -42,7 +41,7 @@ export async function actionSendMessage(
 
     // Persist any file updates to the store
     for (const update of fileUpdates) {
-      updateProjectFile(workspaceId, update.path, update.content);
+      await updateProjectFile(workspaceId, update.path, update.content, user.id);
     }
 
     return { success: true, response, fileUpdates };

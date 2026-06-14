@@ -91,7 +91,7 @@ function ActivityRow({ name, date, score }: { name: string; date: string; score:
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default async function UsagePage() {
-  const generations = getAllGenerations();
+  const generations = await getAllGenerations();
   const projectCount = generations.length;
 
   return (

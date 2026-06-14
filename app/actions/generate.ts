@@ -11,8 +11,9 @@ import {
   assembleResult,
 } from "@/lib/generation/orchestrator";
 import { saveGeneration, getGeneration, patchGeneration } from "@/lib/storage/generation-store";
-import { rollbackProjectIncrement } from "@/lib/ai/rate-limiter";
+import { checkProjectLimit, rollbackProjectIncrement } from "@/lib/ai/rate-limiter";
 import { geminiJSON } from "@/lib/ai/gemini";
+import { requireUser } from "@/lib/auth/session";
 import type { BusinessFormData, BusinessResult, ProjectFile } from "@/types";
 import type { AssetSet } from "@/lib/assets/types";
 import type {
@@ -40,16 +41,16 @@ function extractError(err: unknown, stage: string): string {
 
 export async function actionDiagnoseGemini(): Promise<{
   keyPresent: boolean;
-  keyPrefix: string;
+  keyStatus: "Loaded" | "Missing";
   testResult: string;
   error: string | null;
 }> {
   const key = process.env.GEMINI_API_KEY ?? "";
   const keyPresent = key.length > 0;
-  const keyPrefix = keyPresent ? `${key.slice(0, 8)}...` : "(not set)";
+  const keyStatus = keyPresent ? "Loaded" : "Missing";
 
   if (!keyPresent) {
-    return { keyPresent, keyPrefix, testResult: "", error: "GEMINI_API_KEY is not set in environment." };
+    return { keyPresent, keyStatus, testResult: "", error: "GEMINI_API_KEY is not set in environment." };
   }
 
   try {
@@ -61,10 +62,10 @@ export async function actionDiagnoseGemini(): Promise<{
       generationConfig: { responseMimeType: "application/json", maxOutputTokens: 20 },
     });
     const text = result.response.text();
-    return { keyPresent, keyPrefix, testResult: text, error: null };
+    return { keyPresent, keyStatus, testResult: text, error: null };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return { keyPresent, keyPrefix, testResult: "", error: msg };
+    return { keyPresent, keyStatus, testResult: "", error: msg };
   }
 }
 
@@ -102,7 +103,8 @@ export async function actionRegenerateSection(
   section: "product" | "website" | "marketing",
 ): Promise<StepResult<BusinessResult>> {
   try {
-    const existing = getGeneration(projectId);
+    const user = await requireUser();
+    const existing = await getGeneration(projectId, user.id);
     if (!existing) return { success: false, error: "Project not found." };
 
     // Reconstruct minimal research output from stored data
@@ -131,8 +133,9 @@ export async function actionRegenerateSection(
         suggestedPrice: result.suggestedPrice,
         timeToLaunch: result.timeToLaunch,
       };
-      patchGeneration(projectId, { product: newProduct });
-      const updated = getGeneration(projectId)!;
+      await patchGeneration(projectId, { product: newProduct }, user.id);
+      const updated = await getGeneration(projectId, user.id);
+      if (!updated) return { success: false, error: "Project not found after update." };
       return { success: true, data: updated };
     }
 
@@ -150,8 +153,9 @@ export async function actionRegenerateSection(
       };
       const newFiles = await runWebsiteStep(productAgent, research, existing.formData.businessType ?? "open");
       const existingNonWebsite = existing.projectFiles?.filter((f) => f.folder !== "website") ?? [];
-      patchGeneration(projectId, { projectFiles: [...existingNonWebsite, ...newFiles] });
-      const updated = getGeneration(projectId)!;
+      await patchGeneration(projectId, { projectFiles: [...existingNonWebsite, ...newFiles] }, user.id);
+      const updated = await getGeneration(projectId, user.id);
+      if (!updated) return { success: false, error: "Project not found after update." };
       return { success: true, data: updated };
     }
 
@@ -174,8 +178,9 @@ export async function actionRegenerateSection(
         launchStrategy: result.launchStrategy,
         contentCalendar: result.contentCalendar,
       };
-      patchGeneration(projectId, { marketing: newMarketing });
-      const updated = getGeneration(projectId)!;
+      await patchGeneration(projectId, { marketing: newMarketing }, user.id);
+      const updated = await getGeneration(projectId, user.id);
+      if (!updated) return { success: false, error: "Project not found after update." };
       return { success: true, data: updated };
     }
 
@@ -190,12 +195,18 @@ export async function actionRegenerateSection(
 export async function actionRunResearch(
   form: BusinessFormData,
 ): Promise<StepResult<ResearchAgentOutput>> {
-  // Rate limiting disabled until auth is wired — "anon" would block after 3 projects
-  // TODO: re-enable once real user IDs are available from Supabase session
+  const user = await requireUser();
+  const tier = "free";
+  const rateCheck = checkProjectLimit(user.id, tier);
+  if (!rateCheck.allowed) {
+    return { success: false, error: rateCheck.reason, upgradeRequired: true };
+  }
+
   try {
     const data = await runResearchStep(form);
     return { success: true, data };
   } catch (err) {
+    rollbackProjectIncrement(user.id);
     return { success: false, error: extractError(err, "Research") };
   }
 }
@@ -285,9 +296,10 @@ export async function actionFinalizeProject(
   websiteFiles: ProjectFile[],
 ): Promise<StepResult<BusinessResult>> {
   try {
+    const user = await requireUser();
     const id = `proj_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
     const result = assembleResult(id, form, research, product, marketing, critic, assets, websiteFiles);
-    saveGeneration(result);
+    await saveGeneration(result, user.id);
     return { success: true, data: result };
   } catch (err) {
     return { success: false, error: extractError(err, "Finalize") };

@@ -1,8 +1,14 @@
 import Link from "next/link";
+import { actionSignUp } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default function SignUpPage() {
+export default async function SignUpPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "hsl(220 13% 8%)" }}>
       <div className="flex items-center justify-between px-6 h-14" style={{ borderBottom: "1px solid hsl(220 13% 13%)" }}>
@@ -33,6 +39,7 @@ export default function SignUpPage() {
 
           {/* AI INTEGRATION POINT: Wire to Supabase Auth signInWithOAuth */}
           <button
+            type="button"
             className="w-full h-9 rounded flex items-center justify-center gap-2.5 text-sm font-medium transition-colors mb-6"
             style={{ border: "1px solid hsl(220 13% 22%)", backgroundColor: "hsl(220 13% 13%)", color: "hsl(220 9% 80%)" }}
           >
@@ -51,17 +58,20 @@ export default function SignUpPage() {
             <div className="flex-1 h-px" style={{ backgroundColor: "hsl(220 13% 17%)" }} />
           </div>
 
-          {/* AI INTEGRATION POINT: Wire to Supabase Auth signUp */}
-          <form className="space-y-4">
-            <Input label="Full name" type="text" placeholder="Alex Morgan" autoComplete="name" />
-            <Input label="Email" type="email" placeholder="you@example.com" autoComplete="email" />
-            <Input label="Password" type="password" placeholder="At least 8 characters" autoComplete="new-password" />
+          {params?.error && (
+            <p className="text-xs mb-4 rounded-lg px-3 py-2" style={{ color: "hsl(0 72% 65%)", backgroundColor: "hsl(0 72% 58% / 0.08)", border: "1px solid hsl(0 72% 58% / 0.2)" }}>
+              {params.error}
+            </p>
+          )}
 
-            <Link href="/dashboard">
-              <Button className="w-full mt-2" size="md">
-                Create account
-              </Button>
-            </Link>
+          <form action={actionSignUp} className="space-y-4">
+            <Input name="full_name" label="Full name" type="text" placeholder="Alex Morgan" autoComplete="name" />
+            <Input name="email" label="Email" type="email" placeholder="you@example.com" autoComplete="email" required />
+            <Input name="password" label="Password" type="password" placeholder="At least 8 characters" autoComplete="new-password" required />
+
+            <Button className="w-full mt-2" size="md" type="submit">
+              Create account
+            </Button>
           </form>
 
           <p className="text-xs text-center mt-6" style={{ color: "hsl(220 9% 40%)" }}>

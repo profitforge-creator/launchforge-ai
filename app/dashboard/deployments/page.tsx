@@ -113,6 +113,7 @@ function NewProjectModal({
   const [steps, setSteps]             = useState<CreateProjectStep[] | null>(null);
   const [done, setDone]               = useState<LFProject | null>(null);
   const [fatalError, setFatalError]   = useState<string | null>(null);
+  const [allowExternal, setAllowExternal] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,7 +121,14 @@ function NewProjectModal({
     setBusy(true);
     setFatalError(null);
     try {
-      const result = await actionCreateProject(name.trim(), description.trim() || undefined);
+      const confirmedExternal = allowExternal
+        ? window.confirm("This will create external GitHub, Vercel, and Stripe resources using connected accounts. Continue?")
+        : false;
+      if (allowExternal && !confirmedExternal) {
+        setBusy(false);
+        return;
+      }
+      const result = await actionCreateProject(name.trim(), description.trim() || undefined, confirmedExternal);
       setSteps(result.steps);
       if (result.project) {
         setDone(result.project);
@@ -193,9 +201,17 @@ function NewProjectModal({
                 }}
               />
             </div>
-            <p className="text-xs" style={{ color: "hsl(220 9% 32%)", lineHeight: 1.6 }}>
-              Creates a GitHub repo, Vercel project, and Stripe product using your connected accounts.
-            </p>
+            <label className="flex items-start gap-2 rounded-lg p-3" style={{ backgroundColor: "hsl(220 13% 9%)", border: "1px solid hsl(220 13% 18%)" }}>
+              <input
+                type="checkbox"
+                checked={allowExternal}
+                onChange={(e) => setAllowExternal(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span className="text-xs" style={{ color: "hsl(220 9% 42%)", lineHeight: 1.5 }}>
+                Also create external GitHub, Vercel, and Stripe resources. You will be asked to confirm before anything external is created.
+              </span>
+            </label>
             {fatalError && (
               <p className="text-xs rounded-lg px-3 py-2" style={{ backgroundColor: "hsl(0 60% 12%)", color: "hsl(0 70% 58%)", border: "1px solid hsl(0 60% 24%)" }}>
                 {fatalError}

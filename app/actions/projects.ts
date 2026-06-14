@@ -1,12 +1,13 @@
 "use server";
 
-import { getSupabaseClient } from "@/lib/supabase/server";
 import { getIntegration } from "@/lib/storage/integration-store";
+import { getUserSupabaseClient, requireUser } from "@/lib/auth/session";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface LFProject {
   id: string;
+  user_id: string;
   name: string;
   slug: string;
   description: string | null;
@@ -22,6 +23,7 @@ export interface LFProject {
   stripe_product_name: string | null;
   stripe_dashboard_url: string | null;
   status: string;
+  archived_at: string | null;
 }
 
 export interface CreateProjectStep {
@@ -45,7 +47,9 @@ export interface CreateProjectResult {
 export async function actionCreateProject(
   name: string,
   description?: string,
+  confirmExternalCreation = false,
 ): Promise<CreateProjectResult> {
+  const user = await requireUser();
   const slug = name
     .toLowerCase()
     .trim()
@@ -72,8 +76,10 @@ export async function actionCreateProject(
   let stripeDashboardUrl:  string | null = null;
 
   // ── GitHub ──────────────────────────────────────────────────────────────────
-  const githubIntegration = getIntegration("github");
-  if (!githubIntegration) {
+  const githubIntegration = confirmExternalCreation ? getIntegration("github") : null;
+  if (!confirmExternalCreation) {
+    steps[0] = { ...steps[0], status: "skipped", detail: "Skipped until external repository creation is explicitly confirmed." };
+  } else if (!githubIntegration) {
     steps[0] = { ...steps[0], status: "skipped", detail: "GitHub not connected — reconnect on the Deployments page." };
   } else {
     try {
@@ -116,8 +122,10 @@ export async function actionCreateProject(
   }
 
   // ── Vercel ──────────────────────────────────────────────────────────────────
-  const vercelToken = process.env.VERCEL_TOKEN;
-  if (!vercelToken) {
+  const vercelToken = confirmExternalCreation ? process.env.VERCEL_TOKEN : undefined;
+  if (!confirmExternalCreation) {
+    steps[1] = { ...steps[1], status: "skipped", detail: "Skipped until external Vercel project creation is explicitly confirmed." };
+  } else if (!vercelToken) {
     steps[1] = { ...steps[1], status: "skipped", detail: "VERCEL_TOKEN not set." };
   } else {
     try {
@@ -169,8 +177,10 @@ export async function actionCreateProject(
   }
 
   // ── Stripe ──────────────────────────────────────────────────────────────────
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey) {
+  const stripeKey = confirmExternalCreation ? process.env.STRIPE_SECRET_KEY : undefined;
+  if (!confirmExternalCreation) {
+    steps[2] = { ...steps[2], status: "skipped", detail: "Skipped until external Stripe product creation is explicitly confirmed." };
+  } else if (!stripeKey) {
     steps[2] = { ...steps[2], status: "skipped", detail: "STRIPE_SECRET_KEY not set." };
   } else {
     try {
@@ -208,10 +218,15 @@ export async function actionCreateProject(
 
   // ── Supabase ─────────────────────────────────────────────────────────────────
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await getUserSupabaseClient();
+    if (!supabase) {
+      steps[3] = { ...steps[3], status: "error", detail: "Authentication required." };
+      return { success: false, project: null, steps };
+    }
     const { data, error } = await supabase
       .from("lf_projects")
       .insert({
+        user_id: user.id,
         name,
         slug,
         description:          description ?? null,
@@ -226,6 +241,7 @@ export async function actionCreateProject(
         stripe_product_name:  stripeProductName,
         stripe_dashboard_url: stripeDashboardUrl,
         status:               "active",
+        archived_at:          null,
       })
       .select()
       .single();
@@ -247,10 +263,14 @@ export async function actionCreateProject(
 
 export async function actionGetLFProjects(): Promise<{ data: LFProject[]; error: string | null }> {
   try {
-    const supabase = getSupabaseClient();
+    const user = await requireUser();
+    const supabase = await getUserSupabaseClient();
+    if (!supabase) return { data: [], error: "Authentication required." };
     const { data, error } = await supabase
       .from("lf_projects")
       .select("*")
+      .eq("user_id", user.id)
+      .is("archived_at", null)
       .order("created_at", { ascending: false });
     if (error) return { data: [], error: error.message };
     return { data: (data as LFProject[]) ?? [], error: null };
@@ -263,8 +283,14 @@ export async function actionGetLFProjects(): Promise<{ data: LFProject[]; error:
 
 export async function actionDeleteLFProject(id: string): Promise<{ error: string | null }> {
   try {
-    const supabase = getSupabaseClient();
-    const { error } = await supabase.from("lf_projects").delete().eq("id", id);
+    const user = await requireUser();
+    const supabase = await getUserSupabaseClient();
+    if (!supabase) return { error: "Authentication required." };
+    const { error } = await supabase
+      .from("lf_projects")
+      .update({ archived_at: new Date().toISOString(), status: "archived" })
+      .eq("id", id)
+      .eq("user_id", user.id);
     if (error) return { error: error.message };
     return { error: null };
   } catch (e) {

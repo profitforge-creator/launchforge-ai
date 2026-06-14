@@ -8,7 +8,7 @@ export default async function WorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const result = getGeneration(id);
+  const result = await getGeneration(id);
   if (!result) notFound();
   return <WorkspaceShell result={result} />;
 }

@@ -1,8 +1,14 @@
 import Link from "next/link";
+import { actionResetPassword } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string; message?: string }>;
+}) {
+  const params = await searchParams;
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "hsl(220 13% 8%)" }}>
       <div className="flex items-center justify-between px-6 h-14" style={{ borderBottom: "1px solid hsl(220 13% 13%)" }}>
@@ -27,10 +33,20 @@ export default function ForgotPasswordPage() {
             </p>
           </div>
 
-          {/* AI INTEGRATION POINT: Wire to Supabase Auth resetPasswordForEmail */}
-          <form className="space-y-4">
-            <Input label="Email" type="email" placeholder="you@example.com" autoComplete="email" />
-            <Button className="w-full" size="md">Send reset link</Button>
+          {params?.error && (
+            <p className="text-xs mb-4 rounded-lg px-3 py-2" style={{ color: "hsl(0 72% 65%)", backgroundColor: "hsl(0 72% 58% / 0.08)", border: "1px solid hsl(0 72% 58% / 0.2)" }}>
+              {params.error}
+            </p>
+          )}
+          {params?.message && (
+            <p className="text-xs mb-4 rounded-lg px-3 py-2" style={{ color: "hsl(151 60% 55%)", backgroundColor: "hsl(151 60% 48% / 0.08)", border: "1px solid hsl(151 60% 48% / 0.2)" }}>
+              {params.message}
+            </p>
+          )}
+
+          <form action={actionResetPassword} className="space-y-4">
+            <Input name="email" label="Email" type="email" placeholder="you@example.com" autoComplete="email" required />
+            <Button className="w-full" size="md" type="submit">Send reset link</Button>
           </form>
 
           <div className="mt-6 text-center">

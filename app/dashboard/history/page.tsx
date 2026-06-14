@@ -17,8 +17,8 @@ function ScoreCell({ score }: { score: number }) {
 
 // AI INTEGRATION POINT: Replace getHistoryRecords() with a Supabase query:
 //   const { data } = await supabase.from("generations").select("*").order("created_at", { ascending: false })
-export default function HistoryPage() {
-  const records = getHistoryRecords();
+export default async function HistoryPage() {
+  const records = await getHistoryRecords();
   const avgScore = records.length
     ? Math.round(records.reduce((a, b) => a + b.overallScore, 0) / records.length)
     : 0;

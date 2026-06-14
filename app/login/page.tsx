@@ -1,8 +1,14 @@
 import Link from "next/link";
+import { actionSignIn } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string; message?: string }>;
+}) {
+  const params = await searchParams;
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "hsl(220 13% 8%)" }}>
       {/* Top bar */}
@@ -37,6 +43,7 @@ export default function LoginPage() {
 
           {/* Google OAuth — AI INTEGRATION POINT: wire to Supabase OAuth */}
           <button
+            type="button"
             className="w-full h-9 rounded flex items-center justify-center gap-2.5 text-sm font-medium transition-colors mb-6"
             style={{
               border: "1px solid hsl(220 13% 22%)",
@@ -59,10 +66,20 @@ export default function LoginPage() {
             <div className="flex-1 h-px" style={{ backgroundColor: "hsl(220 13% 17%)" }} />
           </div>
 
-          {/* AI INTEGRATION POINT: Wire form to Supabase Auth signInWithPassword */}
-          <form className="space-y-4">
-            <Input label="Email" type="email" placeholder="you@example.com" autoComplete="email" />
-            <Input label="Password" type="password" placeholder="••••••••" autoComplete="current-password" />
+          {params?.error && (
+            <p className="text-xs mb-4 rounded-lg px-3 py-2" style={{ color: "hsl(0 72% 65%)", backgroundColor: "hsl(0 72% 58% / 0.08)", border: "1px solid hsl(0 72% 58% / 0.2)" }}>
+              {params.error}
+            </p>
+          )}
+          {params?.message && (
+            <p className="text-xs mb-4 rounded-lg px-3 py-2" style={{ color: "hsl(151 60% 55%)", backgroundColor: "hsl(151 60% 48% / 0.08)", border: "1px solid hsl(151 60% 48% / 0.2)" }}>
+              {params.message}
+            </p>
+          )}
+
+          <form action={actionSignIn} className="space-y-4">
+            <Input name="email" label="Email" type="email" placeholder="you@example.com" autoComplete="email" required />
+            <Input name="password" label="Password" type="password" placeholder="••••••••" autoComplete="current-password" required />
 
             <div className="flex items-center justify-end">
               <Link href="/forgot-password" className="text-xs" style={{ color: "hsl(213 94% 62%)" }}>
@@ -70,11 +87,9 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            <Link href="/dashboard">
-              <Button className="w-full mt-1" size="md">
-                Sign in
-              </Button>
-            </Link>
+            <Button className="w-full mt-1" size="md" type="submit">
+              Sign in
+            </Button>
           </form>
 
           <p className="text-xs text-center mt-6" style={{ color: "hsl(220 9% 40%)" }}>
