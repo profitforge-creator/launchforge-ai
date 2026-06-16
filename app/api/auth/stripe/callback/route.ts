@@ -6,6 +6,8 @@ import { consumeOAuthState, persistIntegration } from "@/lib/auth/persist-integr
 import { getAppOrigin } from "@/lib/auth/app-url";
 import { getCurrentUser } from "@/lib/auth/session";
 
+export const runtime = "nodejs";
+
 const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
 export async function GET(request: Request) {
@@ -31,7 +33,7 @@ export async function GET(request: Request) {
   const owner = await getCurrentUser();
   if (!owner) return errRedirect("Sign in before connecting Stripe.");
 
-  const storedState = await consumeOAuthState("stripe");
+  const storedState = await consumeOAuthState("stripe", state, owner.id);
   if (!storedState || storedState !== state) {
     return errRedirect("Stripe OAuth state mismatch — please try again.");
   }
@@ -89,7 +91,7 @@ export async function GET(request: Request) {
     const settings = account.settings as { dashboard?: DashSettings } | undefined;
     const biz      = account.business_profile as BizProfile | undefined;
 
-    await persistIntegration({
+    const persisted = await persistIntegration({
       service:     "stripe",
       ownerId:     owner.id,
       token:       accessToken,
@@ -101,6 +103,7 @@ export async function GET(request: Request) {
         country: account.country,
       },
     });
+    if (!persisted.persisted) return errRedirect(persisted.reason ?? "Stripe connected, but token storage is not ready.");
   } catch (e) {
     return errRedirect(isAbort(e) ? "Stripe connection timed out." : "Failed to fetch Stripe account data.");
   }

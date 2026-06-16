@@ -6,8 +6,10 @@
 
 import { NextResponse } from "next/server";
 import { consumeOAuthState, persistIntegration } from "@/lib/auth/persist-integration";
-import { getAppOrigin } from "@/lib/auth/app-url";
+import { getAppOrigin, getOAuthRedirectUri } from "@/lib/auth/app-url";
 import { getCurrentUser } from "@/lib/auth/session";
+
+export const runtime = "nodejs";
 
 const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
@@ -34,7 +36,7 @@ export async function GET(request: Request) {
   const owner = await getCurrentUser();
   if (!owner) return errRedirect("Sign in before connecting Webflow.");
 
-  const storedState = await consumeOAuthState("webflow");
+  const storedState = await consumeOAuthState("webflow", state, owner.id);
   if (!storedState || storedState !== state) {
     return errRedirect("Webflow OAuth state mismatch — please try again.");
   }
@@ -54,7 +56,7 @@ export async function GET(request: Request) {
         client_secret: clientSecret,
         code,
         grant_type:    "authorization_code",
-        redirect_uri:  `${origin}/api/auth/webflow/callback`,
+        redirect_uri:  getOAuthRedirectUri("webflow", request.url),
       }),
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),

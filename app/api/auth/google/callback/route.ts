@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { consumeOAuthState, persistIntegration } from "@/lib/auth/persist-integration";
-import { getAppOrigin } from "@/lib/auth/app-url";
+import { getAppOrigin, getOAuthRedirectUri } from "@/lib/auth/app-url";
 import { getCurrentUser } from "@/lib/auth/session";
+
+export const runtime = "nodejs";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
@@ -49,7 +51,7 @@ export async function GET(request: Request) {
   const owner = await getCurrentUser();
   if (!owner) return errRedirect("Sign in before connecting Google.");
 
-  const storedState = await consumeOAuthState("google");
+  const storedState = await consumeOAuthState("google", state, owner.id);
   if (!storedState || storedState !== state) {
     return errRedirect("Google OAuth state mismatch. Please try again.");
   }
@@ -68,7 +70,7 @@ export async function GET(request: Request) {
         client_secret: clientSecret,
         code,
         grant_type: "authorization_code",
-        redirect_uri: `${origin}/api/auth/google/callback`,
+        redirect_uri: getOAuthRedirectUri("google", request.url),
       }),
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),

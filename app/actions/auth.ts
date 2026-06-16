@@ -5,13 +5,18 @@ import { clearAuthCookies, setAuthCookies } from "@/lib/auth/session";
 import { getAppOrigin, getSupabaseAuthCallbackUrl } from "@/lib/auth/app-url";
 import { getSupabaseClient, hasSupabaseConfig } from "@/lib/supabase/server";
 
+function supabaseMissingRedirect(path: "/login" | "/signup"): never {
+  if (process.env.NODE_ENV !== "production") redirect("/dashboard");
+  redirect(encoded(path, "error", "Supabase is not configured for this deployment."));
+}
+
 function encoded(path: string, key: "error" | "message", message: string): string {
   const params = new URLSearchParams({ [key]: message });
   return `${path}?${params.toString()}`;
 }
 
 export async function actionSignIn(formData: FormData): Promise<void> {
-  if (!hasSupabaseConfig()) redirect("/dashboard");
+  if (!hasSupabaseConfig()) supabaseMissingRedirect("/login");
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -28,7 +33,7 @@ export async function actionSignIn(formData: FormData): Promise<void> {
 }
 
 export async function actionSignUp(formData: FormData): Promise<void> {
-  if (!hasSupabaseConfig()) redirect("/dashboard");
+  if (!hasSupabaseConfig()) supabaseMissingRedirect("/signup");
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -71,7 +76,7 @@ export async function actionResetPassword(formData: FormData): Promise<void> {
 }
 
 export async function actionSignInWithGoogle(): Promise<void> {
-  if (!hasSupabaseConfig()) redirect("/dashboard");
+  if (!hasSupabaseConfig()) supabaseMissingRedirect("/login");
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.auth.signInWithOAuth({

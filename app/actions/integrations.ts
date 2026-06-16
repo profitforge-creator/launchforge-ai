@@ -230,7 +230,8 @@ export async function actionConnectStripe(secretKey: string): Promise<ConnectRes
     };
 
     const integration: StoredIntegration = { service: "stripe", ownerId, token: secretKey, connectedAt, metadata };
-    await persistIntegration(integration);
+    const persisted = await persistIntegration(integration);
+    if (!persisted.persisted) return storageFailure(persisted);
 
     return { success: true, status: { connected: true, connectedAt, metadata } };
   } catch {
@@ -331,14 +332,14 @@ function resolveGitHubFromEnv(): IntegrationStatus | null {
 
 function resolveSupabaseFromEnv(): IntegrationStatus | null {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return null;
-  return { connected: true, source: "env", connectedAt: new Date().toISOString(), metadata: { name: "Supabase" } };
+  return { connected: false, source: "env", metadata: { name: "Supabase" } };
 }
 
 function resolveStripeFromEnv(): IntegrationStatus | null {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
   const mode = (key.startsWith("sk_live_") || key.startsWith("rk_live_")) ? "live" as const : "test" as const;
-  return { connected: true, source: "env", connectedAt: new Date().toISOString(), metadata: { name: "Stripe", mode } };
+  return { connected: false, source: "env", metadata: { name: "Stripe", mode } };
 }
 
 // ── Env-validation actions ────────────────────────────────────────────────────
@@ -607,7 +608,7 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
 
     for (const key of ALL_INTEGRATION_KEYS) {
       const stored = storedStatuses[key];
-      if (stored.connected || stored.enabled !== undefined) {
+      if (stored.connected || (stored.enabled !== undefined && envFallbacks[key] === undefined)) {
         result[key] = stored;
       } else if (envFallbacks[key] !== undefined) {
         // Include env fallbacks even when connected:false (e.g. Vercel/GitHub token present but unvalidated)
@@ -637,7 +638,7 @@ export async function actionGetOAuthConfig(): Promise<{
   return {
     google:  !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     github:  !!(process.env.GITHUB_CLIENT_ID  && process.env.GITHUB_CLIENT_SECRET),
-    stripe:  !!(process.env.STRIPE_CLIENT_ID),
+    stripe:  !!(process.env.STRIPE_CLIENT_ID && process.env.STRIPE_SECRET_KEY),
     webflow: !!(process.env.WEBFLOW_CLIENT_ID  && process.env.WEBFLOW_CLIENT_SECRET),
   };
 }

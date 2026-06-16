@@ -3,6 +3,8 @@ import { setAuthCookies } from "@/lib/auth/session";
 import { getAppOrigin } from "@/lib/auth/app-url";
 import { getSupabaseClient, hasSupabaseConfig } from "@/lib/supabase/server";
 
+export const runtime = "nodejs";
+
 function redirectWithMessage(origin: string, path: string, key: "error" | "message", message: string) {
   const url = new URL(path, origin);
   url.searchParams.set(key, message);

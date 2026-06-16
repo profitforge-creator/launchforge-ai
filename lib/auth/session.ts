@@ -58,7 +58,9 @@ export async function clearAuthCookies(): Promise<void> {
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  if (!hasSupabaseConfig()) return localDevUser();
+  if (!hasSupabaseConfig()) {
+    return process.env.NODE_ENV === "production" ? null : localDevUser();
+  }
 
   const accessToken = await getAccessToken();
   if (!accessToken) {

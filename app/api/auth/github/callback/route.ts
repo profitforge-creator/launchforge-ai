@@ -3,8 +3,10 @@
 
 import { NextResponse } from "next/server";
 import { consumeOAuthState, persistIntegration } from "@/lib/auth/persist-integration";
-import { getAppOrigin } from "@/lib/auth/app-url";
+import { getAppOrigin, getOAuthRedirectUri } from "@/lib/auth/app-url";
 import { getCurrentUser } from "@/lib/auth/session";
+
+export const runtime = "nodejs";
 
 const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
@@ -33,7 +35,7 @@ export async function GET(request: Request) {
   if (!owner) return errRedirect("Sign in before connecting GitHub.");
 
   // ── CSRF check ───────────────────────────────────────────────────────────────
-  const storedState = await consumeOAuthState("github");
+  const storedState = await consumeOAuthState("github", state, owner.id);
   if (!storedState || storedState !== state) {
     return errRedirect("GitHub OAuth state mismatch — please try again.");
   }
@@ -52,7 +54,7 @@ export async function GET(request: Request) {
         client_id:     clientId,
         client_secret: clientSecret,
         code,
-        redirect_uri: `${origin}/api/auth/github/callback`,
+        redirect_uri: getOAuthRedirectUri("github", request.url),
       }),
       cache: "no-store",
       signal: AbortSignal.timeout(10_000),

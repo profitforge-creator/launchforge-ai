@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { setOAuthState } from "@/lib/auth/persist-integration";
-import { getAppOrigin } from "@/lib/auth/app-url";
+import { getAppOrigin, getOAuthRedirectUri } from "@/lib/auth/app-url";
 import { getCurrentUser } from "@/lib/auth/session";
+
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const origin   = getAppOrigin(request.url);
@@ -22,12 +24,13 @@ export async function GET(request: Request) {
   }
 
   const state = randomBytes(16).toString("hex");
-  await setOAuthState("github", state);
+  const scopes = ["repo", "read:user", "user:email"];
+  await setOAuthState("github", state, user.id, scopes);
 
   const params = new URLSearchParams({
     client_id:    clientId,
-    redirect_uri: `${origin}/api/auth/github/callback`,
-    scope:        "repo read:user user:email",
+    redirect_uri: getOAuthRedirectUri("github", request.url),
+    scope:        scopes.join(" "),
     state,
   });
 
