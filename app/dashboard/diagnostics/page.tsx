@@ -1,5 +1,10 @@
+import { getEnvChecks, type EnvKey } from "@/lib/env/diagnostics";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 interface EnvVar {
-  key: string;
+  key: EnvKey;
   label: string;
   isSecret: boolean;
   hint: string;
@@ -9,20 +14,21 @@ const ENV_VARS: EnvVar[] = [
   { key: "GEMINI_API_KEY", label: "Gemini API Key", isSecret: true, hint: "Required for AI generation." },
   { key: "NEXT_PUBLIC_SUPABASE_URL", label: "Supabase URL", isSecret: false, hint: "Required for database." },
   { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", label: "Supabase Anon Key", isSecret: false, hint: "Required for database auth." },
+  { key: "NEXT_PUBLIC_APP_URL", label: "App URL", isSecret: false, hint: "Required for stable production OAuth callback URLs." },
   { key: "GITHUB_CLIENT_ID", label: "GitHub OAuth Client ID", isSecret: false, hint: "Required for GitHub OAuth." },
   { key: "GITHUB_CLIENT_SECRET", label: "GitHub OAuth Client Secret", isSecret: true, hint: "Required for GitHub OAuth." },
   { key: "VERCEL_TOKEN", label: "Vercel API Token", isSecret: true, hint: "Required for Vercel API checks." },
   { key: "STRIPE_SECRET_KEY", label: "Stripe Secret Key", isSecret: true, hint: "Required for Stripe API checks." },
   { key: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", label: "Stripe Publishable Key", isSecret: false, hint: "Required for Stripe.js on the client." },
+  { key: "STRIPE_CLIENT_ID", label: "Stripe Connect Client ID", isSecret: false, hint: "Required for Stripe Connect OAuth." },
+  { key: "WEBFLOW_CLIENT_ID", label: "Webflow OAuth Client ID", isSecret: false, hint: "Required for Webflow OAuth." },
+  { key: "WEBFLOW_CLIENT_SECRET", label: "Webflow OAuth Client Secret", isSecret: true, hint: "Required for Webflow OAuth." },
+  { key: "LAUNCHFORGE_INTEGRATION_SECRET", label: "Integration Encryption Secret", isSecret: true, hint: "Required for durable encrypted token storage." },
 ];
 
-function checkEnv(key: string): { loaded: boolean } {
-  const value = process.env[key];
-  return { loaded: !!value && value.trim() !== "" };
-}
-
 export default function DiagnosticsPage() {
-  const results = ENV_VARS.map((v) => ({ ...v, ...checkEnv(v.key) }));
+  const checks = new Map(getEnvChecks(ENV_VARS.map((v) => v.key)).map((v) => [v.key, v.loaded]));
+  const results = ENV_VARS.map((v) => ({ ...v, loaded: checks.get(v.key) ?? false }));
   const loaded = results.filter((r) => r.loaded).length;
   const missing = results.length - loaded;
 
@@ -88,7 +94,7 @@ export default function DiagnosticsPage() {
       </div>
 
       <p style={{ marginTop: "1.5rem", fontSize: "0.75rem", color: "hsl(var(--muted-foreground))" }}>
-        Add missing variables to <code style={{ fontFamily: "monospace" }}>.env.local</code> and restart the dev server.
+        Checked dynamically in the Node runtime. Add missing local variables to <code style={{ fontFamily: "monospace" }}>.env.local</code> and Vercel variables to the correct Production or Preview environment.
       </p>
     </div>
   );

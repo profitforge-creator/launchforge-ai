@@ -1,13 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+function getSupabaseEnv() {
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  };
+}
 
 export function hasSupabaseConfig(): boolean {
+  const { url, key } = getSupabaseEnv();
   return !!url && !!key;
 }
 
 export function getSupabaseClient() {
+  const { url, key } = getSupabaseEnv();
   if (!url || !key) {
     throw new Error(
       "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment."
@@ -22,6 +28,7 @@ export function getSupabaseClient() {
 }
 
 export function getSupabaseClientForUser(accessToken: string) {
+  const { url, key } = getSupabaseEnv();
   if (!url || !key) {
     throw new Error(
       "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment."
