@@ -2,15 +2,18 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { actionDeleteDeployment, actionGetDeployment, actionSaveDeployment } from "@/app/actions/deployments";
 import type { BusinessResult } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface DeployRecord {
+  id?: string;
   url: string;
   domain?: string;
   deployedAt: string;
   environment: "production" | "preview";
+  storageError?: string;
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -231,12 +234,33 @@ export function LaunchTab({ result }: { result: BusinessResult }) {
   const storageKey = `lf_deploy_${result.id}`;
 
   useEffect(() => {
+    let cancelled = false;
     const raw = localStorage.getItem(storageKey);
     if (raw) { try { setDeploy(JSON.parse(raw)); } catch {} }
-  }, [storageKey]);
+    actionGetDeployment(result.id)
+      .then(({ data }) => {
+        if (!data || cancelled) return;
+        const rec: DeployRecord = {
+          id: data.id,
+          url: data.url,
+          domain: data.domain ?? undefined,
+          deployedAt: data.created_at,
+          environment: data.environment,
+        };
+        localStorage.setItem(storageKey, JSON.stringify(rec));
+        setDeploy(rec);
+      })
+      .catch(() => {
+        // Keep the local fallback visible if deployment storage is unavailable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [result.id, storageKey]);
 
-  function saveDeployment(url: string, environment: "production" | "preview") {
+  async function saveDeployment(url: string, environment: "production" | "preview") {
     const rec: DeployRecord = {
+      id: deploy?.id,
       url,
       domain: deploy?.domain,
       deployedAt: new Date().toISOString(),
@@ -245,17 +269,53 @@ export function LaunchTab({ result }: { result: BusinessResult }) {
     localStorage.setItem(storageKey, JSON.stringify(rec));
     setDeploy(rec);
     setShowDeployForm(false);
+    const host = url.replace(/^https?:\/\//, "").split("/")[0] ?? null;
+    const saved = await actionSaveDeployment({
+      project_id: result.id,
+      platform: host?.includes("vercel.app") ? "vercel" : "manual",
+      status: "live",
+      url,
+      domain: rec.domain ?? null,
+      environment,
+    });
+    if (saved.error) {
+      const withError = { ...rec, storageError: saved.error };
+      localStorage.setItem(storageKey, JSON.stringify(withError));
+      setDeploy(withError);
+    } else if (saved.data) {
+      const persisted = { ...rec, id: saved.data.id, storageError: undefined };
+      localStorage.setItem(storageKey, JSON.stringify(persisted));
+      setDeploy(persisted);
+    }
   }
 
-  function saveDomain(domain: string) {
+  async function saveDomain(domain: string) {
     if (!deploy) return;
     const rec = { ...deploy, domain };
     localStorage.setItem(storageKey, JSON.stringify(rec));
     setDeploy(rec);
     setShowDomainForm(false);
+    const saved = await actionSaveDeployment({
+      project_id: result.id,
+      platform: deploy.url.includes("vercel.app") ? "vercel" : "manual",
+      status: "live",
+      url: deploy.url,
+      domain,
+      environment: deploy.environment,
+    });
+    if (saved.error) {
+      const withError = { ...rec, storageError: saved.error };
+      localStorage.setItem(storageKey, JSON.stringify(withError));
+      setDeploy(withError);
+    } else if (saved.data) {
+      const persisted = { ...rec, id: saved.data.id, storageError: undefined };
+      localStorage.setItem(storageKey, JSON.stringify(persisted));
+      setDeploy(persisted);
+    }
   }
 
-  function clearDeploy() {
+  async function clearDeploy() {
+    if (deploy?.id) await actionDeleteDeployment(deploy.id).catch(() => undefined);
     localStorage.removeItem(storageKey);
     setDeploy(null);
   }
@@ -464,6 +524,11 @@ export function LaunchTab({ result }: { result: BusinessResult }) {
                     )}
                     {showDeployForm && (
                       <DeployForm onSave={saveDeployment} />
+                    )}
+                    {deploy?.storageError && (
+                      <p className="mt-2 text-xs" style={{ color: "hsl(38 90% 58%)", lineHeight: 1.6 }}>
+                        Deployment saved locally, but durable storage reported: {deploy.storageError}
+                      </p>
                     )}
                     {!isDeployed && (
                       <p className="mt-2 text-xs" style={{ color: "hsl(220 9% 30%)", lineHeight: 1.6 }}>

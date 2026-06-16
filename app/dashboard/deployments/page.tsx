@@ -838,7 +838,7 @@ function PlatformCard({
       )}
 
       {/* Not connected + not env-sourced: OAuth redirect or "not configured" info */}
-      {!isConnected && !isEnvSource && (
+      {!isConnected && !isEnvSource && !showForm && (
         <div className="mt-auto">
           {oauthPath && oauthConfigured ? (
             // Real OAuth — full-page redirect to provider authorization screen
@@ -860,6 +860,13 @@ function PlatformCard({
             >
               <p className="font-medium" style={{ color: "hsl(220 9% 44%)" }}>Not configured</p>
               <p style={{ color: "hsl(220 9% 30%)" }}>{NOT_CONFIGURED_HINTS[id]}</p>
+              <button
+                onClick={() => onShowForm(id)}
+                className="mt-2 w-full h-8 rounded-lg text-xs font-medium transition-all"
+                style={{ backgroundColor: "hsl(220 13% 14%)", border: "1px solid hsl(220 13% 20%)", color: "hsl(220 9% 60%)" }}
+              >
+                Connect with token
+              </button>
             </div>
           )}
         </div>

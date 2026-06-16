@@ -137,7 +137,8 @@ export async function actionCreateProject(
   }
 
   // ── Vercel ──────────────────────────────────────────────────────────────────
-  const vercelToken = confirmExternalCreation ? process.env.VERCEL_TOKEN : undefined;
+  const vercelIntegration = confirmExternalCreation ? await getIntegration("vercel", user.id) : null;
+  const vercelToken = confirmExternalCreation ? (vercelIntegration?.token ?? process.env.VERCEL_TOKEN) : undefined;
   if (!confirmExternalCreation) {
     steps[1] = { ...steps[1], status: "skipped", detail: "Skipped until external Vercel project creation is explicitly confirmed." };
   } else if (!vercelToken) {
@@ -192,7 +193,8 @@ export async function actionCreateProject(
   }
 
   // ── Stripe ──────────────────────────────────────────────────────────────────
-  const stripeKey = confirmExternalCreation ? process.env.STRIPE_SECRET_KEY : undefined;
+  const stripeIntegration = confirmExternalCreation ? await getIntegration("stripe", user.id) : null;
+  const stripeKey = confirmExternalCreation ? (stripeIntegration?.token ?? process.env.STRIPE_SECRET_KEY) : undefined;
   if (!confirmExternalCreation) {
     steps[2] = { ...steps[2], status: "skipped", detail: "Skipped until external Stripe product creation is explicitly confirmed." };
   } else if (!stripeKey) {
