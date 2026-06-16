@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ClipboardList, PlugZap, UsersRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { HistoryRecord } from "@/types";
@@ -315,7 +316,10 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
         <SectionLabel>Workspace</SectionLabel>
         <NavItem href="/dashboard"                    icon={<IconFolder />}        label="Projects"       exact />
         <NavItem href="/dashboard/deployments"        icon={<IconDeploy />}        label="Deployments"         />
+        <NavItem href="/dashboard/integrations"       icon={<PlugZap size={14} strokeWidth={1.8} />} label="Integrations"      />
         <NavItem href="/dashboard/opportunities"      icon={<IconOpportunities />} label="Opportunities"       />
+        <NavItem href="/dashboard/leads"              icon={<UsersRound size={14} strokeWidth={1.8} />} label="Leads"           />
+        <NavItem href="/dashboard/demo"               icon={<ClipboardList size={14} strokeWidth={1.8} />} label="Lead Demo"       />
         <NavItem href="/dashboard/analytics"          icon={<IconAnalytics />}     label="Analytics"           />
         <NavItem href="/dashboard/usage"              icon={<IconUsage />}         label="Usage"               />
       </div>

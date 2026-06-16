@@ -57,7 +57,7 @@ function StatCard({
 
       {limit === "unlimited" && (
         <p className="text-xs mt-2" style={{ color: "hsl(220 9% 32%)" }}>
-          {sub ?? "No limit during trial"}
+          {sub ?? "Not enforced in local preview"}
         </p>
       )}
     </div>
@@ -111,17 +111,18 @@ export default async function UsagePage() {
         style={{ border: "1px solid hsl(213 94% 62% / 0.2)", backgroundColor: "hsl(213 94% 62% / 0.04)" }}
       >
         <div>
-          <p className="text-xs font-medium mb-0.5" style={{ color: "hsl(213 94% 65%)" }}>Current plan</p>
-          <p className="text-lg font-bold" style={{ color: "hsl(220 9% 90%)" }}>3-Day Free Trial</p>
+          <p className="text-xs font-medium mb-0.5" style={{ color: "hsl(213 94% 65%)" }}>Current mode</p>
+          <p className="text-lg font-bold" style={{ color: "hsl(220 9% 90%)" }}>Local Preview</p>
           <p className="text-xs mt-1" style={{ color: "hsl(220 9% 44%)" }}>
-            Full access · 3 days remaining
+            Billing and subscription limits are not enabled in this build.
           </p>
         </div>
         <button
+          disabled
           className="h-9 px-5 rounded-xl text-sm font-semibold"
-          style={{ backgroundColor: "hsl(220 9% 94%)", color: "hsl(220 14% 7%)" }}
+          style={{ backgroundColor: "hsl(220 13% 16%)", color: "hsl(220 9% 42%)", cursor: "not-allowed" }}
         >
-          Upgrade plan
+          Upgrade unavailable
         </button>
       </div>
 

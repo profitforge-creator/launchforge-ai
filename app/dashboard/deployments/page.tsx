@@ -28,7 +28,8 @@ import {
 } from "@/app/actions/integrations";
 import type { IntegrationKey, IntegrationStatus, ConnectResult } from "@/lib/storage/integration-store";
 
-type OAuthConfig = { github: boolean; stripe: boolean; webflow: boolean };
+type DashboardIntegrationKey = Exclude<IntegrationKey, "google">;
+type OAuthConfig = { google: boolean; github: boolean; stripe: boolean; webflow: boolean };
 type EnvDiagnostics = Awaited<ReturnType<typeof actionGetEnvDiagnostics>>;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -122,7 +123,7 @@ function NewProjectModal({
     setFatalError(null);
     try {
       const confirmedExternal = allowExternal
-        ? window.confirm("This will create external GitHub, Vercel, and Stripe resources using connected accounts. Continue?")
+        ? window.confirm("This will request external resource creation using connected accounts. Continue?")
         : false;
       if (allowExternal && !confirmedExternal) {
         setBusy(false);
@@ -209,7 +210,7 @@ function NewProjectModal({
                 className="mt-0.5"
               />
               <span className="text-xs" style={{ color: "hsl(220 9% 42%)", lineHeight: 1.5 }}>
-                Also create external GitHub, Vercel, and Stripe resources. You will be asked to confirm before anything external is created.
+                Also request external resource creation through connected accounts. You will be asked to confirm before anything external is created.
               </span>
             </label>
             {fatalError && (
@@ -317,7 +318,7 @@ function LFProjectsSection({
         <div>
           <h2 className="text-sm font-semibold" style={{ color: "hsl(220 9% 78%)" }}>Projects</h2>
           <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 36%)" }}>
-            {projects.length === 0 ? "No projects yet." : `${projects.length} project${projects.length === 1 ? "" : "s"} — GitHub, Vercel, Stripe provisioned automatically.`}
+            {projects.length === 0 ? "No projects yet." : `${projects.length} project${projects.length === 1 ? "" : "s"} — external setup is tracked after connected-account confirmation.`}
           </p>
         </div>
         <button
@@ -336,7 +337,7 @@ function LFProjectsSection({
         >
           <p className="text-sm font-medium mb-1" style={{ color: "hsl(220 9% 52%)" }}>No projects yet</p>
           <p className="text-xs mb-4" style={{ color: "hsl(220 9% 32%)", lineHeight: 1.6 }}>
-            Click "New Project" to create a GitHub repo, Vercel project, and Stripe product in one step.
+            Click "New Project" to create a LaunchForge project. External setup requires connected accounts and explicit confirmation.
           </p>
           <button
             onClick={onNewProject}
@@ -399,7 +400,7 @@ function LFProjectsSection({
 
 // ── Platform metadata ─────────────────────────────────────────────────────────
 
-const PLATFORM_META: Record<IntegrationKey, {
+const PLATFORM_META: Record<DashboardIntegrationKey, {
   name: string;
   abbr: string;
   abbrbg: string;
@@ -448,7 +449,7 @@ const PLATFORM_META: Record<IntegrationKey, {
     abbr: "S",
     abbrbg: "hsl(234 55% 15%)",
     abbrfg: "hsl(234 70% 68%)",
-    desc: "Connect Stripe to handle payments for generated products.",
+    desc: "Stripe connection is for validation/testing in this build. Live payments and subscriptions are not enabled.",
     tokenLabel: "Secret Key",
     placeholder: "sk_live_... or sk_test_...",
     tokenHint: "Dashboard → Developers → API Keys → Secret key",
@@ -467,7 +468,7 @@ const PLATFORM_META: Record<IntegrationKey, {
   },
 };
 
-const PLATFORM_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
+const PLATFORM_KEYS: DashboardIntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
 
 // ── Stats row ─────────────────────────────────────────────────────────────────
 
@@ -476,7 +477,7 @@ function StatsGrid({
   integrations,
 }: {
   projects: ProjectWithDeploy[];
-  integrations: Record<IntegrationKey, IntegrationStatus>;
+  integrations: Record<DashboardIntegrationKey, IntegrationStatus>;
 }) {
   const deployed      = projects.filter((p) => !!p.deploy).length;
   const connected     = PLATFORM_KEYS.filter((k) => integrations[k]?.connected).length;
@@ -524,8 +525,8 @@ function ConnectForm({
   loading,
   error,
 }: {
-  service: IntegrationKey;
-  meta: typeof PLATFORM_META[IntegrationKey];
+  service: DashboardIntegrationKey;
+  meta: typeof PLATFORM_META[DashboardIntegrationKey];
   onConnect: (value: string, extra?: string) => void;
   onCancel: () => void;
   loading: boolean;
@@ -612,7 +613,7 @@ function ConnectForm({
 
 // ── Platform card ─────────────────────────────────────────────────────────────
 
-const NOT_CONFIGURED_HINTS: Record<IntegrationKey, string> = {
+const NOT_CONFIGURED_HINTS: Record<DashboardIntegrationKey, string> = {
   vercel:   "Set VERCEL_TOKEN in your server environment.",
   github:   "Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to enable GitHub OAuth.",
   stripe:   "Set STRIPE_SECRET_KEY (billing) or STRIPE_CLIENT_ID (Connect) in environment.",
@@ -633,17 +634,17 @@ function PlatformCard({
   onHideManage,
   onTestConnection,
 }: {
-  id: IntegrationKey;
+  id: DashboardIntegrationKey;
   ui: PlatformUIState;
   oauthPath?: string;
   oauthConfigured?: boolean;
-  onConnect: (id: IntegrationKey, token: string) => Promise<void>;
-  onDisconnect: (id: IntegrationKey) => Promise<void>;
-  onShowForm: (id: IntegrationKey) => void;
-  onHideForm: (id: IntegrationKey) => void;
-  onShowManage: (id: IntegrationKey) => void;
-  onHideManage: (id: IntegrationKey) => void;
-  onTestConnection: (id: IntegrationKey) => Promise<void>;
+  onConnect: (id: DashboardIntegrationKey, token: string) => Promise<void>;
+  onDisconnect: (id: DashboardIntegrationKey) => Promise<void>;
+  onShowForm: (id: DashboardIntegrationKey) => void;
+  onHideForm: (id: DashboardIntegrationKey) => void;
+  onShowManage: (id: DashboardIntegrationKey) => void;
+  onHideManage: (id: DashboardIntegrationKey) => void;
+  onTestConnection: (id: DashboardIntegrationKey) => Promise<void>;
 }) {
   const meta = PLATFORM_META[id];
   const { state, status, error, showForm, showManage } = ui;
@@ -1152,7 +1153,7 @@ function makePlatformUI(status: IntegrationStatus): PlatformUIState {
 
 // OAuth paths — platforms that use full OAuth redirect rather than a token form.
 // Route handlers at these paths initiate the OAuth flow and handle the callback.
-const OAUTH_PATHS: Partial<Record<IntegrationKey, string>> = {
+const OAUTH_PATHS: Partial<Record<DashboardIntegrationKey, string>> = {
   github:  "/api/auth/github",
   stripe:  "/api/auth/stripe",
   webflow: "/api/auth/webflow",
@@ -1161,16 +1162,16 @@ const OAUTH_PATHS: Partial<Record<IntegrationKey, string>> = {
 export default function DeploymentsPage() {
   const [projects,    setProjects]    = useState<ProjectWithDeploy[]>([]);
   const [lfProjects,  setLfProjects]  = useState<LFProject[]>([]);
-  const [platforms,   setPlatforms]   = useState<Record<IntegrationKey, PlatformUIState> | null>(null);
+  const [platforms,   setPlatforms]   = useState<Record<DashboardIntegrationKey, PlatformUIState> | null>(null);
   const [loading,     setLoading]     = useState(true);
   const [loadError,   setLoadError]   = useState<string | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [oauthBanner,    setOauthBanner]    = useState<{ type: "error" | "success"; message: string } | null>(null);
-  const [oauthConfig,    setOauthConfig]    = useState<OAuthConfig>({ github: false, stripe: false, webflow: false });
+  const [oauthConfig,    setOauthConfig]    = useState<OAuthConfig>({ google: false, github: false, stripe: false, webflow: false });
   const [envDiagnostics, setEnvDiagnostics] = useState<EnvDiagnostics | null>(null);
 
   // Apply a ConnectResult to a platform slot
-  function applyResult(key: IntegrationKey, result: ConnectResult) {
+  function applyResult(key: DashboardIntegrationKey, result: ConnectResult) {
     setPlatforms((prev) => {
       if (!prev) return prev;
       if (result.success && result.status) {
@@ -1232,7 +1233,7 @@ export default function DeploymentsPage() {
       // ── OAuth config ────────────────────────────────────────────────────────
       const oauthCfg: OAuthConfig = oauthRes.status === "fulfilled"
         ? oauthRes.value
-        : { github: false, stripe: false, webflow: false };
+        : { google: false, github: false, stripe: false, webflow: false };
       if (oauthRes.status === "rejected") {
         console.error("[DeploymentsPage] actionGetOAuthConfig failed:", oauthRes.reason);
       }
@@ -1262,7 +1263,7 @@ export default function DeploymentsPage() {
       // ── Build initial platform UI ───────────────────────────────────────────
       // Supabase and Stripe auto-validate in the background (set to "connecting").
       // Vercel and GitHub stay "idle" until the user clicks "Test Connection".
-      const ui = {} as Record<IntegrationKey, PlatformUIState>;
+      const ui = {} as Record<DashboardIntegrationKey, PlatformUIState>;
       PLATFORM_KEYS.forEach((k) => {
         const s = statuses[k];
         const autoValidate = s.source === "env" && (k === "supabase" || k === "stripe");
@@ -1307,7 +1308,7 @@ export default function DeploymentsPage() {
   //   webflow:  GET https://api.webflow.com/v2/token/introspect
   //   stripe:   GET https://api.stripe.com/v1/account
   //   supabase: GET https://api.supabase.com/v1/projects
-  async function handleConnect(id: IntegrationKey, token: string) {
+  async function handleConnect(id: DashboardIntegrationKey, token: string) {
     setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], state: "connecting", error: null } } : prev);
     try {
       let result: ConnectResult;
@@ -1349,7 +1350,7 @@ export default function DeploymentsPage() {
   //   github:   GET https://api.github.com/rate_limit         (Basic GITHUB_CLIENT_ID:GITHUB_CLIENT_SECRET)
   //   supabase: GET ${SUPABASE_URL}/rest/v1/                   (apikey SUPABASE_ANON_KEY)
   //   stripe:   GET https://api.stripe.com/v1/account         (Bearer STRIPE_SECRET_KEY)
-  async function handleTestConnection(id: IntegrationKey) {
+  async function handleTestConnection(id: DashboardIntegrationKey) {
     setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], state: "connecting", error: null } } : prev);
     try {
       let result: ConnectResult;
@@ -1371,7 +1372,7 @@ export default function DeploymentsPage() {
   }
 
   // Disconnect handler — calls real server action
-  async function handleDisconnect(id: IntegrationKey) {
+  async function handleDisconnect(id: DashboardIntegrationKey) {
     try {
       await actionDisconnectIntegration(id);
     } finally {
@@ -1385,10 +1386,10 @@ export default function DeploymentsPage() {
     await actionDeleteLFProject(id).catch((e) => console.error("[DeploymentsPage] delete failed:", e));
   }
 
-  function setShowForm(id: IntegrationKey, show: boolean) {
+  function setShowForm(id: DashboardIntegrationKey, show: boolean) {
     setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], showForm: show, error: null } } : prev);
   }
-  function setShowManage(id: IntegrationKey, show: boolean) {
+  function setShowManage(id: DashboardIntegrationKey, show: boolean) {
     setPlatforms((prev) => prev ? { ...prev, [id]: { ...prev[id], showManage: show } } : prev);
   }
 
@@ -1415,8 +1416,8 @@ export default function DeploymentsPage() {
   }
 
   const integrationStatusMap = platforms
-    ? Object.fromEntries(PLATFORM_KEYS.map((k) => [k, platforms[k].status])) as Record<IntegrationKey, IntegrationStatus>
-    : Object.fromEntries(PLATFORM_KEYS.map((k) => [k, { connected: false }])) as Record<IntegrationKey, IntegrationStatus>;
+    ? Object.fromEntries(PLATFORM_KEYS.map((k) => [k, platforms[k].status])) as Record<DashboardIntegrationKey, IntegrationStatus>
+    : Object.fromEntries(PLATFORM_KEYS.map((k) => [k, { connected: false }])) as Record<DashboardIntegrationKey, IntegrationStatus>;
 
   if (loading) {
     return (
@@ -1456,7 +1457,7 @@ export default function DeploymentsPage() {
             Deployments
           </h1>
           <p className="text-sm" style={{ color: "hsl(220 9% 38%)" }}>
-            Connect your platforms and track live businesses.
+            Connect supported platforms and track project/deployment status.
           </p>
         </div>
 
@@ -1498,7 +1499,7 @@ export default function DeploymentsPage() {
             <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 36%)" }}>
               {PLATFORM_KEYS.every((k) => !platforms[k].status.connected)
                 ? "No integrations connected yet."
-                : "Connect real accounts — status reflects actual authentication."}
+                : "Connected status reflects available token/API validation in this build."}
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

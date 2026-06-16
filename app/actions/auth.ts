@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { clearAuthCookies, setAuthCookies } from "@/lib/auth/session";
-import { getAppOrigin } from "@/lib/auth/app-url";
+import { getAppOrigin, getSupabaseAuthCallbackUrl } from "@/lib/auth/app-url";
 import { getSupabaseClient, hasSupabaseConfig } from "@/lib/supabase/server";
 
 function encoded(path: string, key: "error" | "message", message: string): string {
@@ -60,7 +60,7 @@ export async function actionResetPassword(formData: FormData): Promise<void> {
     redirect(encoded("/forgot-password", "message", "Password reset is disabled until Supabase is configured."));
   }
 
-  const origin = getAppOrigin(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
+  const origin = getAppOrigin();
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/login`,
@@ -68,6 +68,28 @@ export async function actionResetPassword(formData: FormData): Promise<void> {
   if (error) redirect(encoded("/forgot-password", "error", error.message));
 
   redirect(encoded("/forgot-password", "message", "Password reset email sent."));
+}
+
+export async function actionSignInWithGoogle(): Promise<void> {
+  if (!hasSupabaseConfig()) redirect("/dashboard");
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: getSupabaseAuthCallbackUrl(),
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
+    },
+  });
+
+  if (error || !data.url) {
+    redirect(encoded("/login", "error", error?.message ?? "Google sign-in is not available."));
+  }
+
+  redirect(data.url);
 }
 
 export async function actionSignOut(): Promise<void> {

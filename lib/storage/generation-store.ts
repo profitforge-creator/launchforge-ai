@@ -8,6 +8,18 @@ function useLocalFallback(): boolean {
   return !hasSupabaseConfig();
 }
 
+function isMissingGenerationsTableError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    error.code === "42P01" ||
+    error.code === "PGRST204" ||
+    error.code === "PGRST205" ||
+    (message.includes("generations") && message.includes("schema cache")) ||
+    (message.includes("relation") && message.includes("generations") && message.includes("does not exist"))
+  );
+}
+
 async function getStorageContext(userId?: string) {
   const user = userId ? { id: userId } : await getCurrentUser();
   if (!user) return null;
@@ -60,6 +72,10 @@ export async function getGeneration(id: string, userId?: string): Promise<Busine
     .is("archived_at", null)
     .maybeSingle();
 
+  if (isMissingGenerationsTableError(error)) {
+    // TODO: Supabase migrations should create public.generations later.
+    return null;
+  }
   if (error) throw new Error(error.message);
   return (data?.result as BusinessResult | undefined) ?? null;
 }
@@ -79,6 +95,10 @@ export async function getAllGenerations(userId?: string): Promise<BusinessResult
     .is("archived_at", null)
     .order("created_at", { ascending: false });
 
+  if (isMissingGenerationsTableError(error)) {
+    // TODO: Supabase migrations should create public.generations later.
+    return [];
+  }
   if (error) throw new Error(error.message);
   return ((data ?? []).map((row) => row.result as BusinessResult)).sort(byCreatedAtDesc);
 }

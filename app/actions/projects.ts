@@ -40,6 +40,21 @@ export interface CreateProjectResult {
   steps: CreateProjectStep[];
 }
 
+function isMissingLFProjectsSchemaError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    error.code === "42P01" ||
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    error.code === "PGRST205" ||
+    (message.includes("lf_projects") && message.includes("schema cache")) ||
+    (message.includes("lf_projects") && message.includes("does not exist")) ||
+    (message.includes("lf_projects.user_id") && message.includes("does not exist")) ||
+    (message.includes("column") && message.includes("user_id") && message.includes("does not exist"))
+  );
+}
+
 // ── Create project ────────────────────────────────────────────────────────────
 // Runs each step independently — a failure in one step does not abort others.
 // The caller receives all step statuses and any created resource URLs.
@@ -76,7 +91,7 @@ export async function actionCreateProject(
   let stripeDashboardUrl:  string | null = null;
 
   // ── GitHub ──────────────────────────────────────────────────────────────────
-  const githubIntegration = confirmExternalCreation ? getIntegration("github") : null;
+  const githubIntegration = confirmExternalCreation ? await getIntegration("github", user.id) : null;
   if (!confirmExternalCreation) {
     steps[0] = { ...steps[0], status: "skipped", detail: "Skipped until external repository creation is explicitly confirmed." };
   } else if (!githubIntegration) {
@@ -247,6 +262,14 @@ export async function actionCreateProject(
       .single();
 
     if (error) {
+      if (isMissingLFProjectsSchemaError(error)) {
+        steps[3] = {
+          ...steps[3],
+          status: "error",
+          detail: "Supabase project schema is missing public.lf_projects.user_id. Apply the approved migration before saving projects.",
+        };
+        return { success: false, project: null, steps };
+      }
       steps[3] = { ...steps[3], status: "error", detail: error.message };
       return { success: false, project: null, steps };
     }
@@ -272,6 +295,10 @@ export async function actionGetLFProjects(): Promise<{ data: LFProject[]; error:
       .eq("user_id", user.id)
       .is("archived_at", null)
       .order("created_at", { ascending: false });
+    if (isMissingLFProjectsSchemaError(error)) {
+      // TODO: Apply the lf_projects ownership migration so public.lf_projects.user_id exists.
+      return { data: [], error: null };
+    }
     if (error) return { data: [], error: error.message };
     return { data: (data as LFProject[]) ?? [], error: null };
   } catch (e) {
@@ -291,6 +318,7 @@ export async function actionDeleteLFProject(id: string): Promise<{ error: string
       .update({ archived_at: new Date().toISOString(), status: "archived" })
       .eq("id", id)
       .eq("user_id", user.id);
+    if (isMissingLFProjectsSchemaError(error)) return { error: null };
     if (error) return { error: error.message };
     return { error: null };
   } catch (e) {

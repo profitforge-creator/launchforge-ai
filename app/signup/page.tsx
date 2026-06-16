@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { actionSignUp } from "@/app/actions/auth";
+import { actionSignInWithGoogle, actionSignUp } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -38,8 +38,9 @@ export default async function SignUpPage({
           </div>
 
           {/* AI INTEGRATION POINT: Wire to Supabase Auth signInWithOAuth */}
+          <form action={actionSignInWithGoogle}>
           <button
-            type="button"
+            type="submit"
             className="w-full h-9 rounded flex items-center justify-center gap-2.5 text-sm font-medium transition-colors mb-6"
             style={{ border: "1px solid hsl(220 13% 22%)", backgroundColor: "hsl(220 13% 13%)", color: "hsl(220 9% 80%)" }}
           >
@@ -51,6 +52,7 @@ export default async function SignUpPage({
             </svg>
             Continue with Google
           </button>
+          </form>
 
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 h-px" style={{ backgroundColor: "hsl(220 13% 17%)" }} />

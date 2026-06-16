@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 import { consumeOAuthState, persistIntegration } from "@/lib/auth/persist-integration";
 import { getAppOrigin } from "@/lib/auth/app-url";
+import { getCurrentUser } from "@/lib/auth/session";
 
 const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
@@ -29,6 +30,9 @@ export async function GET(request: Request) {
   const code  = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   if (!code || !state) return errRedirect("Webflow callback missing code or state.");
+
+  const owner = await getCurrentUser();
+  if (!owner) return errRedirect("Sign in before connecting Webflow.");
 
   const storedState = await consumeOAuthState("webflow");
   if (!storedState || storedState !== state) {
@@ -98,12 +102,14 @@ export async function GET(request: Request) {
       siteCount = Array.isArray(sites) ? sites.length : (Array.isArray(sitesData) ? (sitesData as unknown[]).length : 0);
     }
 
-    await persistIntegration({
+    const persisted = await persistIntegration({
       service:     "webflow",
+      ownerId:     owner.id,
       token:       accessToken,
       connectedAt: new Date().toISOString(),
       metadata:    { name, email, siteCount },
     });
+    if (!persisted.persisted) return errRedirect(persisted.reason ?? "Webflow connected, but token storage is not ready.");
   } catch (e) {
     return errRedirect(isAbort(e) ? "Webflow connection timed out." : "Failed to fetch Webflow account data.");
   }

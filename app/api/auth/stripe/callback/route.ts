@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { consumeOAuthState, persistIntegration } from "@/lib/auth/persist-integration";
 import { getAppOrigin } from "@/lib/auth/app-url";
+import { getCurrentUser } from "@/lib/auth/session";
 
 const isAbort = (e: unknown) => e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError");
 
@@ -26,6 +27,9 @@ export async function GET(request: Request) {
   const code  = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   if (!code || !state) return errRedirect("Stripe callback missing code or state.");
+
+  const owner = await getCurrentUser();
+  if (!owner) return errRedirect("Sign in before connecting Stripe.");
 
   const storedState = await consumeOAuthState("stripe");
   if (!storedState || storedState !== state) {
@@ -87,6 +91,7 @@ export async function GET(request: Request) {
 
     await persistIntegration({
       service:     "stripe",
+      ownerId:     owner.id,
       token:       accessToken,
       connectedAt: new Date().toISOString(),
       metadata: {

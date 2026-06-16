@@ -1,82 +1,51 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { getCurrentUser } from "@/lib/auth/session";
 import {
-  saveIntegration,
+  persistIntegration,
+} from "@/lib/auth/persist-integration";
+import {
+  ALL_INTEGRATION_KEYS,
+  getAllIntegrationStatuses as getStoredIntegrationStatuses,
   removeIntegration,
   getIntegration,
+  setIntegrationEnabled,
   type IntegrationKey,
   type ConnectResult,
   type IntegrationStatus,
+  type IntegrationPersistenceResult,
   type StoredIntegration,
 } from "@/lib/storage/integration-store";
 
 
-// ── Cookie helpers ────────────────────────────────────────────────────────────
+// ── Integration persistence helpers ───────────────────────────────────────────
 //
-// Tokens are persisted in httpOnly cookies so they survive server restarts.
-// httpOnly = not accessible from client JavaScript.
-// The in-memory Map (integration-store.ts) acts as a per-process cache.
-
-const COOKIE_PREFIX = "lf_int_";
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+// Provider tokens are stored through lib/storage/integration-store.ts. That
+// layer requires migration 004 plus an encryption secret before it persists.
 
 function devLog(...args: unknown[]): void {
   if (process.env.NODE_ENV !== "production") console.log(...args);
 }
 
-async function persistToCookie(integration: StoredIntegration): Promise<void> {
-  const jar = await cookies();
-  jar.set(`${COOKIE_PREFIX}${integration.service}`, JSON.stringify({
-    token:       integration.token,
-    metadata:    integration.metadata,
-    connectedAt: integration.connectedAt,
-  }), {
-    httpOnly:  true,
-    secure:    process.env.NODE_ENV === "production",
-    sameSite:  "lax",
-    path:      "/",
-    maxAge:    COOKIE_MAX_AGE,
-  });
+async function getIntegrationOwnerId(): Promise<string | null> {
+  const user = await getCurrentUser();
+  return user?.id ?? null;
 }
 
-async function clearCookie(service: IntegrationKey): Promise<void> {
-  const jar = await cookies();
-  jar.delete(`${COOKIE_PREFIX}${service}`);
+function storageFailure(result: IntegrationPersistenceResult): ConnectResult {
+  return {
+    success: false,
+    error: result.reason ?? "Integration storage is not ready.",
+  };
 }
 
-// Restores any cookie-persisted integrations into the in-memory store.
-// Called at the start of status queries so data survives restarts.
-async function restoreFromCookies(): Promise<void> {
-  try {
-    const jar = await cookies();
-    const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
-    for (const key of ALL_KEYS) {
-      if (getIntegration(key)) continue;
-      const raw = jar.get(`${COOKIE_PREFIX}${key}`)?.value;
-      if (!raw) continue;
-      try {
-        const { token, metadata, connectedAt } = JSON.parse(raw) as {
-          token: string;
-          metadata: Record<string, unknown>;
-          connectedAt: string;
-        };
-        saveIntegration({ service: key, token, metadata, connectedAt });
-      } catch {
-        // corrupt cookie — ignore
-      }
-    }
-  } catch (err) {
-    console.error("[restoreFromCookies] cookies() failed:", err);
-    // proceed with empty in-memory store
-  }
-}
-
-// ── Vercel ────────────────────────────────────────────────────────────────────
 // Docs:  https://vercel.com/docs/rest-api
 // Token: https://vercel.com/account/tokens
 
 export async function actionConnectVercel(token: string): Promise<ConnectResult> {
+  const ownerId = await getIntegrationOwnerId();
+  if (!ownerId) return { success: false, error: "Authentication required." };
+
   try {
     const [userRes, projRes] = await Promise.all([
       fetch("https://api.vercel.com/v2/user", {
@@ -113,9 +82,9 @@ export async function actionConnectVercel(token: string): Promise<ConnectResult>
       projectCount,
     };
 
-    const integration: StoredIntegration = { service: "vercel", token, connectedAt, metadata };
-    saveIntegration(integration);
-    await persistToCookie(integration);
+    const integration: StoredIntegration = { service: "vercel", ownerId, token, connectedAt, metadata };
+    const persisted = await persistIntegration(integration);
+    if (!persisted.persisted) return storageFailure(persisted);
 
     return { success: true, status: { connected: true, connectedAt, metadata } };
   } catch {
@@ -128,6 +97,9 @@ export async function actionConnectVercel(token: string): Promise<ConnectResult>
 // Token: https://github.com/settings/tokens
 
 export async function actionConnectGitHub(token: string): Promise<ConnectResult> {
+  const ownerId = await getIntegrationOwnerId();
+  if (!ownerId) return { success: false, error: "Authentication required." };
+
   try {
     const res = await fetch("https://api.github.com/user", {
       headers: {
@@ -154,9 +126,9 @@ export async function actionConnectGitHub(token: string): Promise<ConnectResult>
       repoCount: (user.public_repos ?? 0) + (user.total_private_repos ?? 0),
     };
 
-    const integration: StoredIntegration = { service: "github", token, connectedAt, metadata };
-    saveIntegration(integration);
-    await persistToCookie(integration);
+    const integration: StoredIntegration = { service: "github", ownerId, token, connectedAt, metadata, scopes: ["repo", "read:user", "user:email"] };
+    const persisted = await persistIntegration(integration);
+    if (!persisted.persisted) return storageFailure(persisted);
 
     return { success: true, status: { connected: true, connectedAt, metadata } };
   } catch {
@@ -169,6 +141,9 @@ export async function actionConnectGitHub(token: string): Promise<ConnectResult>
 // Token: https://webflow.com/dashboard/account/general → API Access
 
 export async function actionConnectWebflow(token: string): Promise<ConnectResult> {
+  const ownerId = await getIntegrationOwnerId();
+  if (!ownerId) return { success: false, error: "Authentication required." };
+
   try {
     const [infoRes, sitesRes] = await Promise.all([
       fetch("https://api.webflow.com/v2/token/introspect", {
@@ -206,9 +181,9 @@ export async function actionConnectWebflow(token: string): Promise<ConnectResult
     const connectedAt = new Date().toISOString();
     const metadata = { name, email, siteCount };
 
-    const integration: StoredIntegration = { service: "webflow", token, connectedAt, metadata };
-    saveIntegration(integration);
-    await persistToCookie(integration);
+    const integration: StoredIntegration = { service: "webflow", ownerId, token, connectedAt, metadata };
+    const persisted = await persistIntegration(integration);
+    if (!persisted.persisted) return storageFailure(persisted);
 
     return { success: true, status: { connected: true, connectedAt, metadata } };
   } catch {
@@ -221,6 +196,9 @@ export async function actionConnectWebflow(token: string): Promise<ConnectResult
 // Keys:  https://dashboard.stripe.com/apikeys (sk_live_ / sk_test_ / rk_live_ / rk_test_)
 
 export async function actionConnectStripe(secretKey: string): Promise<ConnectResult> {
+  const ownerId = await getIntegrationOwnerId();
+  if (!ownerId) return { success: false, error: "Authentication required." };
+
   if (!secretKey.startsWith("sk_") && !secretKey.startsWith("rk_")) {
     return {
       success: false,
@@ -251,9 +229,8 @@ export async function actionConnectStripe(secretKey: string): Promise<ConnectRes
       mode:    isLive ? "live" as const : "test" as const,
     };
 
-    const integration: StoredIntegration = { service: "stripe", token: secretKey, connectedAt, metadata };
-    saveIntegration(integration);
-    await persistToCookie(integration);
+    const integration: StoredIntegration = { service: "stripe", ownerId, token: secretKey, connectedAt, metadata };
+    await persistIntegration(integration);
 
     return { success: true, status: { connected: true, connectedAt, metadata } };
   } catch {
@@ -266,6 +243,9 @@ export async function actionConnectStripe(secretKey: string): Promise<ConnectRes
 // Token: https://supabase.com/dashboard/account/tokens (Personal Access Token)
 
 export async function actionConnectSupabase(token: string): Promise<ConnectResult> {
+  const ownerId = await getIntegrationOwnerId();
+  if (!ownerId) return { success: false, error: "Authentication required." };
+
   try {
     const res = await fetch("https://api.supabase.com/v1/projects", {
       headers: { Authorization: `Bearer ${token}` },
@@ -286,9 +266,9 @@ export async function actionConnectSupabase(token: string): Promise<ConnectResul
     const connectedAt = new Date().toISOString();
     const metadata = { projectCount, name: firstName };
 
-    const integration: StoredIntegration = { service: "supabase", token, connectedAt, metadata };
-    saveIntegration(integration);
-    await persistToCookie(integration);
+    const integration: StoredIntegration = { service: "supabase", ownerId, token, connectedAt, metadata };
+    const persisted = await persistIntegration(integration);
+    if (!persisted.persisted) return storageFailure(persisted);
 
     return { success: true, status: { connected: true, connectedAt, metadata } };
   } catch {
@@ -298,9 +278,33 @@ export async function actionConnectSupabase(token: string): Promise<ConnectResul
 
 // ── Disconnect ────────────────────────────────────────────────────────────────
 
-export async function actionDisconnectIntegration(service: IntegrationKey): Promise<void> {
-  removeIntegration(service);
-  await clearCookie(service);
+export async function actionDisconnectIntegration(service: IntegrationKey): Promise<ConnectResult> {
+  const ownerId = await getIntegrationOwnerId();
+  if (!ownerId) return { success: false, error: "Authentication required." };
+  const result = await removeIntegration(service, ownerId);
+  if (!result.persisted) return storageFailure(result);
+  return { success: true, status: { connected: false, enabled: false, source: "user" } };
+}
+
+export async function actionDisableIntegration(service: IntegrationKey): Promise<ConnectResult> {
+  const ownerId = await getIntegrationOwnerId();
+  if (!ownerId) return { success: false, error: "Authentication required." };
+  const result = await setIntegrationEnabled(service, ownerId, false);
+  if (!result.persisted) return storageFailure(result);
+  return { success: true, status: { connected: false, enabled: false, source: "user" } };
+}
+
+export async function actionEnableIntegration(service: IntegrationKey): Promise<ConnectResult> {
+  const ownerId = await getIntegrationOwnerId();
+  if (!ownerId) return { success: false, error: "Authentication required." };
+  const result = await setIntegrationEnabled(service, ownerId, true);
+  if (!result.persisted) return storageFailure(result);
+  const status = await actionGetIntegrationStatus(service);
+  return { success: true, status };
+}
+
+export async function actionReconnectIntegration(service: IntegrationKey): Promise<ConnectResult> {
+  return actionDisconnectIntegration(service);
 }
 
 // ── Env-var fallbacks ─────────────────────────────────────────────────────────
@@ -580,19 +584,17 @@ export async function actionValidateStripeEnv(): Promise<ConnectResult> {
 // ── Status queries ────────────────────────────────────────────────────────────
 
 function allDisconnected(): Record<IntegrationKey, IntegrationStatus> {
-  const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
-  return Object.fromEntries(ALL_KEYS.map((k) => [k, { connected: false }])) as Record<IntegrationKey, IntegrationStatus>;
+  return Object.fromEntries(ALL_INTEGRATION_KEYS.map((k) => [k, { connected: false }])) as Record<IntegrationKey, IntegrationStatus>;
 }
 
 export async function actionGetAllIntegrationStatuses(): Promise<Record<IntegrationKey, IntegrationStatus>> {
   try {
-    // 1. Restore any cookie-persisted (user-pasted) tokens into the in-memory store.
-    //    cookies() can throw in certain Next.js contexts — we catch at the outer level.
-    await restoreFromCookies();
+    const ownerId = await getIntegrationOwnerId();
+    if (!ownerId) return allDisconnected();
 
-    // 2. For env-var-backed integrations: check presence synchronously.
-    //    No outbound API calls — validation happens in the client via
-    //    actionValidateVercelEnv / actionValidateSupabaseEnv / etc.
+    // For env-var-backed integrations: check presence synchronously.
+    // No outbound API calls — validation happens in the client via
+    // actionValidateVercelEnv / actionValidateSupabaseEnv / etc.
     const envFallbacks: Partial<Record<IntegrationKey, IntegrationStatus>> = {
       vercel:   resolveVercelFromEnv()   ?? undefined,
       github:   resolveGitHubFromEnv()   ?? undefined,
@@ -600,18 +602,13 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
       stripe:   resolveStripeFromEnv()   ?? undefined,
     };
 
-    const ALL_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
+    const storedStatuses = await getStoredIntegrationStatuses(ownerId);
     const result = {} as Record<IntegrationKey, IntegrationStatus>;
 
-    for (const key of ALL_KEYS) {
-      const stored = getIntegration(key);
-      if (stored) {
-        result[key] = {
-          connected:   true,
-          source:      "user",
-          connectedAt: stored.connectedAt,
-          metadata:    stored.metadata as IntegrationStatus["metadata"],
-        };
+    for (const key of ALL_INTEGRATION_KEYS) {
+      const stored = storedStatuses[key];
+      if (stored.connected || stored.enabled !== undefined) {
+        result[key] = stored;
       } else if (envFallbacks[key] !== undefined) {
         // Include env fallbacks even when connected:false (e.g. Vercel/GitHub token present but unvalidated)
         result[key] = envFallbacks[key]!;
@@ -632,11 +629,13 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
 // Used by the Deployments page to decide whether to show an OAuth button
 // or a "not configured" info panel for each platform.
 export async function actionGetOAuthConfig(): Promise<{
+  google:  boolean;
   github:  boolean;
   stripe:  boolean;
   webflow: boolean;
 }> {
   return {
+    google:  !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     github:  !!(process.env.GITHUB_CLIENT_ID  && process.env.GITHUB_CLIENT_SECRET),
     stripe:  !!(process.env.STRIPE_CLIENT_ID),
     webflow: !!(process.env.WEBFLOW_CLIENT_ID  && process.env.WEBFLOW_CLIENT_SECRET),
@@ -650,6 +649,9 @@ export async function actionGetEnvDiagnostics(): Promise<{
   hasVercelToken:        boolean;
   hasGithubClientId:     boolean;
   hasGithubClientSecret: boolean;
+  hasGoogleClientId:     boolean;
+  hasGoogleClientSecret: boolean;
+  hasGoogleScopes:       boolean;
   hasStripeSecret:       boolean;
   hasStripeClientId:     boolean;
   hasSupabaseUrl:        boolean;
@@ -662,6 +664,9 @@ export async function actionGetEnvDiagnostics(): Promise<{
     hasVercelToken:        !!process.env.VERCEL_TOKEN,
     hasGithubClientId:     !!process.env.GITHUB_CLIENT_ID,
     hasGithubClientSecret: !!process.env.GITHUB_CLIENT_SECRET,
+    hasGoogleClientId:     !!process.env.GOOGLE_CLIENT_ID,
+    hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+    hasGoogleScopes:       !!process.env.GOOGLE_OAUTH_SCOPES,
     hasStripeSecret:       !!process.env.STRIPE_SECRET_KEY,
     hasStripeClientId:     !!process.env.STRIPE_CLIENT_ID,
     hasSupabaseUrl:        !!process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -676,8 +681,10 @@ export async function actionGetEnvDiagnostics(): Promise<{
 
 export async function actionGetIntegrationStatus(service: IntegrationKey): Promise<IntegrationStatus> {
   try {
-    await restoreFromCookies();
-    const stored = getIntegration(service);
+    const ownerId = await getIntegrationOwnerId();
+    if (!ownerId) return { connected: false };
+
+    const stored = await getIntegration(service, ownerId);
     if (!stored) return { connected: false };
     return {
       connected:   true,

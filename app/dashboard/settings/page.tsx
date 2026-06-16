@@ -30,7 +30,7 @@ function defaultProfile(): ProfileState {
     displayName: "Your Name",
     username: "user",
     bio: "",
-    email: "hesirq@gmail.com",
+    email: "",
     createdAt: new Date().toISOString(),
   };
 }
@@ -258,7 +258,7 @@ function ProfileSection() {
 
   return (
     <div className="space-y-5">
-      <SectionTitle title="Profile" sub="Your public profile information." />
+      <SectionTitle title="Profile" sub="Browser-local profile preferences. Account identity comes from Supabase Auth." />
 
       {/* Avatar */}
       <Card>
@@ -297,7 +297,7 @@ function ProfileSection() {
       </Card>
 
       <Card>
-        <Row label="Email address"    value={profile.email} sub="Sign-in email — contact support to change" />
+        <Row label="Email address"    value={profile.email || "Managed by Supabase Auth"} sub="Not persisted as a production profile yet" />
         <Row label="Member since"     value={joined} last />
       </Card>
 
@@ -328,9 +328,9 @@ function AccountSection() {
       <SectionTitle title="Account" sub="Account details, plan status, and connected services." />
 
       <Card>
-        <Row label="Email"          value="hesirq@gmail.com" sub="Primary sign-in address" />
-        <Row label="Account status" value="Active"           sub="Your account is in good standing" />
-        <Row label="Current plan"   value="3-Day Trial"      sub="Full access trial" action={<Btn>Upgrade</Btn>} last />
+        <Row label="Email"          value="Managed by Supabase Auth" sub="Primary sign-in address is read from the authenticated session" />
+        <Row label="Account status" value="Authenticated session"    sub="Status reflects local app access only" />
+        <Row label="Current plan"   value="Billing disabled"         sub="Subscription billing is not enabled in this build" last />
       </Card>
 
       <div>
@@ -411,29 +411,29 @@ function PlanSection() {
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium mb-1" style={{ color: "hsl(213 94% 65%)" }}>Current plan</p>
-            <h3 className="text-xl font-bold" style={{ color: "hsl(220 9% 90%)" }}>3-Day Free Trial</h3>
+            <p className="text-xs font-medium mb-1" style={{ color: "hsl(213 94% 65%)" }}>Current mode</p>
+            <h3 className="text-xl font-bold" style={{ color: "hsl(220 9% 90%)" }}>Local Preview</h3>
             <p className="text-sm mt-1" style={{ color: "hsl(220 9% 44%)" }}>
-              Full access to all features. No credit card required.
+              Production subscription state is not wired yet.
             </p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-2xl font-bold tabular-nums" style={{ color: "hsl(220 9% 88%)" }}>Free</p>
-            <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 36%)" }}>3 days remaining</p>
+            <p className="text-2xl font-bold tabular-nums" style={{ color: "hsl(220 9% 88%)" }}>No billing</p>
+            <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 36%)" }}>Launch blocker</p>
           </div>
         </div>
         <div className="mt-4 flex gap-2">
-          <Btn variant="primary">Upgrade plan</Btn>
-          <Btn>View all plans</Btn>
+          <Btn disabled>Upgrade unavailable</Btn>
+          <Btn disabled>Plans unavailable</Btn>
         </div>
       </div>
 
       {/* Usage bars */}
       <Card>
         {[
-          { label: "Projects",    used: 0, limit: "Unlimited during trial" },
-          { label: "Generations", used: 0, limit: "Unlimited during trial" },
-          { label: "Deployments", used: 0, limit: "Unlimited during trial" },
+          { label: "Projects",    used: 0, limit: "Not enforced in local preview" },
+          { label: "Generations", used: 0, limit: "Not enforced in local preview" },
+          { label: "Deployments", used: 0, limit: "Not enforced in local preview" },
         ].map((item, i, arr) => (
           <div
             key={item.label}
@@ -616,7 +616,7 @@ function AboutSection() {
   const info = [
     { label: "Version",       value: "1.0.0-beta" },
     { label: "Build",         value: "2026.06.11" },
-    { label: "Environment",   value: "Production" },
+    { label: "Environment",   value: "Local / pre-launch" },
     { label: "Region",        value: "US East" },
   ];
 

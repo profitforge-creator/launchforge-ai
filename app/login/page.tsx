@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { actionSignIn } from "@/app/actions/auth";
+import { actionSignIn, actionSignInWithGoogle } from "@/app/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -42,8 +42,9 @@ export default async function LoginPage({
           </div>
 
           {/* Google OAuth — AI INTEGRATION POINT: wire to Supabase OAuth */}
+          <form action={actionSignInWithGoogle}>
           <button
-            type="button"
+            type="submit"
             className="w-full h-9 rounded flex items-center justify-center gap-2.5 text-sm font-medium transition-colors mb-6"
             style={{
               border: "1px solid hsl(220 13% 22%)",
@@ -59,6 +60,7 @@ export default async function LoginPage({
             </svg>
             Continue with Google
           </button>
+          </form>
 
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 h-px" style={{ backgroundColor: "hsl(220 13% 17%)" }} />

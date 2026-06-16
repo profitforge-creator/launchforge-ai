@@ -27,6 +27,12 @@ export async function getAccessToken(): Promise<string | null> {
   return jar.get(ACCESS_COOKIE)?.value ?? null;
 }
 
+async function getRefreshToken(): Promise<string | null> {
+  if (!hasSupabaseConfig()) return null;
+  const jar = await cookies();
+  return jar.get(REFRESH_COOKIE)?.value ?? null;
+}
+
 export async function setAuthCookies(session: Session): Promise<void> {
   const jar = await cookies();
   jar.set(ACCESS_COOKIE, session.access_token, {
@@ -55,10 +61,16 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   if (!hasSupabaseConfig()) return localDevUser();
 
   const accessToken = await getAccessToken();
-  if (!accessToken) return null;
+  if (!accessToken) {
+    const refreshed = await refreshAuthSession();
+    return refreshed?.user ? toAuthUser(refreshed.user) : null;
+  }
 
   const { data, error } = await getSupabaseClient().auth.getUser(accessToken);
-  if (error || !data.user) return null;
+  if (error || !data.user) {
+    const refreshed = await refreshAuthSession();
+    return refreshed?.user ? toAuthUser(refreshed.user) : null;
+  }
 
   return toAuthUser(data.user);
 }
@@ -70,9 +82,43 @@ export async function requireUser(): Promise<AuthUser> {
 }
 
 export async function getUserSupabaseClient() {
-  const accessToken = await getAccessToken();
+  let accessToken = await getAccessToken();
+  if (accessToken) {
+    const { error } = await getSupabaseClient().auth.getUser(accessToken);
+    if (error) accessToken = null;
+  }
+
+  if (!accessToken) {
+    const refreshed = await refreshAuthSession();
+    accessToken = refreshed?.session.access_token ?? null;
+  }
   if (!accessToken) return null;
   return getSupabaseClientForUser(accessToken);
+}
+
+async function refreshAuthSession(): Promise<{ session: Session; user: User } | null> {
+  const refreshToken = await getRefreshToken();
+  if (!refreshToken) return null;
+
+  const { data, error } = await getSupabaseClient().auth.refreshSession({
+    refresh_token: refreshToken,
+  });
+
+  if (error || !data.session || !data.user) {
+    try {
+      await clearAuthCookies();
+    } catch {
+      // Some read-only render contexts cannot mutate cookies.
+    }
+    return null;
+  }
+
+  try {
+    await setAuthCookies(data.session);
+  } catch {
+    // Some read-only render contexts cannot mutate cookies; the refreshed session is valid for this request.
+  }
+  return { session: data.session, user: data.user };
 }
 
 function toAuthUser(user: User): AuthUser {

@@ -162,7 +162,7 @@ function Hero() {
           }}
         >
           <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(151 60% 48%)", boxShadow: "0 0 6px hsl(151 60% 48% / 0.6)" }} />
-          3-Day Full Access Trial — No card required
+          Private preview — Billing disabled
         </div>
 
         {/* Headline */}
@@ -181,7 +181,7 @@ function Hero() {
           style={{ color: "hsl(220 9% 48%)", lineHeight: 1.72 }}
         >
           Describe an idea. LaunchForge researches the market, builds the product,
-          creates the website, prepares the launch, and helps you deploy it.
+          creates the website, and prepares the launch plan for review.
         </p>
 
         {/* CTAs */}
@@ -196,7 +196,7 @@ function Hero() {
               letterSpacing: "-0.01em",
             }}
           >
-            Start Building — Free Trial
+            Open Preview
           </Link>
           <a
             href="#demo"
@@ -211,9 +211,9 @@ function Hero() {
         {/* Trust row — honest value props, no fabricated metrics */}
         <div className="flex items-center justify-center gap-x-6 gap-y-2.5 flex-wrap">
           {[
-            "No credit card required",
-            "Full platform access",
-            "Cancel anytime",
+            "No billing enabled",
+            "Demo-safe workflows",
+            "Manual review before launch",
           ].map((label) => (
             <div key={label} className="flex items-center gap-1.5">
               <span style={{ color: "hsl(151 60% 48%)" }}><IconCheckSm /></span>
@@ -234,7 +234,7 @@ const FEATURES = [
   { icon: <IconGlobe />,    title: "Website Generation", desc: "Create production-ready landing pages and sales pages tailored to your business type." },
   { icon: <IconBox />,      title: "Product Creation",   desc: "Courses, templates, ebooks, SaaS, agencies, memberships — generation adapts automatically." },
   { icon: <IconSpeaker />,  title: "Marketing System",   desc: "Content plans, funnels, launch strategies, campaigns, and social calendars out of the box." },
-  { icon: <IconCloud />,    title: "Deployment",         desc: "Deploy websites and businesses to Vercel, Webflow, or any connected platform in one click." },
+  { icon: <IconCloud />,    title: "Deployment Prep",    desc: "Export deployable websites and track manual launch steps while live integrations remain gated." },
 ];
 
 function FeatureCard({ feature }: { feature: typeof FEATURES[number] }) {
@@ -309,7 +309,7 @@ function FeaturesSection() {
             Everything you need to launch
           </h2>
           <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            LaunchForge handles the entire business-building process — from idea validation to live deployment.
+            LaunchForge handles the business-building workflow from idea validation to launch-ready assets.
           </p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -389,7 +389,7 @@ function IntegrationsSection() {
             Works with your stack
           </h2>
           <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            Connect the tools you already use. LaunchForge integrates with platforms for deployment, payments, marketing, and distribution.
+            Connect approved tools as they come online. Preview builds keep payments and external account changes disabled.
           </p>
         </div>
         <div
@@ -404,7 +404,7 @@ function IntegrationsSection() {
           ))}
         </div>
         <p className="text-center text-xs mt-8" style={{ color: "hsl(220 9% 26%)" }}>
-          More integrations launching continuously
+          Integrations require approved credentials before live use.
         </p>
       </div>
     </section>
@@ -434,9 +434,9 @@ const HOW_STEPS = [
   },
   {
     num: "04",
-    title: "Launch and deploy",
-    body: "Export your website, connect your domain, push to GitHub, and deploy to Vercel. Your business is live.",
-    tag: "Deployment",
+    title: "Review and prepare launch",
+    body: "Export your website, review the launch plan, and connect deployment providers only after the workspace is approved.",
+    tag: "Launch Prep",
   },
 ];
 
@@ -854,7 +854,7 @@ function WorkspaceMockup() {
       </div>
       {/* Mock product data */}
       <div className="grid grid-cols-3 gap-2">
-        {[["Market Demand","High","hsl(151 60% 48%)"],["Competition","Low–Medium","hsl(213 94% 62%)"],["Revenue Potential","$50–$200K/yr","hsl(38 90% 55%)"]].map(([label, val, color]) => (
+        {[["Market Demand","High","hsl(151 60% 48%)"],["Competition","Low-Medium","hsl(213 94% 62%)"],["Revenue Scenario","Sample forecast","hsl(38 90% 55%)"]].map(([label, val, color]) => (
           <div key={label} className="rounded-lg p-3" style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 16%)" }}>
             <p className="text-xs mb-1" style={{ color: "hsl(220 9% 34%)" }}>{label}</p>
             <p className="text-xs font-semibold" style={{ color }}>{val}</p>
@@ -930,7 +930,7 @@ function DeploymentMockup() {
       ))}
       <div className="pt-2 text-center">
         <p className="text-xs" style={{ color: "hsl(220 9% 26%)" }}>
-          Connect Vercel for automatic deployment sync
+          Connect Vercel after preview approval for deployment sync.
         </p>
       </div>
     </div>
@@ -1012,33 +1012,33 @@ function PlatformPreviewSection() {
   );
 }
 
-// ── Testimonials ──────────────────────────────────────────────────────────────
+// ── Sample outcomes ───────────────────────────────────────────────────────────
 
-const TESTIMONIALS = [
+const SAMPLE_OUTCOMES = [
   {
-    name: "Jordan Kim",
-    role: "Founder, Stackable",
-    initials: "JK",
-    quote: "After two failed startup attempts, I finally shipped. LaunchForge's research phase alone saved me a month of work. Went from idea to first sale in 4 days.",
+    name: "Service Offer",
+    role: "Agency package",
+    initials: "SO",
+    quote: "A validated niche, positioning summary, landing page copy, and outreach plan ready for founder review.",
     accent: "hsl(213 94% 62%)",
   },
   {
-    name: "Sarah Mills",
-    role: "Agency Owner",
-    initials: "SM",
-    quote: "I use LaunchForge to scope new service offerings before pitching clients. It cuts my research and proposal time in half — and the output is more thorough than what I'd produce manually.",
+    name: "Digital Product",
+    role: "Template pack",
+    initials: "DP",
+    quote: "A product spec, feature list, sales page draft, pricing options, and launch checklist for a digital download.",
     accent: "hsl(151 60% 48%)",
   },
   {
-    name: "Rami Farouk",
-    role: "Independent Developer",
-    initials: "RF",
-    quote: "Generated the full product spec, landing page copy, and launch strategy for my template pack. Just had to write the code. Made back the subscription cost in week one.",
+    name: "Micro SaaS",
+    role: "Prototype brief",
+    initials: "MS",
+    quote: "A scoped MVP, competitor notes, generated website, and launch plan prepared before any external deployment.",
     accent: "hsl(234 70% 65%)",
   },
 ];
 
-function TestimonialCard({ t, delay }: { t: typeof TESTIMONIALS[number]; delay: number }) {
+function SampleOutcomeCard({ t, delay }: { t: typeof SAMPLE_OUTCOMES[number]; delay: number }) {
   const { ref, visible } = useInView(0.1);
   return (
     <div
@@ -1053,7 +1053,7 @@ function TestimonialCard({ t, delay }: { t: typeof TESTIMONIALS[number]; delay: 
       }}
     >
       <p className="text-sm flex-1" style={{ color: "hsl(220 9% 54%)", lineHeight: 1.7 }}>
-        "{t.quote}"
+        {t.quote}
       </p>
       <div className="flex items-center gap-3">
         <div
@@ -1071,7 +1071,7 @@ function TestimonialCard({ t, delay }: { t: typeof TESTIMONIALS[number]; delay: 
   );
 }
 
-function TestimonialsSection() {
+function SampleOutcomesSection() {
   const { ref, visible } = useInView();
   return (
     <section className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
@@ -1086,15 +1086,15 @@ function TestimonialsSection() {
           }}
         >
           <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Founders
+            Sample outputs
           </p>
           <h2 className="text-3xl font-bold tracking-tight" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            Built by real people
+            Preview outcomes
           </h2>
         </div>
         <div className="grid md:grid-cols-3 gap-5">
-          {TESTIMONIALS.map((t, i) => (
-            <TestimonialCard key={t.name} t={t} delay={i * 100} />
+          {SAMPLE_OUTCOMES.map((t, i) => (
+            <SampleOutcomeCard key={t.name} t={t} delay={i * 100} />
           ))}
         </div>
       </div>
@@ -1108,7 +1108,7 @@ const WORKFLOW_STEPS = [
   { label: "Generate", desc: "AI builds your complete business",  color: "hsl(213 94% 62%)" },
   { label: "Edit",     desc: "Refine with AI advisor",            color: "hsl(234 70% 65%)" },
   { label: "Deploy",   desc: "Push to Vercel, GitHub, Webflow",   color: "hsl(151 60% 48%)" },
-  { label: "Launch",   desc: "Your business is live",             color: "hsl(38 90% 55%)"  },
+  { label: "Review",   desc: "Approve before external launch",     color: "hsl(38 90% 55%)"  },
 ];
 
 const DEPLOY_PLATFORMS = [
@@ -1144,7 +1144,7 @@ function DeploymentSection() {
             From generation to live
           </h2>
           <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            LaunchForge connects with your deployment stack. Generate, edit, deploy, and launch without leaving the platform.
+            LaunchForge prepares your deployment stack. Generate, edit, export, and review launch steps before connecting live providers.
           </p>
         </div>
 
@@ -1230,13 +1230,13 @@ function DeploymentSection() {
 
 // ── Pricing ───────────────────────────────────────────────────────────────────
 
-const TRIAL_INCLUDES = [
+const PREVIEW_INCLUDES = [
   "Business generation",
   "Product design & files",
   "Website generation",
   "AI advisor",
   "ZIP export",
-  "Deployment access",
+  "Launch prep checklist",
 ];
 
 interface PricingTier {
@@ -1255,7 +1255,7 @@ const PRICING_TIERS: PricingTier[] = [
     price: "$29",
     period: "/ month",
     description: "For individuals building their first business.",
-    cta: "Start Starter",
+    cta: "Preview Starter",
     highlight: false,
     features: [
       { label: "10 projects / month",        included: true  },
@@ -1273,7 +1273,7 @@ const PRICING_TIERS: PricingTier[] = [
     price: "$79",
     period: "/ month",
     description: "For serious builders launching multiple products.",
-    cta: "Start Pro",
+    cta: "Preview Pro",
     highlight: true,
     features: [
       { label: "Unlimited projects",         included: true  },
@@ -1290,7 +1290,7 @@ const PRICING_TIERS: PricingTier[] = [
     name: "Scale",
     price: "Custom",
     description: "For teams and agencies building at scale.",
-    cta: "Contact us",
+    cta: "Preview Scale",
     highlight: false,
     features: [
       { label: "Everything in Pro",          included: true  },
@@ -1397,11 +1397,10 @@ function PricingSection() {
             Pricing
           </p>
           <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.02em" }}>
-            Start with a free trial. Upgrade when ready.
+            Preview access while billing is disabled.
           </h2>
           <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 42%)" }}>
-            3-day full access trial — no credit card required.
-            Upgrade at any time. Cancel at any time.
+            Pricing is shown as packaging direction only. Checkout and subscriptions are not enabled in this preview.
           </p>
         </div>
 
@@ -1411,9 +1410,9 @@ function PricingSection() {
           style={{ border: "1px solid hsl(151 60% 48% / 0.2)", backgroundColor: "hsl(151 60% 48% / 0.04)" }}
         >
           <div>
-            <p className="text-sm font-semibold" style={{ color: "hsl(220 9% 86%)" }}>3-Day Full Access Trial</p>
+            <p className="text-sm font-semibold" style={{ color: "hsl(220 9% 86%)" }}>Private Preview Access</p>
             <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 40%)" }}>
-              Everything in Pro. No credit card. Cancel anytime.
+              Explore the current workspace without live billing, checkout, or external account changes.
             </p>
           </div>
           <Link
@@ -1421,7 +1420,7 @@ function PricingSection() {
             className="shrink-0 h-9 px-5 rounded-lg text-sm font-semibold flex items-center"
             style={{ backgroundColor: "hsl(220 9% 94%)", color: "hsl(220 14% 7%)" }}
           >
-            Start trial
+            Open preview
           </Link>
         </div>
 
@@ -1430,7 +1429,7 @@ function PricingSection() {
         </div>
 
         <p className="text-center text-xs mt-8" style={{ color: "hsl(220 9% 28%)" }}>
-          All prices in USD. Billed monthly. Annual billing available on Pro and Scale.
+          Preview pricing is not active. Billing requires a separate approved Stripe setup.
         </p>
       </div>
     </section>
@@ -1456,16 +1455,16 @@ function TrialCTASection() {
           }}
         >
           <p className="text-xs font-medium uppercase tracking-widest mb-4" style={{ color: "hsl(220 9% 32%)", letterSpacing: "0.1em" }}>
-            Trial
+            Preview
           </p>
           <h2 className="text-3xl font-bold tracking-tight mb-3" style={{ color: "hsl(220 9% 92%)", letterSpacing: "-0.02em" }}>
-            3-Day Full Access Trial
+            Private Preview Access
           </h2>
           <p className="text-sm mb-8" style={{ color: "hsl(220 9% 44%)" }}>
-            No credit card. No limits. The full platform.
+            Billing and live provider connections stay disabled until approved.
           </p>
           <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto mb-8">
-            {TRIAL_INCLUDES.map((item) => (
+            {PREVIEW_INCLUDES.map((item) => (
               <div key={item} className="flex items-center gap-2">
                 <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(151 60% 48%)", flexShrink: 0 }}>
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -1479,7 +1478,7 @@ function TrialCTASection() {
             className="inline-flex h-11 px-8 rounded-xl text-sm font-semibold items-center transition-all hover:opacity-90"
             style={{ backgroundColor: "hsl(220 9% 96%)", color: "hsl(220 14% 7%)" }}
           >
-            Start your trial
+            Open preview
           </Link>
         </div>
       </div>
@@ -1523,7 +1522,7 @@ export default function HomePage() {
       <DemoSection />
       <ExampleBusinessesSection />
       <PlatformPreviewSection />
-      <TestimonialsSection />
+      <SampleOutcomesSection />
       <DeploymentSection />
       <PricingSection />
       <TrialCTASection />

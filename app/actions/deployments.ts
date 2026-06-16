@@ -20,6 +20,28 @@ export interface DeploymentRecord {
 
 export type NewDeployment = Omit<DeploymentRecord, "id" | "user_id" | "created_at" | "updated_at" | "archived_at">;
 
+interface SupabaseErrorShape {
+  code?: string;
+  message?: string;
+}
+
+function isMissingDeploymentsSchemaError(error: SupabaseErrorShape | null): boolean {
+  if (!error) return false;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    error.code === "42P01" ||
+    error.code === "42703" ||
+    error.code === "PGRST204" ||
+    error.code === "PGRST205" ||
+    (message.includes("schema cache") && message.includes("deployments")) ||
+    (message.includes("relation") && message.includes("deployments") && message.includes("does not exist")) ||
+    (message.includes("column") && message.includes("does not exist"))
+  );
+}
+
+const DEPLOYMENTS_SCHEMA_MISSING_MESSAGE =
+  "Deployment storage is not ready. Apply the approved Supabase migration before saving deployment records.";
+
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
 export async function actionGetDeployments(
@@ -40,6 +62,10 @@ export async function actionGetDeployments(
 
     const { data, error } = await query;
     if (error) {
+      if (isMissingDeploymentsSchemaError(error)) {
+        console.warn("[actionGetDeployments] deployments table/schema missing; returning empty deployment list.");
+        return { data: [], error: null };
+      }
       console.error("[actionGetDeployments]", error.message);
       return { data: [], error: error.message };
     }
@@ -69,6 +95,10 @@ export async function actionGetDeployment(
       .maybeSingle();
 
     if (error) {
+      if (isMissingDeploymentsSchemaError(error)) {
+        console.warn("[actionGetDeployment] deployments table/schema missing; returning no deployment.");
+        return { data: null, error: null };
+      }
       console.error("[actionGetDeployment]", error.message);
       return { data: null, error: error.message };
     }
@@ -100,6 +130,10 @@ export async function actionSaveDeployment(
       .single();
 
     if (error) {
+      if (isMissingDeploymentsSchemaError(error)) {
+        console.warn("[actionSaveDeployment] deployments table/schema missing; save blocked.");
+        return { data: null, error: DEPLOYMENTS_SCHEMA_MISSING_MESSAGE };
+      }
       console.error("[actionSaveDeployment]", error.message);
       return { data: null, error: error.message };
     }
@@ -124,6 +158,10 @@ export async function actionDeleteDeployment(
       .eq("id", id)
       .eq("user_id", user.id);
     if (error) {
+      if (isMissingDeploymentsSchemaError(error)) {
+        console.warn("[actionDeleteDeployment] deployments table/schema missing; delete treated as no-op.");
+        return { error: null };
+      }
       console.error("[actionDeleteDeployment]", error.message);
       return { error: error.message };
     }

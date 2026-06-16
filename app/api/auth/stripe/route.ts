@@ -2,10 +2,18 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { setOAuthState } from "@/lib/auth/persist-integration";
 import { getAppOrigin } from "@/lib/auth/app-url";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
   const origin   = getAppOrigin(request.url);
   const clientId = process.env.STRIPE_CLIENT_ID; // ca_xxx (Stripe Connect Application ID)
+  const user = await getCurrentUser();
+
+  if (!user) {
+    const u = new URL("/login", origin);
+    u.searchParams.set("error", "Sign in before connecting Stripe.");
+    return NextResponse.redirect(u.toString());
+  }
 
   if (!clientId) {
     const u = new URL("/dashboard/deployments", origin);
