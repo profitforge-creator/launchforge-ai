@@ -5,8 +5,9 @@ export function getAppOrigin(requestUrl = "http://localhost:3000"): string {
   const requestOrigin = new URL(requestUrl).origin;
   const publicAppUrl = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
   const vercelOrigin = process.env.VERCEL_URL ? normalizeOrigin(`https://${process.env.VERCEL_URL}`) : null;
+  const vercelEnv = process.env.VERCEL_TARGET_ENV ?? process.env.VERCEL_ENV;
 
-  if (process.env.VERCEL_ENV === "preview" && vercelOrigin) {
+  if (vercelEnv === "preview" && vercelOrigin) {
     return vercelOrigin;
   }
   if (publicAppUrl) {
@@ -18,8 +19,18 @@ export function getAppOrigin(requestUrl = "http://localhost:3000"): string {
   return requestOrigin;
 }
 
+export function getCanonicalAppOrigin(requestUrl = "http://localhost:3000"): string {
+  const publicAppUrl = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
+  if (publicAppUrl) return publicAppUrl;
+  const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? normalizeOrigin(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
+    : null;
+  if (vercelProductionUrl) return vercelProductionUrl;
+  return getAppOrigin(requestUrl);
+}
+
 export function getSupabaseAuthCallbackUrl(requestUrl?: string): string {
-  return `${getAppOrigin(requestUrl)}/api/auth/supabase/callback`;
+  return `${getCanonicalAppOrigin(requestUrl)}/api/auth/supabase/callback`;
 }
 
 export function getOAuthRedirectUri(provider: "github" | "stripe" | "webflow" | "google", requestUrl?: string): string {

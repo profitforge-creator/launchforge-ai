@@ -21,6 +21,7 @@ const ENV_VARS: EnvVar[] = [
   { key: "NEXT_PUBLIC_SUPABASE_URL", label: "Supabase URL", isSecret: false, hint: "Required for database." },
   { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", label: "Supabase Anon Key", isSecret: false, hint: "Required for database auth." },
   { key: "NEXT_PUBLIC_APP_URL", label: "App URL", isSecret: false, hint: "Required for stable production OAuth callback URLs." },
+  { key: "VERCEL_PROJECT_PRODUCTION_URL", label: "Vercel Production URL", isSecret: false, hint: "Vercel system fallback for canonical auth redirects." },
   { key: "GITHUB_CLIENT_ID", label: "GitHub OAuth Client ID", isSecret: false, hint: "Required for GitHub OAuth." },
   { key: "GITHUB_CLIENT_SECRET", label: "GitHub OAuth Client Secret", isSecret: true, hint: "Required for GitHub OAuth." },
   { key: "VERCEL_TOKEN", label: "Vercel API Token", isSecret: true, hint: "Required for Vercel API checks." },

@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { clearAuthCookies, setAuthCookies } from "@/lib/auth/session";
-import { getAppOrigin, getSupabaseAuthCallbackUrl } from "@/lib/auth/app-url";
+import { getCanonicalAppOrigin, getSupabaseAuthCallbackUrl } from "@/lib/auth/app-url";
 import { getSupabaseClient, hasSupabaseConfig } from "@/lib/supabase/server";
 
 function supabaseMissingRedirect(path: "/login" | "/signup"): never {
@@ -65,7 +65,7 @@ export async function actionResetPassword(formData: FormData): Promise<void> {
     redirect(encoded("/forgot-password", "message", "Password reset is disabled until Supabase is configured."));
   }
 
-  const origin = getAppOrigin();
+  const origin = getCanonicalAppOrigin();
   const supabase = getSupabaseClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/login`,
