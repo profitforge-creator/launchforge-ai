@@ -30,7 +30,7 @@ export function getCanonicalAppOrigin(requestUrl = "http://localhost:3000"): str
 }
 
 export function getSupabaseAuthCallbackUrl(requestUrl?: string): string {
-  return `${getCanonicalAppOrigin(requestUrl)}/api/auth/supabase/callback`;
+  return `${getAppOrigin(requestUrl)}/api/auth/supabase/callback`;
 }
 
 export function getOAuthRedirectUri(provider: "github" | "stripe" | "webflow" | "google", requestUrl?: string): string {

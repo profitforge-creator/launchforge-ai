@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clearAuthCookies, setAuthCookies } from "@/lib/auth/session";
 import { getCanonicalAppOrigin, getSupabaseAuthCallbackUrl } from "@/lib/auth/app-url";
@@ -13,6 +14,17 @@ function supabaseMissingRedirect(path: "/login" | "/signup"): never {
 function encoded(path: string, key: "error" | "message", message: string): string {
   const params = new URLSearchParams({ [key]: message });
   return `${path}?${params.toString()}`;
+}
+
+async function getCurrentRequestOrigin(): Promise<string | undefined> {
+  const h = await headers();
+  const origin = h.get("origin");
+  if (origin) return origin;
+
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!host) return undefined;
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
 }
 
 export async function actionSignIn(formData: FormData): Promise<void> {
@@ -78,11 +90,12 @@ export async function actionResetPassword(formData: FormData): Promise<void> {
 export async function actionSignInWithGoogle(): Promise<void> {
   if (!hasSupabaseConfig()) supabaseMissingRedirect("/login");
 
+  const origin = await getCurrentRequestOrigin();
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: getSupabaseAuthCallbackUrl(),
+      redirectTo: getSupabaseAuthCallbackUrl(origin),
       queryParams: {
         access_type: "offline",
         prompt: "consent",

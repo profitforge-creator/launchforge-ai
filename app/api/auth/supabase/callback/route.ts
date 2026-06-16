@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { setAuthCookies } from "@/lib/auth/session";
-import { getAppOrigin } from "@/lib/auth/app-url";
 import { getSupabaseClient, hasSupabaseConfig } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -13,7 +12,7 @@ function redirectWithMessage(origin: string, path: string, key: "error" | "messa
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const origin = getAppOrigin(request.url);
+  const origin = url.origin;
 
   const providerError = url.searchParams.get("error_description") ?? url.searchParams.get("error");
   if (providerError) {
