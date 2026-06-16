@@ -1,4 +1,10 @@
 import { getEnvChecks, type EnvKey } from "@/lib/env/diagnostics";
+import {
+  actionTestGitHubOAuth,
+  actionValidateStripeEnv,
+  actionValidateSupabaseEnv,
+  actionValidateVercelEnv,
+} from "@/app/actions/integrations";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,11 +32,20 @@ const ENV_VARS: EnvVar[] = [
   { key: "LAUNCHFORGE_INTEGRATION_SECRET", label: "Integration Encryption Secret", isSecret: true, hint: "Required for durable encrypted token storage." },
 ];
 
-export default function DiagnosticsPage() {
+type DiagnosticState = "Connected" | "Not Configured" | "Unauthorized" | "Network Failure" | "OAuth Misconfigured";
+
+interface PlatformDiagnostic {
+  name: string;
+  state: DiagnosticState;
+  detail: string;
+}
+
+export default async function DiagnosticsPage() {
   const checks = new Map(getEnvChecks(ENV_VARS.map((v) => v.key)).map((v) => [v.key, v.loaded]));
   const results = ENV_VARS.map((v) => ({ ...v, loaded: checks.get(v.key) ?? false }));
   const loaded = results.filter((r) => r.loaded).length;
   const missing = results.length - loaded;
+  const platformDiagnostics = await getPlatformDiagnostics();
 
   return (
     <div style={{ padding: "2rem", maxWidth: "720px", margin: "0 auto", fontFamily: "inherit" }}>
@@ -93,11 +108,127 @@ export default function DiagnosticsPage() {
         ))}
       </div>
 
+      <div style={{ marginTop: "2rem" }}>
+        <h2 style={{ fontSize: "1rem", fontWeight: 700, color: "hsl(var(--foreground))", marginBottom: "0.75rem" }}>
+          Integration Diagnostics
+        </h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {platformDiagnostics.map((item) => (
+            <div
+              key={item.name}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "1rem",
+                padding: "1rem 1.25rem",
+                borderRadius: "0.75rem",
+                background: "hsl(var(--card))",
+                border: `1px solid ${diagnosticBorder(item.state)}`,
+              }}
+            >
+              <div>
+                <p style={{ fontSize: "0.875rem", fontWeight: 700, color: "hsl(var(--foreground))" }}>{item.name}</p>
+                <p style={{ fontSize: "0.75rem", color: "hsl(var(--muted-foreground))", marginTop: "0.2rem" }}>{item.detail}</p>
+              </div>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: diagnosticColor(item.state),
+                  padding: "0.25rem 0.65rem",
+                  borderRadius: "9999px",
+                  background: diagnosticBackground(item.state),
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {item.state}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <p style={{ marginTop: "1.5rem", fontSize: "0.75rem", color: "hsl(var(--muted-foreground))" }}>
         Checked dynamically in the Node runtime. Add missing local variables to <code style={{ fontFamily: "monospace" }}>.env.local</code> and Vercel variables to the correct Production or Preview environment.
       </p>
     </div>
   );
+}
+
+async function getPlatformDiagnostics(): Promise<PlatformDiagnostic[]> {
+  const [vercel, github, supabase, stripe] = await Promise.allSettled([
+    actionValidateVercelEnv(),
+    actionTestGitHubOAuth(),
+    actionValidateSupabaseEnv(),
+    actionValidateStripeEnv(),
+  ]);
+
+  const webflowConfigured = Boolean(process.env.WEBFLOW_CLIENT_ID && process.env.WEBFLOW_CLIENT_SECRET);
+  const webflowPartial = Boolean(process.env.WEBFLOW_CLIENT_ID || process.env.WEBFLOW_CLIENT_SECRET);
+
+  return [
+    fromConnectResult("Vercel", vercel, "VERCEL_TOKEN is missing or invalid."),
+    fromConnectResult("GitHub OAuth", github, "GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required."),
+    fromConnectResult("Supabase", supabase, "Supabase URL and anon key are required."),
+    fromConnectResult("Stripe", stripe, "STRIPE_SECRET_KEY is required for billing checks."),
+    {
+      name: "Webflow OAuth",
+      state: webflowConfigured ? "Connected" : webflowPartial ? "OAuth Misconfigured" : "Not Configured",
+      detail: webflowConfigured
+        ? "Client id and secret are present; OAuth callback will validate during provider exchange."
+        : webflowPartial
+          ? "Both WEBFLOW_CLIENT_ID and WEBFLOW_CLIENT_SECRET must be configured."
+          : "Webflow OAuth env vars are not configured.",
+    },
+  ];
+}
+
+function fromConnectResult(
+  name: string,
+  result: PromiseSettledResult<{ success: boolean; error?: string }>,
+  missingDetail: string,
+): PlatformDiagnostic {
+  if (result.status === "rejected") {
+    return { name, state: "Network Failure", detail: "Diagnostic request failed before returning a result." };
+  }
+  if (result.value.success) {
+    return { name, state: "Connected", detail: "Credential check completed successfully." };
+  }
+
+  const error = result.value.error ?? missingDetail;
+  const lower = error.toLowerCase();
+  if (lower.includes("not set") || lower.includes("not configured") || lower.includes("missing")) {
+    return { name, state: "Not Configured", detail: error };
+  }
+  if (lower.includes("invalid") || lower.includes("unauthorized") || lower.includes("revoked") || lower.includes("401") || lower.includes("403")) {
+    return { name, state: "Unauthorized", detail: error };
+  }
+  if (lower.includes("oauth") || lower.includes("client_id") || lower.includes("client_secret")) {
+    return { name, state: "OAuth Misconfigured", detail: error };
+  }
+  return { name, state: "Network Failure", detail: error };
+}
+
+function diagnosticColor(state: DiagnosticState): string {
+  if (state === "Connected") return "hsl(142, 76%, 36%)";
+  if (state === "Not Configured") return "hsl(var(--muted-foreground))";
+  if (state === "OAuth Misconfigured") return "hsl(38, 90%, 45%)";
+  return "hsl(0, 72%, 51%)";
+}
+
+function diagnosticBorder(state: DiagnosticState): string {
+  if (state === "Connected") return "hsl(142 76% 36% / 0.25)";
+  if (state === "Not Configured") return "hsl(var(--border))";
+  if (state === "OAuth Misconfigured") return "hsl(38 90% 45% / 0.3)";
+  return "hsl(0 72% 51% / 0.25)";
+}
+
+function diagnosticBackground(state: DiagnosticState): string {
+  if (state === "Connected") return "hsl(142 76% 36% / 0.1)";
+  if (state === "Not Configured") return "hsl(var(--muted) / 0.4)";
+  if (state === "OAuth Misconfigured") return "hsl(38 90% 45% / 0.1)";
+  return "hsl(0 72% 51% / 0.1)";
 }
 
 function SummaryPill({ label, tone }: { label: string; tone: "ok" | "error" | "neutral" }) {
