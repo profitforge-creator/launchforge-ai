@@ -12,6 +12,13 @@ create table if not exists public.generations (
   archived_at timestamptz
 );
 
+-- Repair partial existing tables before indexes/policies reference columns.
+alter table public.generations add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.generations add column if not exists result jsonb;
+alter table public.generations add column if not exists created_at timestamptz not null default now();
+alter table public.generations add column if not exists updated_at timestamptz not null default now();
+alter table public.generations add column if not exists archived_at timestamptz;
+
 create index if not exists generations_user_created_idx
   on public.generations (user_id, created_at desc)
   where archived_at is null;
@@ -56,6 +63,26 @@ create table if not exists public.lf_projects (
   archived_at timestamptz
 );
 
+-- Repair partial existing tables before indexes/policies reference columns.
+alter table public.lf_projects add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.lf_projects add column if not exists name text;
+alter table public.lf_projects add column if not exists slug text;
+alter table public.lf_projects add column if not exists description text;
+alter table public.lf_projects add column if not exists github_repo_name text;
+alter table public.lf_projects add column if not exists github_repo_url text;
+alter table public.lf_projects add column if not exists github_repo_full_name text;
+alter table public.lf_projects add column if not exists github_clone_url text;
+alter table public.lf_projects add column if not exists vercel_project_id text;
+alter table public.lf_projects add column if not exists vercel_project_name text;
+alter table public.lf_projects add column if not exists vercel_project_url text;
+alter table public.lf_projects add column if not exists stripe_product_id text;
+alter table public.lf_projects add column if not exists stripe_product_name text;
+alter table public.lf_projects add column if not exists stripe_dashboard_url text;
+alter table public.lf_projects add column if not exists status text not null default 'active';
+alter table public.lf_projects add column if not exists created_at timestamptz not null default now();
+alter table public.lf_projects add column if not exists updated_at timestamptz not null default now();
+alter table public.lf_projects add column if not exists archived_at timestamptz;
+
 create index if not exists lf_projects_user_created_idx
   on public.lf_projects (user_id, created_at desc)
   where archived_at is null;
@@ -97,8 +124,24 @@ create table if not exists public.deployments (
   unique (user_id, project_id)
 );
 
+-- Repair partial existing tables before indexes/policies reference columns.
+alter table public.deployments add column if not exists user_id uuid references auth.users(id) on delete cascade;
+alter table public.deployments add column if not exists project_id text;
+alter table public.deployments add column if not exists platform text;
+alter table public.deployments add column if not exists status text;
+alter table public.deployments add column if not exists url text;
+alter table public.deployments add column if not exists domain text;
+alter table public.deployments add column if not exists environment text;
+alter table public.deployments add column if not exists created_at timestamptz not null default now();
+alter table public.deployments add column if not exists updated_at timestamptz not null default now();
+alter table public.deployments add column if not exists archived_at timestamptz;
+
 create index if not exists deployments_user_created_idx
   on public.deployments (user_id, created_at desc)
+  where archived_at is null;
+
+create unique index if not exists deployments_user_project_idx
+  on public.deployments (user_id, project_id)
   where archived_at is null;
 
 alter table public.deployments enable row level security;
