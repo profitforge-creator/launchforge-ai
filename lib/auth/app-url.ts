@@ -1,6 +1,9 @@
 // Deterministic app origin for OAuth redirect URIs.
-// Production prefers NEXT_PUBLIC_APP_URL. Preview prefers the actual Vercel
-// preview URL so callback generation does not silently point at production.
+// Production prefers NEXT_PUBLIC_APP_URL, then the canonical production URL.
+// Preview prefers the actual Vercel preview URL so callback generation does
+// not silently point at production.
+const CANONICAL_PRODUCTION_ORIGIN = "https://launchforge-sib3.vercel.app";
+
 export function getAppOrigin(requestUrl = "http://localhost:3000"): string {
   const requestOrigin = new URL(requestUrl).origin;
   const publicAppUrl = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
@@ -12,6 +15,9 @@ export function getAppOrigin(requestUrl = "http://localhost:3000"): string {
   }
   if (publicAppUrl) {
     return publicAppUrl;
+  }
+  if (vercelEnv === "production") {
+    return CANONICAL_PRODUCTION_ORIGIN;
   }
   if (vercelOrigin) {
     return vercelOrigin;
@@ -26,6 +32,9 @@ export function getCanonicalAppOrigin(requestUrl = "http://localhost:3000"): str
     ? normalizeOrigin(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
     : null;
   if (vercelProductionUrl) return vercelProductionUrl;
+  if ((process.env.VERCEL_TARGET_ENV ?? process.env.VERCEL_ENV) === "production") {
+    return CANONICAL_PRODUCTION_ORIGIN;
+  }
   return getAppOrigin(requestUrl);
 }
 

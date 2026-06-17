@@ -41,24 +41,48 @@ Local password reset redirect:
 http://localhost:3000/login
 ```
 
-## Exact Deployed URL Pattern
+## Exact Production URLs
 
-Set this in Vercel:
-
-```env
-NEXT_PUBLIC_APP_URL=https://<your-vercel-preview-or-production-domain>
-```
-
-Then LaunchForge generates:
+Canonical production origin:
 
 ```text
-https://<your-vercel-preview-or-production-domain>/api/auth/supabase/callback
+https://launchforge-sib3.vercel.app
+```
+
+Set this in Vercel Production:
+
+```env
+NEXT_PUBLIC_APP_URL=https://launchforge-sib3.vercel.app
+```
+
+Then LaunchForge generates the Supabase callback:
+
+```text
+https://launchforge-sib3.vercel.app/api/auth/supabase/callback
 ```
 
 Password reset redirect:
 
 ```text
-https://<your-vercel-preview-or-production-domain>/login
+https://launchforge-sib3.vercel.app/login
+```
+
+GitHub OAuth callback:
+
+```text
+https://launchforge-sib3.vercel.app/api/auth/github/callback
+```
+
+Stripe Connect OAuth callback:
+
+```text
+https://launchforge-sib3.vercel.app/api/auth/stripe/callback
+```
+
+Webflow OAuth callback:
+
+```text
+https://launchforge-sib3.vercel.app/api/auth/webflow/callback
 ```
 
 ## Add To Google Cloud OAuth App
@@ -92,9 +116,9 @@ https://<your-vercel-preview-domain>/dashboard
 Vercel production:
 
 ```text
-https://<your-production-domain>/api/auth/supabase/callback
-https://<your-production-domain>/login
-https://<your-production-domain>/dashboard
+https://launchforge-sib3.vercel.app/api/auth/supabase/callback
+https://launchforge-sib3.vercel.app/login
+https://launchforge-sib3.vercel.app/dashboard
 ```
 
 If using Vercel branch preview URLs, add each preview origin or an approved Supabase wildcard pattern before testing OAuth.

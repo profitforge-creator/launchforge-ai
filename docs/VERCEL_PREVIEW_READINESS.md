@@ -18,6 +18,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<supabase-anon-key>
 GEMINI_API_KEY=<gemini-api-key>
 ```
 
+Production must use the canonical LaunchForge URL:
+
+```env
+NEXT_PUBLIC_APP_URL=https://launchforge-sib3.vercel.app
+```
+
 Do not set these for the first safe preview:
 
 ```env
@@ -62,6 +68,18 @@ https://<supabase-project-ref>.supabase.co/auth/v1/callback
 ```
 
 Do not add app-owned Google routes; the app uses Supabase Auth for Google sign-in.
+
+Production Supabase Auth should allow:
+
+```text
+Site URL:
+https://launchforge-sib3.vercel.app
+
+Additional Redirect URLs:
+https://launchforge-sib3.vercel.app/api/auth/supabase/callback
+https://launchforge-sib3.vercel.app/login
+https://launchforge-sib3.vercel.app/dashboard
+```
 
 ## Supabase URL/Key Presence
 
@@ -110,6 +128,7 @@ Found:
 Preview mitigation:
 
 - Set `NEXT_PUBLIC_APP_URL=https://<vercel-preview-domain>` in Vercel.
+- Set `NEXT_PUBLIC_APP_URL=https://launchforge-sib3.vercel.app` in Vercel Production.
 
 ## What Will Work After Preview Deploy
 
