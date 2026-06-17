@@ -1,10 +1,14 @@
 "use server";
 
-import { headers } from "next/headers";
+import { createHash, randomBytes } from "crypto";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clearAuthCookies, setAuthCookies } from "@/lib/auth/session";
 import { getCanonicalAppOrigin, getSupabaseAuthCallbackUrl } from "@/lib/auth/app-url";
-import { getSupabaseClient, getSupabaseOAuthClient, hasSupabaseConfig } from "@/lib/supabase/server";
+import { getRequiredSupabaseEnv, getSupabaseClient, hasSupabaseConfig } from "@/lib/supabase/server";
+
+const SUPABASE_PKCE_COOKIE = "lf_sb_pkce_verifier";
+const SUPABASE_PKCE_MAX_AGE = 60 * 10;
 
 function supabaseMissingRedirect(path: "/login" | "/signup"): never {
   if (process.env.NODE_ENV !== "production") redirect("/dashboard");
@@ -91,23 +95,28 @@ export async function actionSignInWithGoogle(): Promise<void> {
   if (!hasSupabaseConfig()) supabaseMissingRedirect("/login");
 
   const origin = await getCurrentRequestOrigin();
-  const supabase = await getSupabaseOAuthClient();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: getSupabaseAuthCallbackUrl(origin),
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
-      },
-    },
+  const { url } = getRequiredSupabaseEnv();
+  const codeVerifier = randomBytes(48).toString("base64url");
+  const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
+
+  const jar = await cookies();
+  jar.set(SUPABASE_PKCE_COOKIE, codeVerifier, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SUPABASE_PKCE_MAX_AGE,
   });
 
-  if (error || !data.url) {
-    redirect(encoded("/login", "error", error?.message ?? "Google sign-in is not available."));
-  }
+  const authUrl = new URL(`${url}/auth/v1/authorize`);
+  authUrl.searchParams.set("provider", "google");
+  authUrl.searchParams.set("redirect_to", getSupabaseAuthCallbackUrl(origin));
+  authUrl.searchParams.set("code_challenge", codeChallenge);
+  authUrl.searchParams.set("code_challenge_method", "s256");
+  authUrl.searchParams.set("access_type", "offline");
+  authUrl.searchParams.set("prompt", "consent");
 
-  redirect(data.url);
+  redirect(authUrl.toString());
 }
 
 export async function actionSignOut(): Promise<void> {
