@@ -39,12 +39,20 @@ export async function GET(request: Request, context: { params: Promise<{ provide
   if (!owner) return done("oauth_status", `${config.provider}_signin_required`);
   if (!isSocialOAuthConfigured(config)) return NextResponse.redirect(config.setupUrl);
 
+  const redirectUri = getOAuthRedirectUri(config.provider, request.url);
+
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  if (!code || !state) return done("oauth_status", `${config.provider}_retry`);
+  if (!code || !state) {
+    console.error(`[oauth ${config.provider}] callback missing code/state`, JSON.stringify({ hasCode: !!code, hasState: !!state, providerError: url.searchParams.get("error") }));
+    return done("oauth_status", `${config.provider}_retry`);
+  }
 
   const storedState = await consumeOAuthState(config.provider, state, owner.id);
-  if (!storedState || storedState !== state) return done("oauth_status", `${config.provider}_retry`);
+  if (!storedState || storedState !== state) {
+    console.error(`[oauth ${config.provider}] state validation failed`, JSON.stringify({ hasStoredState: !!storedState, matches: storedState === state }));
+    return done("oauth_status", `${config.provider}_retry`);
+  }
 
   let tokenData: TokenResponse;
   try {
@@ -58,9 +66,20 @@ export async function GET(request: Request, context: { params: Promise<{ provide
 
     tokenData = await tokenRes.json() as TokenResponse;
     if (!tokenRes.ok || tokenData.error || !tokenData.access_token) {
+      // Surface the provider's exact rejection — without this the only signal
+      // is the generic "_retry" message, making the failure undiagnosable.
+      console.error(`[oauth ${config.provider}] token exchange failed`, JSON.stringify({
+        httpStatus:       tokenRes.status,
+        providerError:    tokenData.error,
+        errorDescription: tokenData.error_description,
+        hasAccessToken:   !!tokenData.access_token,
+        tokenUrl:         config.tokenUrl,
+        redirectUri,
+      }));
       return done("oauth_status", `${config.provider}_retry`);
     }
   } catch (error) {
+    console.error(`[oauth ${config.provider}] token exchange threw`, error instanceof Error ? `${error.name}: ${error.message}` : String(error));
     return done("oauth_status", isAbort(error) ? `${config.provider}_timeout` : `${config.provider}_network`);
   }
 
@@ -86,7 +105,10 @@ export async function GET(request: Request, context: { params: Promise<{ provide
     },
   });
 
-  if (!persisted.persisted) return done("oauth_status", `${config.provider}_storage_setup`);
+  if (!persisted.persisted) {
+    console.error(`[oauth ${config.provider}] persistence failed`, JSON.stringify({ reason: persisted.reason, requiresMigration: persisted.requiresMigration, requiresEncryptionSecret: persisted.requiresEncryptionSecret }));
+    return done("oauth_status", `${config.provider}_storage_setup`);
+  }
   return done("oauth_success", config.provider);
 }
 
