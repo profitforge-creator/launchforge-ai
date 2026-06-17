@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { actionGetAllIntegrationStatuses } from "@/app/actions/integrations";
+import { actionGetAllIntegrationStatuses, actionGetOAuthConfig } from "@/app/actions/integrations";
 import { IntegrationActions } from "./integration-actions";
 import { getCurrentUser } from "@/lib/auth/session";
+import { getSchemaReadiness } from "@/lib/readiness/schema";
 import type { IntegrationKey } from "@/lib/storage/integration-store";
 
 type ProviderStatus = "connected" | "disconnected" | "blocked" | "not-started";
@@ -117,77 +118,34 @@ function Card({ provider }: { provider: ProviderCard }) {
 
 export default async function IntegrationsPage() {
   const user = await getCurrentUser();
-  const statuses = user ? await actionGetAllIntegrationStatuses() : null;
+  const [statuses, oauthConfig, schema] = await Promise.all([
+    user ? actionGetAllIntegrationStatuses() : Promise.resolve(null),
+    actionGetOAuthConfig(),
+    getSchemaReadiness(),
+  ]);
   const google = statuses?.google;
   const github = statuses?.github;
+  const vercel = statuses?.vercel;
+  const webflow = statuses?.webflow;
+  const supabase = statuses?.supabase;
+  const integrationTablesReady = schema.tables
+    .filter((table) => table.table.startsWith("integration_") || table.table === "user_integrations")
+    .every((table) => table.ready);
+  const storageWarning = integrationTablesReady
+    ? undefined
+    : "Run migration 004 in Supabase to enable durable encrypted per-user token storage.";
 
   const providers: ProviderCard[] = [
     {
-      id: "google",
-      name: "Google",
-      description: "Google sign-in status and planned Workspace linking.",
-      status: google?.connected ? "connected" : google?.enabled === false ? "disconnected" : "disconnected",
-      lastSync: google?.lastSyncAt ? new Date(google.lastSyncAt).toLocaleString() : google?.connectedAt ? new Date(google.connectedAt).toLocaleString() : "Never",
-      scopes: google?.scopes ?? [],
-      connectHref: "/api/auth/google",
-      enabled: google?.enabled ?? google?.connected ?? false,
-      actionsEnabled: true,
-      actionProvider: "google",
-      blockedReason: google?.storageWarning ?? "Production use requires Google provider configuration, approved redirect URLs, migration 004, and encrypted token storage.",
-    },
-    {
-      id: "youtube",
-      name: "YouTube",
-      description: "Planned YouTube channel/account read access. Not available in this build.",
-      status: "not-started",
-      lastSync: "Never",
-      scopes: [],
-      blockedReason: "Requires Google OAuth scopes, app verification planning, token refresh, and per-user storage.",
-    },
-    {
-      id: "tiktok",
-      name: "TikTok",
-      description: "Planned TikTok creator account linking. Not available in this build.",
-      status: "not-started",
-      lastSync: "Never",
-      scopes: [],
-      blockedReason: "Requires TikTok app approval, static HTTPS callback, refresh token handling, and per-user storage.",
-    },
-    {
-      id: "instagram",
-      name: "Instagram",
-      description: "Planned Instagram professional account linking through Meta Graph API. Not available in this build.",
-      status: "not-started",
-      lastSync: "Never",
-      scopes: [],
-      blockedReason: "Requires Meta app review, Facebook Page linkage, requested permissions, and per-user storage.",
-    },
-    {
-      id: "facebook",
-      name: "Facebook",
-      description: "Planned Facebook Page/community account linking through Meta Graph API. Not available in this build.",
-      status: "not-started",
-      lastSync: "Never",
-      scopes: [],
-      blockedReason: "Requires Meta permissions, app review, data deletion URL, and per-user storage.",
-    },
-    {
-      id: "x",
-      name: "X / Twitter",
-      description: "Planned X/Twitter account linking for launch-post workflows. Not available in this build.",
-      status: "not-started",
-      lastSync: "Never",
-      scopes: [],
-      blockedReason: "Requires X API tier access, PKCE, offline access scope, and per-user storage.",
-    },
-    {
-      id: "linkedin",
-      name: "LinkedIn",
-      description: "Planned LinkedIn account linking for B2B launch workflows. Not available in this build.",
-      status: "not-started",
-      lastSync: "Never",
-      scopes: [],
-      blockedReason: "Requires LinkedIn app products, approved scopes, refresh handling, and per-user storage.",
+      id: "vercel",
+      name: "Vercel",
+      description: "Deployment account connection for generated project publishing.",
+      status: vercel?.connected ? "connected" : "disconnected",
+      lastSync: vercel?.connectedAt ? new Date(vercel.connectedAt).toLocaleString() : "Never",
+      scopes: vercel?.scopes ?? [],
+      enabled: vercel?.enabled ?? vercel?.connected ?? false,
+      connectHref: "/dashboard/deployments",
+      blockedReason: vercel?.storageWarning ?? storageWarning ?? "Connect or validate Vercel from the Deployments page.",
     },
     {
       id: "github",
@@ -196,19 +154,48 @@ export default async function IntegrationsPage() {
       status: github?.connected ? "connected" : "disconnected",
       lastSync: github?.connectedAt ? new Date(github.connectedAt).toLocaleString() : "Never",
       scopes: github?.scopes ?? [],
-      connectHref: "/api/auth/github",
-      blockedReason: github?.connected
-        ? "Stored in per-user integration storage. Verify migration 004, RLS isolation, and token refresh before production."
-        : "OAuth route exists, but production requires migration 004 database-backed token storage before real customer use.",
+      connectHref: oauthConfig.github ? "/api/auth/github" : undefined,
+      enabled: github?.enabled ?? github?.connected ?? false,
+      actionsEnabled: integrationTablesReady,
+      actionProvider: "github",
+      blockedReason: github?.storageWarning ?? (oauthConfig.github ? storageWarning : "Set GitHub OAuth credentials and callback URL before connecting GitHub."),
     },
     {
-      id: "stripe",
-      name: "Stripe",
-      description: "Excluded from this production-prep pass.",
-      status: "blocked",
-      lastSync: "Excluded",
-      scopes: [],
-      blockedReason: "Stripe is intentionally not being implemented or changed in this pass.",
+      id: "webflow",
+      name: "Webflow",
+      description: "Website publishing account connection for Webflow sites.",
+      status: webflow?.connected ? "connected" : oauthConfig.webflow ? "disconnected" : "blocked",
+      lastSync: webflow?.connectedAt ? new Date(webflow.connectedAt).toLocaleString() : "Never",
+      scopes: webflow?.scopes ?? [],
+      connectHref: oauthConfig.webflow ? "/api/auth/webflow" : undefined,
+      enabled: webflow?.enabled ?? webflow?.connected ?? false,
+      actionsEnabled: integrationTablesReady && oauthConfig.webflow,
+      actionProvider: "webflow",
+      blockedReason: webflow?.storageWarning ?? (oauthConfig.webflow ? storageWarning : "Webflow OAuth is not configured yet. Add WEBFLOW_CLIENT_ID and WEBFLOW_CLIENT_SECRET in Vercel."),
+    },
+    {
+      id: "google",
+      name: "Google",
+      description: "Google account linking for Workspace and YouTube-capable scopes.",
+      status: google?.connected ? "connected" : oauthConfig.google ? "disconnected" : "blocked",
+      lastSync: google?.lastSyncAt ? new Date(google.lastSyncAt).toLocaleString() : google?.connectedAt ? new Date(google.connectedAt).toLocaleString() : "Never",
+      scopes: google?.scopes ?? [],
+      connectHref: oauthConfig.google ? "/api/auth/google" : undefined,
+      enabled: google?.enabled ?? google?.connected ?? false,
+      actionsEnabled: integrationTablesReady && oauthConfig.google,
+      actionProvider: "google",
+      blockedReason: google?.storageWarning ?? (oauthConfig.google ? storageWarning : "Set Google OAuth credentials and approved redirect URI before connecting Google account linking."),
+    },
+    {
+      id: "supabase",
+      name: "Supabase",
+      description: "Database and project API connection for LaunchForge persistence.",
+      status: supabase?.connected ? "connected" : "disconnected",
+      lastSync: supabase?.connectedAt ? new Date(supabase.connectedAt).toLocaleString() : "Environment configured",
+      scopes: supabase?.scopes ?? [],
+      enabled: supabase?.enabled ?? Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
+      connectHref: "/dashboard/deployments",
+      blockedReason: supabase?.storageWarning ?? (schema.ready ? undefined : "Supabase is reachable, but required LaunchForge tables are missing."),
     },
     {
       id: "supabase_auth",
@@ -217,7 +204,7 @@ export default async function IntegrationsPage() {
       status: user ? "connected" : "disconnected",
       lastSync: user ? "Current session" : "Never",
       scopes: user ? ["authenticated user session"] : [],
-      blockedReason: "Provider OAuth sign-in still depends on Supabase dashboard redirect/provider configuration.",
+      blockedReason: user ? undefined : "Sign in to verify Supabase Auth session state.",
     },
   ];
 
@@ -226,7 +213,7 @@ export default async function IntegrationsPage() {
       <header className="mb-7">
         <h1 className="text-xl font-semibold tracking-tight text-[hsl(220_9%_92%)]">Integrations</h1>
         <p className="mt-1 text-sm text-[hsl(220_9%_42%)]">
-          Per-user account linking status. Production token storage is blocked until migration 004 is approved and wired.
+          Account linking status for supported production providers. Stripe is excluded from this pass.
         </p>
       </header>
       <div className="grid gap-4 lg:grid-cols-2">

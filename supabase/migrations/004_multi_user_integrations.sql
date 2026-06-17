@@ -1,5 +1,5 @@
--- Migration draft 004: durable multi-user integration storage.
--- Status: DRAFT ONLY. Do not apply without review and explicit approval.
+-- Migration 004: durable multi-user integration storage.
+-- Status: approved for production.
 -- Purpose:
 --   Replace process memory and integration cookies with RLS-isolated,
 --   per-user connection records for OAuth/provider integrations.
@@ -114,43 +114,51 @@ alter table public.user_integrations enable row level security;
 alter table public.integration_oauth_states enable row level security;
 alter table public.integration_sync_events enable row level security;
 
+drop policy if exists "Users can read their integrations" on public.user_integrations;
 create policy "Users can read their integrations"
   on public.user_integrations
   for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can insert their integrations" on public.user_integrations;
 create policy "Users can insert their integrations"
   on public.user_integrations
   for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can update their integrations" on public.user_integrations;
 create policy "Users can update their integrations"
   on public.user_integrations
   for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can read their oauth states" on public.integration_oauth_states;
 create policy "Users can read their oauth states"
   on public.integration_oauth_states
   for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can insert their oauth states" on public.integration_oauth_states;
 create policy "Users can insert their oauth states"
   on public.integration_oauth_states
   for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can update their oauth states" on public.integration_oauth_states;
 create policy "Users can update their oauth states"
   on public.integration_oauth_states
   for update
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can read their integration sync events" on public.integration_sync_events;
 create policy "Users can read their integration sync events"
   on public.integration_sync_events
   for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can insert their integration sync events" on public.integration_sync_events;
 create policy "Users can insert their integration sync events"
   on public.integration_sync_events
   for insert

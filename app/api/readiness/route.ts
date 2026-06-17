@@ -1,4 +1,5 @@
 import { getCanonicalAppOrigin } from "@/lib/auth/app-url";
+import { getSchemaReadiness } from "@/lib/readiness/schema";
 
 const CANONICAL_PRODUCTION_ORIGIN = "https://launchforge-sib3.vercel.app";
 
@@ -6,25 +7,29 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
+  const schema = await getSchemaReadiness();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "";
   const canonicalOrigin = getCanonicalAppOrigin();
-
-  return Response.json({
+  const env = {
     nextPublicAppUrl: Boolean(appUrl),
     nextPublicAppUrlCanonical: normalizeOrigin(appUrl) === CANONICAL_PRODUCTION_ORIGIN,
     canonicalOriginResolved: canonicalOrigin === CANONICAL_PRODUCTION_ORIGIN,
     supabaseUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
     supabaseAnonKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
-    googleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
-    googleClientSecret: Boolean(process.env.GOOGLE_CLIENT_SECRET),
     githubClientId: Boolean(process.env.GITHUB_CLIENT_ID),
     githubClientSecret: Boolean(process.env.GITHUB_CLIENT_SECRET),
+    googleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+    googleClientSecret: Boolean(process.env.GOOGLE_CLIENT_SECRET),
     webflowClientId: Boolean(process.env.WEBFLOW_CLIENT_ID),
     webflowClientSecret: Boolean(process.env.WEBFLOW_CLIENT_SECRET),
-    integrationSecret: Boolean(process.env.LAUNCHFORGE_INTEGRATION_SECRET),
-    stripeSecretKey: Boolean(process.env.STRIPE_SECRET_KEY),
-    stripeClientId: Boolean(process.env.STRIPE_CLIENT_ID),
     vercelToken: Boolean(process.env.VERCEL_TOKEN),
+    integrationSecret: Boolean(process.env.LAUNCHFORGE_INTEGRATION_SECRET),
+  };
+
+  return Response.json({
+    ready: Object.values(env).every(Boolean) && schema.ready,
+    env,
+    schema,
   });
 }
 
