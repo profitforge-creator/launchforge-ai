@@ -23,6 +23,46 @@ interface ProviderCard {
   actionProvider?: IntegrationKey;
 }
 
+function oauthMessage(params: { oauth_success?: string; oauth_status?: string } | undefined) {
+  const success = params?.oauth_success;
+  if (success) return { tone: "success" as const, text: `${providerLabel(success)} connected successfully.` };
+
+  const status = params?.oauth_status;
+  if (!status) return null;
+  const provider = status.split("_")[0] ?? "provider";
+  if (status.endsWith("_signin_required")) {
+    return { tone: "info" as const, text: `Sign in before connecting ${providerLabel(provider)}.` };
+  }
+  if (status.endsWith("_storage_setup")) {
+    return {
+      tone: "info" as const,
+      text: "Connection storage needs setup before this account can be saved.",
+    };
+  }
+  if (status.endsWith("_timeout") || status.endsWith("_network")) {
+    return { tone: "info" as const, text: `${providerLabel(provider)} did not respond. Try again in a moment.` };
+  }
+  if (status.endsWith("_cancelled")) {
+    return { tone: "info" as const, text: `${providerLabel(provider)} connection was cancelled.` };
+  }
+  return { tone: "info" as const, text: `${providerLabel(provider)} connection did not complete. Try again.` };
+}
+
+function providerLabel(value: string): string {
+  const labels: Record<string, string> = {
+    x: "X / Twitter",
+    youtube: "YouTube",
+    tiktok: "TikTok",
+    instagram: "Instagram",
+    facebook: "Facebook",
+    linkedin: "LinkedIn",
+    google: "Google",
+    github: "GitHub",
+    webflow: "Webflow",
+  };
+  return labels[value] ?? value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function statusLabel(status: ProviderStatus): string {
   if (status === "connected") return "Connected";
   if (status === "blocked") return "Blocked";
@@ -118,7 +158,13 @@ function Card({ provider }: { provider: ProviderCard }) {
   );
 }
 
-export default async function IntegrationsPage() {
+export default async function IntegrationsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ oauth_success?: string; oauth_status?: string }>;
+}) {
+  const params = await searchParams;
+  const banner = oauthMessage(params);
   const user = await getCurrentUser();
   const [statuses, oauthConfig, schema] = await Promise.all([
     user ? actionGetAllIntegrationStatuses() : Promise.resolve(null),
@@ -266,6 +312,18 @@ export default async function IntegrationsPage() {
           Account linking status for supported production providers. Stripe is excluded from this pass.
         </p>
       </header>
+      {banner && (
+        <div
+          className="mb-5 rounded-lg border px-4 py-3 text-sm"
+          style={{
+            borderColor: banner.tone === "success" ? "hsl(151 60% 48% / 0.25)" : "hsl(213 94% 62% / 0.2)",
+            backgroundColor: banner.tone === "success" ? "hsl(151 60% 48% / 0.08)" : "hsl(213 94% 62% / 0.06)",
+            color: banner.tone === "success" ? "hsl(151 60% 55%)" : "hsl(213 94% 70%)",
+          }}
+        >
+          {banner.text}
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-2">
         {providers.map((provider) => (
           <Card key={provider.id} provider={provider} />

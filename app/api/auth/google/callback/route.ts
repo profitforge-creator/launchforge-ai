@@ -40,25 +40,24 @@ export async function GET(request: Request) {
 
   const providerError = url.searchParams.get("error");
   if (providerError) {
-    const desc = url.searchParams.get("error_description") ?? providerError;
-    return errRedirect(`Google denied access: ${desc}`);
+    return errRedirect("google_cancelled");
   }
 
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  if (!code || !state) return errRedirect("Google callback missing code or state.");
+  if (!code || !state) return errRedirect("google_retry");
 
   const owner = await getCurrentUser();
-  if (!owner) return errRedirect("Sign in before connecting Google.");
+  if (!owner) return errRedirect("google_signin_required");
 
   const storedState = await consumeOAuthState("google", state, owner.id);
   if (!storedState || storedState !== state) {
-    return errRedirect("Google OAuth state mismatch. Please try again.");
+    return errRedirect("google_retry");
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return errRedirect("Google OAuth credentials are not configured.");
+  if (!clientId || !clientSecret) return NextResponse.redirect("https://console.cloud.google.com/apis/credentials");
 
   let tokenData: GoogleTokenResponse;
   try {
@@ -78,10 +77,10 @@ export async function GET(request: Request) {
 
     tokenData = await tokenRes.json() as GoogleTokenResponse;
     if (!tokenRes.ok || tokenData.error || !tokenData.access_token) {
-      return errRedirect(tokenData.error_description ?? tokenData.error ?? `Google token exchange failed (HTTP ${tokenRes.status}).`);
+      return errRedirect("google_retry");
     }
   } catch (error) {
-    return errRedirect(isAbort(error) ? "Google token exchange timed out." : "Network error contacting Google.");
+    return errRedirect(isAbort(error) ? "google_timeout" : "google_network");
   }
 
   try {
@@ -91,7 +90,7 @@ export async function GET(request: Request) {
       signal: AbortSignal.timeout(10_000),
     });
 
-    if (!userRes.ok) return errRedirect(`Google userinfo fetch failed (HTTP ${userRes.status}).`);
+    if (!userRes.ok) return errRedirect("google_retry");
     const googleUser = await userRes.json() as GoogleUserInfo;
     const connectedAt = new Date().toISOString();
     const expiresAt = tokenData.expires_in
@@ -115,9 +114,9 @@ export async function GET(request: Request) {
       },
     });
 
-    if (!persisted.persisted) return errRedirect(persisted.reason ?? "Google connected, but token storage is not ready.");
+    if (!persisted.persisted) return errRedirect("google_storage_setup");
   } catch (error) {
-    return errRedirect(isAbort(error) ? "Google connection timed out." : "Failed to fetch Google account data.");
+    return errRedirect(isAbort(error) ? "google_timeout" : "google_retry");
   }
 
   const success = new URL("/dashboard/integrations", origin);

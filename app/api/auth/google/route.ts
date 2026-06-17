@@ -21,9 +21,7 @@ export async function GET(request: Request) {
   }
 
   if (!clientId) {
-    const u = new URL("/dashboard/integrations", origin);
-    u.searchParams.set("oauth_error", "Google OAuth is not configured on this server (GOOGLE_CLIENT_ID missing).");
-    return NextResponse.redirect(u.toString());
+    return NextResponse.redirect("https://console.cloud.google.com/apis/credentials");
   }
 
   const scopes = process.env.GOOGLE_OAUTH_SCOPES

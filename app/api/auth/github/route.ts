@@ -18,9 +18,7 @@ export async function GET(request: Request) {
   }
 
   if (!clientId) {
-    const u = new URL("/dashboard/deployments", origin);
-    u.searchParams.set("oauth_error", "GitHub OAuth is not configured on this server (GITHUB_CLIENT_ID missing).");
-    return NextResponse.redirect(u.toString());
+    return NextResponse.redirect("https://github.com/settings/developers");
   }
 
   const state = randomBytes(16).toString("hex");
