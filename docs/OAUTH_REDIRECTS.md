@@ -46,43 +46,43 @@ http://localhost:3000/login
 Canonical production origin:
 
 ```text
-https://launchforge-sib3.vercel.app
+https://launchforge-ai-six.vercel.app
 ```
 
 Set this in Vercel Production:
 
 ```env
-NEXT_PUBLIC_APP_URL=https://launchforge-sib3.vercel.app
+NEXT_PUBLIC_APP_URL=https://launchforge-ai-six.vercel.app
 ```
 
 Then LaunchForge generates the Supabase callback:
 
 ```text
-https://launchforge-sib3.vercel.app/api/auth/supabase/callback
+https://launchforge-ai-six.vercel.app/api/auth/supabase/callback
 ```
 
 Password reset redirect:
 
 ```text
-https://launchforge-sib3.vercel.app/login
+https://launchforge-ai-six.vercel.app/login
 ```
 
 GitHub OAuth callback:
 
 ```text
-https://launchforge-sib3.vercel.app/api/auth/github/callback
+https://launchforge-ai-six.vercel.app/api/auth/github/callback
 ```
 
 Stripe Connect OAuth callback:
 
 ```text
-https://launchforge-sib3.vercel.app/api/auth/stripe/callback
+https://launchforge-ai-six.vercel.app/api/auth/stripe/callback
 ```
 
 Webflow OAuth callback:
 
 ```text
-https://launchforge-sib3.vercel.app/api/auth/webflow/callback
+https://launchforge-ai-six.vercel.app/api/auth/webflow/callback
 ```
 
 ## Add To Google Cloud OAuth App
@@ -116,9 +116,9 @@ https://<your-vercel-preview-domain>/dashboard
 Vercel production:
 
 ```text
-https://launchforge-sib3.vercel.app/api/auth/supabase/callback
-https://launchforge-sib3.vercel.app/login
-https://launchforge-sib3.vercel.app/dashboard
+https://launchforge-ai-six.vercel.app/api/auth/supabase/callback
+https://launchforge-ai-six.vercel.app/login
+https://launchforge-ai-six.vercel.app/dashboard
 ```
 
 If using Vercel branch preview URLs, add each preview origin or an approved Supabase wildcard pattern before testing OAuth.

@@ -1,7 +1,7 @@
 import { getCanonicalAppOrigin } from "@/lib/auth/app-url";
 import { getSchemaReadiness } from "@/lib/readiness/schema";
 
-const CANONICAL_PRODUCTION_ORIGIN = "https://launchforge-sib3.vercel.app";
+const CANONICAL_PRODUCTION_ORIGIN = "https://launchforge-ai-six.vercel.app";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";

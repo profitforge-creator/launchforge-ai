@@ -103,8 +103,8 @@ GITHUB_CLIENT_SECRET
 After adding provider credentials and redeploying, verify:
 
 ```text
-https://launchforge-sib3.vercel.app/api/env-check
-https://launchforge-sib3.vercel.app/api/readiness
+https://launchforge-ai-six.vercel.app/api/env-check
+https://launchforge-ai-six.vercel.app/api/readiness
 ```
 
 OAuth start routes should redirect to the provider when signed in. If credentials are missing, social routes send the user to the provider app dashboard instead of showing a raw application error.

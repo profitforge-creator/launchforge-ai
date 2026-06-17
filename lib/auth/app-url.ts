@@ -2,7 +2,7 @@
 // Production prefers NEXT_PUBLIC_APP_URL, then the canonical production URL.
 // Preview prefers the actual Vercel preview URL so callback generation does
 // not silently point at production.
-const CANONICAL_PRODUCTION_ORIGIN = "https://launchforge-sib3.vercel.app";
+const CANONICAL_PRODUCTION_ORIGIN = "https://launchforge-ai-six.vercel.app";
 
 export function getAppOrigin(requestUrl = "http://localhost:3000"): string {
   const requestOrigin = new URL(requestUrl).origin;

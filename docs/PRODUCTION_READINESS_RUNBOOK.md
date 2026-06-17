@@ -3,7 +3,7 @@
 Canonical production URL:
 
 ```text
-https://launchforge-sib3.vercel.app
+https://launchforge-ai-six.vercel.app
 ```
 
 ## Supabase SQL
@@ -22,7 +22,7 @@ supabase/migrations/004_multi_user_integrations.sql
 Then verify:
 
 ```text
-https://launchforge-sib3.vercel.app/api/readiness
+https://launchforge-ai-six.vercel.app/api/readiness
 ```
 
 The `schema.ready` value should be `true`.
@@ -33,12 +33,12 @@ Supabase Dashboard -> Authentication -> URL Configuration:
 
 ```text
 Site URL:
-https://launchforge-sib3.vercel.app
+https://launchforge-ai-six.vercel.app
 
 Redirect URLs:
-https://launchforge-sib3.vercel.app/login
-https://launchforge-sib3.vercel.app/dashboard
-https://launchforge-sib3.vercel.app/api/auth/supabase/callback
+https://launchforge-ai-six.vercel.app/login
+https://launchforge-ai-six.vercel.app/dashboard
+https://launchforge-ai-six.vercel.app/api/auth/supabase/callback
 ```
 
 Supabase Dashboard -> Authentication -> Providers -> Google:
@@ -54,7 +54,7 @@ Webflow Dashboard -> Apps & Integrations -> Workspace app:
 
 ```text
 Redirect URI:
-https://launchforge-sib3.vercel.app/api/auth/webflow/callback
+https://launchforge-ai-six.vercel.app/api/auth/webflow/callback
 ```
 
 Required Vercel Production env vars:
@@ -67,7 +67,7 @@ WEBFLOW_CLIENT_SECRET
 After adding env vars, redeploy Production and verify:
 
 ```text
-https://launchforge-sib3.vercel.app/api/env-check
+https://launchforge-ai-six.vercel.app/api/env-check
 ```
 
 `webflowClientId` and `webflowClientSecret` should both be `true`.
@@ -77,8 +77,8 @@ https://launchforge-sib3.vercel.app/api/env-check
 Google Cloud OAuth app redirect URI for LaunchForge account linking:
 
 ```text
-https://launchforge-sib3.vercel.app/api/auth/google/callback
-https://launchforge-sib3.vercel.app/api/auth/youtube/callback
+https://launchforge-ai-six.vercel.app/api/auth/google/callback
+https://launchforge-ai-six.vercel.app/api/auth/youtube/callback
 ```
 
 Required Vercel Production env vars:
@@ -108,7 +108,7 @@ TikTok developer app:
 
 ```text
 Redirect URI:
-https://launchforge-sib3.vercel.app/api/auth/tiktok/callback
+https://launchforge-ai-six.vercel.app/api/auth/tiktok/callback
 
 Vercel Production env:
 TIKTOK_CLIENT_KEY
@@ -120,8 +120,8 @@ Meta app for Instagram and Facebook:
 
 ```text
 Redirect URIs:
-https://launchforge-sib3.vercel.app/api/auth/instagram/callback
-https://launchforge-sib3.vercel.app/api/auth/facebook/callback
+https://launchforge-ai-six.vercel.app/api/auth/instagram/callback
+https://launchforge-ai-six.vercel.app/api/auth/facebook/callback
 
 Vercel Production env:
 META_CLIENT_ID
@@ -134,7 +134,7 @@ X / Twitter developer app:
 
 ```text
 Redirect URI:
-https://launchforge-sib3.vercel.app/api/auth/x/callback
+https://launchforge-ai-six.vercel.app/api/auth/x/callback
 
 Vercel Production env:
 X_CLIENT_ID
@@ -146,7 +146,7 @@ LinkedIn developer app:
 
 ```text
 Redirect URI:
-https://launchforge-sib3.vercel.app/api/auth/linkedin/callback
+https://launchforge-ai-six.vercel.app/api/auth/linkedin/callback
 
 Vercel Production env:
 LINKEDIN_CLIENT_ID
