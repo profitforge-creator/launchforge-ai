@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
   const errRedirect = (message: string) => {
     const u = new URL("/dashboard/integrations", origin);
-    u.searchParams.set("oauth_error", message);
+    u.searchParams.set("oauth_status", message);
     return NextResponse.redirect(u.toString());
   };
 

@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   const errRedirect = (msg: string) => {
     const u = new URL("/dashboard/deployments", origin);
-    u.searchParams.set("oauth_error", msg);
+    u.searchParams.set("oauth_status", msg);
     return NextResponse.redirect(u.toString());
   };
 
