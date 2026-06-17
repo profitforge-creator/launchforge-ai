@@ -115,9 +115,9 @@ export function LeadWorkbench({
         </header>
 
         {storageStatus.mode === "local-fallback" && (
-          <section className="rounded-lg border border-[hsl(38_90%_45%/0.35)] bg-[hsl(38_90%_45%/0.08)] px-4 py-3">
-            <p className="text-xs font-semibold text-[hsl(38_90%_62%)]">Local preview storage</p>
-            <p className="mt-1 text-xs leading-relaxed text-[hsl(38_70%_68%)]">
+          <section className="rounded-lg border border-[hsl(213_94%_62%/0.25)] bg-[hsl(213_94%_62%/0.08)] px-4 py-3">
+            <p className="text-xs font-semibold text-[hsl(213_94%_68%)]">Preview storage active</p>
+            <p className="mt-1 text-xs leading-relaxed text-[hsl(220_9%_66%)]">
               {storageStatus.reason ?? "Lead records are not using durable Supabase storage yet."}
             </p>
           </section>

@@ -78,6 +78,7 @@ Google Cloud OAuth app redirect URI for LaunchForge account linking:
 
 ```text
 https://launchforge-sib3.vercel.app/api/auth/google/callback
+https://launchforge-sib3.vercel.app/api/auth/youtube/callback
 ```
 
 Required Vercel Production env vars:
@@ -86,10 +87,69 @@ Required Vercel Production env vars:
 GOOGLE_CLIENT_ID
 GOOGLE_CLIENT_SECRET
 GOOGLE_OAUTH_SCOPES
+YOUTUBE_OAUTH_SCOPES
 ```
 
 Suggested initial scopes:
 
 ```text
 openid email profile
+```
+
+Suggested YouTube scopes:
+
+```text
+openid email profile https://www.googleapis.com/auth/youtube.readonly
+```
+
+## Social OAuth
+
+TikTok developer app:
+
+```text
+Redirect URI:
+https://launchforge-sib3.vercel.app/api/auth/tiktok/callback
+
+Vercel Production env:
+TIKTOK_CLIENT_KEY
+TIKTOK_CLIENT_SECRET
+TIKTOK_OAUTH_SCOPES
+```
+
+Meta app for Instagram and Facebook:
+
+```text
+Redirect URIs:
+https://launchforge-sib3.vercel.app/api/auth/instagram/callback
+https://launchforge-sib3.vercel.app/api/auth/facebook/callback
+
+Vercel Production env:
+META_CLIENT_ID
+META_CLIENT_SECRET
+INSTAGRAM_OAUTH_SCOPES
+FACEBOOK_OAUTH_SCOPES
+```
+
+X / Twitter developer app:
+
+```text
+Redirect URI:
+https://launchforge-sib3.vercel.app/api/auth/x/callback
+
+Vercel Production env:
+X_CLIENT_ID
+X_CLIENT_SECRET
+X_OAUTH_SCOPES
+```
+
+LinkedIn developer app:
+
+```text
+Redirect URI:
+https://launchforge-sib3.vercel.app/api/auth/linkedin/callback
+
+Vercel Production env:
+LINKEDIN_CLIENT_ID
+LINKEDIN_CLIENT_SECRET
+LINKEDIN_OAUTH_SCOPES
 ```

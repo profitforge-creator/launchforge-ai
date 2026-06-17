@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
   if (!user) {
     const u = new URL("/login", origin);
-    u.searchParams.set("error", "Sign in before connecting GitHub.");
+    u.searchParams.set("message", "Sign in before connecting GitHub.");
     return NextResponse.redirect(u.toString());
   }
 

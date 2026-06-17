@@ -631,15 +631,32 @@ export async function actionGetAllIntegrationStatuses(): Promise<Record<Integrat
 // or a "not configured" info panel for each platform.
 export async function actionGetOAuthConfig(): Promise<{
   google:  boolean;
+  youtube: boolean;
   github:  boolean;
   stripe:  boolean;
   webflow: boolean;
+  tiktok: boolean;
+  instagram: boolean;
+  facebook: boolean;
+  x: boolean;
+  linkedin: boolean;
 }> {
+  const hasGoogle = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  const hasMeta = !!(
+    (process.env.META_CLIENT_ID || process.env.FACEBOOK_CLIENT_ID) &&
+    (process.env.META_CLIENT_SECRET || process.env.FACEBOOK_CLIENT_SECRET)
+  );
   return {
-    google:  !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    google:  hasGoogle,
+    youtube: hasGoogle,
     github:  !!(process.env.GITHUB_CLIENT_ID  && process.env.GITHUB_CLIENT_SECRET),
     stripe:  !!(process.env.STRIPE_CLIENT_ID && process.env.STRIPE_SECRET_KEY),
     webflow: !!(process.env.WEBFLOW_CLIENT_ID  && process.env.WEBFLOW_CLIENT_SECRET),
+    tiktok: !!(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET),
+    instagram: hasMeta,
+    facebook: hasMeta,
+    x: !!(process.env.X_CLIENT_ID && process.env.X_CLIENT_SECRET),
+    linkedin: !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET),
   };
 }
 

@@ -42,7 +42,7 @@ export function getSupabaseAuthCallbackUrl(requestUrl?: string): string {
   return `${getAppOrigin(requestUrl)}/api/auth/supabase/callback`;
 }
 
-export function getOAuthRedirectUri(provider: "github" | "stripe" | "webflow" | "google", requestUrl?: string): string {
+export function getOAuthRedirectUri(provider: string, requestUrl?: string): string {
   return `${getAppOrigin(requestUrl)}/api/auth/${provider}/callback`;
 }
 

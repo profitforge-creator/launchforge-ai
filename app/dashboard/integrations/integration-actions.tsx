@@ -59,8 +59,8 @@ export function IntegrationActions({
         <button
           type="button"
           onClick={connect}
-          disabled={!actionsEnabled || !connectHref || isPending}
-          className={actionsEnabled && connectHref ? activeClass : mutedClass}
+          disabled={!connectHref || isPending}
+          className={connectHref ? activeClass : mutedClass}
         >
           {connected ? "Reconnect" : "Connect"}
         </button>
@@ -75,8 +75,8 @@ export function IntegrationActions({
         <button
           type="button"
           onClick={connect}
-          disabled={!actionsEnabled || !connectHref || isPending}
-          className={actionsEnabled && connectHref ? activeClass : mutedClass}
+          disabled={!connectHref || isPending}
+          className={connectHref ? activeClass : mutedClass}
         >
           Refresh Connection
         </button>

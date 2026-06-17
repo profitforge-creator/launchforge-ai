@@ -2,8 +2,34 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypt
 import { getUserSupabaseClient } from "@/lib/auth/session";
 import { hasSupabaseConfig } from "@/lib/supabase/server";
 
-export type IntegrationKey = "vercel" | "github" | "webflow" | "stripe" | "supabase" | "google";
-export const ALL_INTEGRATION_KEYS: IntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase", "google"];
+export type IntegrationKey =
+  | "vercel"
+  | "github"
+  | "webflow"
+  | "stripe"
+  | "supabase"
+  | "google"
+  | "youtube"
+  | "tiktok"
+  | "instagram"
+  | "facebook"
+  | "x"
+  | "linkedin";
+
+export const ALL_INTEGRATION_KEYS: IntegrationKey[] = [
+  "vercel",
+  "github",
+  "webflow",
+  "stripe",
+  "supabase",
+  "google",
+  "youtube",
+  "tiktok",
+  "instagram",
+  "facebook",
+  "x",
+  "linkedin",
+];
 
 export interface StoredIntegration {
   service: IntegrationKey;

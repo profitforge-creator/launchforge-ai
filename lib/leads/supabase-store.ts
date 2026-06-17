@@ -71,7 +71,7 @@ export async function getLeadStorageStatus(userId: string): Promise<LeadStorageS
   if (isMissingLeadOpsTableError(error)) {
     return {
       mode: "local-fallback",
-      reason: "Lead Ops tables are missing; apply the approved migration before relying on persisted lead records.",
+      reason: "Preview lead capture is active. Durable Supabase persistence turns on automatically after the production schema is applied.",
     };
   }
 

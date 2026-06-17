@@ -26,9 +26,9 @@ import {
   actionValidateSupabaseEnv,
   actionValidateStripeEnv,
 } from "@/app/actions/integrations";
-import type { IntegrationKey, IntegrationStatus, ConnectResult } from "@/lib/storage/integration-store";
+import type { IntegrationStatus, ConnectResult } from "@/lib/storage/integration-store";
 
-type DashboardIntegrationKey = Exclude<IntegrationKey, "google">;
+type DashboardIntegrationKey = "vercel" | "github" | "webflow" | "stripe" | "supabase";
 type OAuthConfig = { google: boolean; github: boolean; stripe: boolean; webflow: boolean };
 type EnvDiagnostics = Awaited<ReturnType<typeof actionGetEnvDiagnostics>>;
 
@@ -1247,9 +1247,9 @@ export default function DeploymentsPage() {
       setOauthConfig(oauthCfg);
 
       // ── Integration statuses ────────────────────────────────────────────────
-      const statuses: Record<IntegrationKey, IntegrationStatus> = statusesRes.status === "fulfilled"
+      const statuses: Record<string, IntegrationStatus> = statusesRes.status === "fulfilled"
         ? statusesRes.value
-        : Object.fromEntries(PLATFORM_KEYS.map((k) => [k, { connected: false } as IntegrationStatus])) as Record<IntegrationKey, IntegrationStatus>;
+        : Object.fromEntries(PLATFORM_KEYS.map((k) => [k, { connected: false } as IntegrationStatus]));
       if (statusesRes.status === "rejected") {
         console.error("[DeploymentsPage] actionGetAllIntegrationStatuses failed:", statusesRes.reason);
         setLoadError("Could not load integration statuses — check server logs.");
