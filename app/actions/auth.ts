@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clearAuthCookies, setAuthCookies } from "@/lib/auth/session";
 import { getCanonicalAppOrigin, getSupabaseAuthCallbackUrl } from "@/lib/auth/app-url";
-import { getSupabaseClient, hasSupabaseConfig } from "@/lib/supabase/server";
+import { getSupabaseClient, getSupabaseOAuthClient, hasSupabaseConfig } from "@/lib/supabase/server";
 
 function supabaseMissingRedirect(path: "/login" | "/signup"): never {
   if (process.env.NODE_ENV !== "production") redirect("/dashboard");
@@ -91,7 +91,7 @@ export async function actionSignInWithGoogle(): Promise<void> {
   if (!hasSupabaseConfig()) supabaseMissingRedirect("/login");
 
   const origin = await getCurrentRequestOrigin();
-  const supabase = getSupabaseClient();
+  const supabase = await getSupabaseOAuthClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
