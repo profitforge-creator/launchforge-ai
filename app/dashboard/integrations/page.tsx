@@ -1,10 +1,23 @@
 import Link from "next/link";
 import { actionGetAllIntegrationStatuses, actionGetOAuthConfig } from "@/app/actions/integrations";
 import { IntegrationActions } from "./integration-actions";
+import { SetupGuide } from "./setup-guide";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getSchemaReadiness } from "@/lib/readiness/schema";
 import { getSocialOAuthConfig } from "@/lib/auth/social-oauth";
+import { getOAuthRedirectUri } from "@/lib/auth/app-url";
 import type { IntegrationKey } from "@/lib/storage/integration-store";
+
+// Env-var names each provider needs, surfaced in the click-to-connect guide.
+const PROVIDER_ENV_VARS: Record<string, string[]> = {
+  youtube:   ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+  google:    ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+  tiktok:    ["TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET"],
+  instagram: ["META_CLIENT_ID", "META_CLIENT_SECRET"],
+  facebook:  ["META_CLIENT_ID", "META_CLIENT_SECRET"],
+  x:         ["X_CLIENT_ID", "X_CLIENT_SECRET"],
+  linkedin:  ["LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET"],
+};
 
 type ProviderStatus = "connected" | "disconnected" | "blocked" | "not-started";
 
@@ -21,6 +34,7 @@ interface ProviderCard {
   enabled?: boolean;
   actionsEnabled?: boolean;
   actionProvider?: IntegrationKey;
+  setup?: { consoleUrl: string; redirectUri: string; envVars: string[] };
 }
 
 function oauthMessage(params: { oauth_success?: string; oauth_status?: string } | undefined) {
@@ -124,6 +138,14 @@ function Card({ provider }: { provider: ProviderCard }) {
         <p className="mt-4 rounded border border-[hsl(38_90%_45%/0.28)] bg-[hsl(38_90%_45%/0.08)] px-3 py-2 text-xs leading-relaxed text-[hsl(38_80%_66%)]">
           {provider.blockedReason}
         </p>
+      )}
+
+      {provider.setup && provider.status !== "connected" && (
+        <SetupGuide
+          consoleUrl={provider.setup.consoleUrl}
+          redirectUri={provider.setup.redirectUri}
+          envVars={provider.setup.envVars}
+        />
       )}
 
       {provider.actionProvider ? (
@@ -268,11 +290,16 @@ export default async function IntegrationsPage({
       status: google?.connected ? "connected" : "disconnected",
       lastSync: google?.lastSyncAt ? new Date(google.lastSyncAt).toLocaleString() : google?.connectedAt ? new Date(google.connectedAt).toLocaleString() : "Never",
       scopes: google?.scopes ?? [],
-      connectHref: oauthConfig.google ? "/api/auth/google" : "https://console.cloud.google.com/apis/credentials",
+      connectHref: oauthConfig.google ? "/api/auth/google" : undefined,
       connectLabel: oauthConfig.google ? undefined : "Setup app",
       enabled: google?.enabled ?? google?.connected ?? false,
       actionsEnabled: integrationTablesReady && oauthConfig.google,
       actionProvider: oauthConfig.google ? "google" : undefined,
+      setup: oauthConfig.google ? undefined : {
+        consoleUrl: "https://console.cloud.google.com/apis/credentials",
+        redirectUri: getOAuthRedirectUri("google"),
+        envVars: PROVIDER_ENV_VARS.google,
+      },
     },
     {
       id: "supabase",
@@ -349,10 +376,15 @@ function socialProviderCard({
     status: connected ? "connected" : "disconnected",
     lastSync: status?.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString() : status?.connectedAt ? new Date(status.connectedAt).toLocaleString() : "Never",
     scopes: status?.scopes ?? [],
-    connectHref: configured ? `/api/auth/${id}` : setupHref,
+    connectHref: configured ? `/api/auth/${id}` : undefined,
     connectLabel: configured ? undefined : "Setup app",
     enabled: status?.enabled ?? connected,
     actionsEnabled: configured && storageReady,
     actionProvider: configured ? id : undefined,
+    setup: configured ? undefined : {
+      consoleUrl: setupHref,
+      redirectUri: getOAuthRedirectUri(id),
+      envVars: PROVIDER_ENV_VARS[id] ?? [],
+    },
   };
 }
