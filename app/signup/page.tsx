@@ -78,9 +78,9 @@ export default async function SignUpPage({
 
           <p className="text-xs text-center mt-6" style={{ color: "hsl(220 9% 40%)" }}>
             By creating an account, you agree to our{" "}
-            <span className="underline cursor-pointer" style={{ color: "hsl(220 9% 55%)" }}>Terms</span>{" "}
+            <Link href="/legal/terms" className="underline" style={{ color: "hsl(220 9% 55%)" }}>Terms</Link>{" "}
             and{" "}
-            <span className="underline cursor-pointer" style={{ color: "hsl(220 9% 55%)" }}>Privacy Policy</span>.
+            <Link href="/legal/privacy" className="underline" style={{ color: "hsl(220 9% 55%)" }}>Privacy Policy</Link>.
           </p>
         </div>
       </div>
