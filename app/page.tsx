@@ -1492,10 +1492,13 @@ function Footer() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <Logo />
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 flex-wrap">
             <a href="#features"     className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Features</a>
             <a href="#how-it-works" className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>How it works</a>
             <a href="#pricing"      className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Pricing</a>
+            <Link href="/legal/privacy" className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Privacy</Link>
+            <Link href="/legal/terms"   className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Terms</Link>
+            <Link href="/legal"         className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Legal</Link>
             <Link href="/dashboard/settings" className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Settings</Link>
           </div>
           <p className="text-xs" style={{ color: "hsl(220 9% 24%)" }}>
