@@ -18,14 +18,35 @@ export function SetupGuide({
 }) {
   const [copied, setCopied] = useState<string | null>(null);
 
+  function markCopied(key: string) {
+    setCopied(key);
+    setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500);
+  }
+
+  function legacyCopy(text: string, key: string) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      markCopied(key);
+    } catch {
+      /* clipboard unavailable in this context */
+    }
+  }
+
   function copy(text: string, key: string) {
-    navigator.clipboard?.writeText(text).then(
-      () => {
-        setCopied(key);
-        setTimeout(() => setCopied((c) => (c === key ? null : c)), 1500);
-      },
-      () => {},
-    );
+    // Clipboard API works on the deployed site; fall back to execCommand in
+    // restricted contexts (e.g. sandboxed preview iframes) so copy still works.
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => markCopied(key), () => legacyCopy(text, key));
+    } else {
+      legacyCopy(text, key);
+    }
   }
 
   const chip = "rounded px-2 py-1 text-xs font-mono";

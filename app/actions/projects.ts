@@ -1,7 +1,7 @@
 "use server";
 
 import { getIntegration } from "@/lib/storage/integration-store";
-import { getUserSupabaseClient, requireUser } from "@/lib/auth/session";
+import { getUserSupabaseClient, getCurrentUser } from "@/lib/auth/session";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -64,7 +64,6 @@ export async function actionCreateProject(
   description?: string,
   confirmExternalCreation = false,
 ): Promise<CreateProjectResult> {
-  const user = await requireUser();
   const slug = name
     .toLowerCase()
     .trim()
@@ -78,6 +77,17 @@ export async function actionCreateProject(
     { key: "stripe",  label: "Create Stripe product",    status: "pending" },
     { key: "storage", label: "Save to LaunchForge",      status: "pending" },
   ];
+
+  // Resolve auth without redirecting — this runs from a client action call, so
+  // a thrown NEXT_REDIRECT would surface as a console error, not a navigation.
+  const user = await getCurrentUser();
+  if (!user) {
+    return {
+      success: false,
+      project: null,
+      steps: steps.map((s) => ({ ...s, status: "error", detail: "Sign in to create a project." })),
+    };
+  }
 
   let githubRepoName:      string | null = null;
   let githubRepoUrl:       string | null = null;
@@ -288,9 +298,10 @@ export async function actionCreateProject(
 
 export async function actionGetLFProjects(): Promise<{ data: LFProject[]; error: string | null }> {
   try {
-    const user = await requireUser();
+    const user = await getCurrentUser();
+    if (!user) return { data: [], error: null }; // not signed in — empty list, no error banner
     const supabase = await getUserSupabaseClient();
-    if (!supabase) return { data: [], error: "Authentication required." };
+    if (!supabase) return { data: [], error: null };
     const { data, error } = await supabase
       .from("lf_projects")
       .select("*")
@@ -312,7 +323,8 @@ export async function actionGetLFProjects(): Promise<{ data: LFProject[]; error:
 
 export async function actionDeleteLFProject(id: string): Promise<{ error: string | null }> {
   try {
-    const user = await requireUser();
+    const user = await getCurrentUser();
+    if (!user) return { error: "Authentication required." };
     const supabase = await getUserSupabaseClient();
     if (!supabase) return { error: "Authentication required." };
     const { error } = await supabase
