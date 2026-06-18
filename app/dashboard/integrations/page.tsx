@@ -39,6 +39,12 @@ function oauthMessage(params: { oauth_success?: string; oauth_status?: string } 
       text: "Connection storage needs setup before this account can be saved.",
     };
   }
+  if (status.endsWith("_app_url")) {
+    return {
+      tone: "info" as const,
+      text: `${providerLabel(provider)} can't connect: NEXT_PUBLIC_APP_URL is missing or invalid, so the OAuth redirect URI doesn't match. Set it to the app's public URL and retry.`,
+    };
+  }
   if (status.endsWith("_timeout") || status.endsWith("_network")) {
     return { tone: "info" as const, text: `${providerLabel(provider)} did not respond. Try again in a moment.` };
   }

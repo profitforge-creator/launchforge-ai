@@ -1,41 +1,38 @@
-// Deterministic app origin for OAuth redirect URIs.
-// Production prefers NEXT_PUBLIC_APP_URL, then the canonical production URL.
-// Preview prefers the actual Vercel preview URL so callback generation does
-// not silently point at production.
-const CANONICAL_PRODUCTION_ORIGIN = "https://launchforge-ai-six.vercel.app";
+// Deterministic app origin for OAuth redirect URIs and in-app redirects.
+//
+// OAuth redirect URIs MUST exactly match the URI registered with each provider
+// (Google/YouTube, GitHub, Stripe, Webflow, …). They are therefore always
+// derived from a STABLE origin and never from an ephemeral Vercel preview or
+// per-deployment URL, which would produce a redirect_uri mismatch.
+//
+// Resolution order:
+//   1. NEXT_PUBLIC_APP_URL          — explicit override (set in every env)
+//   2. CANONICAL_PRODUCTION_ORIGIN  — when running on Vercel without the override
+//   3. the incoming request origin  — local development only
+const CANONICAL_PRODUCTION_ORIGIN = "https://launchforge-sib3.vercel.app";
 
-export function getAppOrigin(requestUrl = "http://localhost:3000"): string {
-  const requestOrigin = new URL(requestUrl).origin;
-  const publicAppUrl = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
-  const vercelOrigin = process.env.VERCEL_URL ? normalizeOrigin(`https://${process.env.VERCEL_URL}`) : null;
-  const vercelEnv = process.env.VERCEL_TARGET_ENV ?? process.env.VERCEL_ENV;
-
-  if (vercelEnv === "preview" && vercelOrigin) {
-    return vercelOrigin;
+function normalizeOrigin(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
   }
-  if (publicAppUrl) {
-    return publicAppUrl;
-  }
-  if (vercelEnv === "production") {
-    return CANONICAL_PRODUCTION_ORIGIN;
-  }
-  if (vercelOrigin) {
-    return vercelOrigin;
-  }
-  return requestOrigin;
 }
 
-export function getCanonicalAppOrigin(requestUrl = "http://localhost:3000"): string {
+export function getAppOrigin(requestUrl = "http://localhost:3000"): string {
   const publicAppUrl = normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL);
   if (publicAppUrl) return publicAppUrl;
-  const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? normalizeOrigin(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`)
-    : null;
-  if (vercelProductionUrl) return vercelProductionUrl;
-  if ((process.env.VERCEL_TARGET_ENV ?? process.env.VERCEL_ENV) === "production") {
-    return CANONICAL_PRODUCTION_ORIGIN;
-  }
-  return getAppOrigin(requestUrl);
+  // Any Vercel deployment (production or preview) resolves to the canonical
+  // production origin so OAuth callbacks always land on a registered URL.
+  if (process.env.VERCEL) return CANONICAL_PRODUCTION_ORIGIN;
+  return new URL(requestUrl).origin;
+}
+
+// requestUrl is accepted for call-site compatibility but the canonical origin
+// is intentionally environment-derived, never request-derived.
+export function getCanonicalAppOrigin(_requestUrl = "http://localhost:3000"): string {
+  return normalizeOrigin(process.env.NEXT_PUBLIC_APP_URL) ?? CANONICAL_PRODUCTION_ORIGIN;
 }
 
 export function getSupabaseAuthCallbackUrl(requestUrl?: string): string {
@@ -46,11 +43,33 @@ export function getOAuthRedirectUri(provider: string, requestUrl?: string): stri
   return `${getAppOrigin(requestUrl)}/api/auth/${provider}/callback`;
 }
 
-function normalizeOrigin(value: string | undefined): string | null {
-  if (!value) return null;
-  try {
-    return new URL(value).origin;
-  } catch {
+/**
+ * Validate the OAuth origin configuration.
+ *
+ * Returns a human-readable error string when the app origin cannot be resolved
+ * to a stable https URL on Vercel, or null when configuration is valid. OAuth
+ * routes call this to fail with a clear, specific message instead of a generic
+ * "connection did not complete" after the redirect URI silently mismatches.
+ */
+export function getOAuthOriginConfigError(): string | null {
+  const raw = process.env.NEXT_PUBLIC_APP_URL?.trim();
+
+  if (raw) {
+    const normalized = normalizeOrigin(raw);
+    if (!normalized) {
+      return `NEXT_PUBLIC_APP_URL is not a valid absolute URL (got "${raw}"). Set it to ${CANONICAL_PRODUCTION_ORIGIN}.`;
+    }
+    if (process.env.VERCEL && !normalized.startsWith("https://")) {
+      return `NEXT_PUBLIC_APP_URL must use https in production (got "${normalized}"). Set it to ${CANONICAL_PRODUCTION_ORIGIN}.`;
+    }
     return null;
   }
+
+  // On Vercel the canonical default is used, but the explicit override is
+  // strongly recommended so callbacks never depend on a hardcoded constant.
+  if (process.env.VERCEL) {
+    return `NEXT_PUBLIC_APP_URL is not set. Set it to ${CANONICAL_PRODUCTION_ORIGIN} so OAuth redirect URIs match the values registered with each provider.`;
+  }
+
+  return null;
 }

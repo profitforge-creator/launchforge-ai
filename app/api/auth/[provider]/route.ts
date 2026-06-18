@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createHash, randomBytes } from "crypto";
 import { setOAuthState } from "@/lib/auth/persist-integration";
-import { getAppOrigin, getOAuthRedirectUri } from "@/lib/auth/app-url";
+import { getAppOrigin, getOAuthRedirectUri, getOAuthOriginConfigError } from "@/lib/auth/app-url";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getSocialOAuthConfig, isSocialOAuthConfigured } from "@/lib/auth/social-oauth";
 
@@ -24,6 +24,17 @@ export async function GET(request: Request, context: { params: Promise<{ provide
 
   if (!isSocialOAuthConfigured(config)) {
     return NextResponse.redirect(config.setupUrl);
+  }
+
+  // Fail before redirecting to the provider if the app origin can't be resolved
+  // to a stable URL — otherwise the redirect_uri silently mismatches and the
+  // user only sees a generic "did not complete" after the round-trip.
+  const originError = getOAuthOriginConfigError();
+  if (originError) {
+    console.error(`[oauth ${config.provider}] aborting start — ${originError}`);
+    const u = new URL("/dashboard/integrations", origin);
+    u.searchParams.set("oauth_status", `${config.provider}_app_url`);
+    return NextResponse.redirect(u.toString());
   }
 
   const state = randomBytes(16).toString("hex");
