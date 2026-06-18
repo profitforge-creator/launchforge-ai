@@ -329,7 +329,6 @@ const INTEGRATIONS = [
   { name: "Vercel",       abbr: "▲",  bg: "hsl(220 9% 18%)",    fg: "hsl(220 9% 88%)" },
   { name: "Stripe",       abbr: "S",  bg: "hsl(234 55% 20%)",   fg: "hsl(234 80% 76%)" },
   { name: "Supabase",     abbr: "SB", bg: "hsl(152 38% 13%)",   fg: "hsl(152 55% 52%)" },
-  { name: "Webflow",      abbr: "W",  bg: "hsl(210 55% 15%)",   fg: "hsl(210 75% 62%)" },
   { name: "Shopify",      abbr: "Sf", bg: "hsl(132 38% 13%)",   fg: "hsl(132 50% 50%)" },
   { name: "Gmail",        abbr: "G",  bg: "hsl(4 45% 15%)",     fg: "hsl(4 75% 60%)" },
   { name: "Google Docs",  abbr: "GD", bg: "hsl(210 50% 15%)",   fg: "hsl(210 70% 60%)" },
@@ -1107,14 +1106,13 @@ function SampleOutcomesSection() {
 const WORKFLOW_STEPS = [
   { label: "Generate", desc: "AI builds your complete business",  color: "hsl(213 94% 62%)" },
   { label: "Edit",     desc: "Refine with AI advisor",            color: "hsl(234 70% 65%)" },
-  { label: "Deploy",   desc: "Push to Vercel, GitHub, Webflow",   color: "hsl(151 60% 48%)" },
+  { label: "Deploy",   desc: "Push to Vercel and GitHub",         color: "hsl(151 60% 48%)" },
   { label: "Review",   desc: "Approve before external launch",     color: "hsl(38 90% 55%)"  },
 ];
 
 const DEPLOY_PLATFORMS = [
   { name: "Vercel",  abbr: "▲", bg: "hsl(220 9% 18%)",  fg: "hsl(220 9% 88%)" },
   { name: "GitHub",  abbr: "GH", bg: "hsl(220 13% 17%)", fg: "hsl(220 9% 70%)" },
-  { name: "Webflow", abbr: "W",  bg: "hsl(210 55% 15%)", fg: "hsl(210 75% 62%)" },
 ];
 
 const DEPLOY_STATUS = [

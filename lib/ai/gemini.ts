@@ -11,7 +11,7 @@
  * Key behaviors:
  *   - responseMimeType "application/json" forces clean JSON output (no fences)
  *   - Safety settings relaxed to BLOCK_ONLY_HIGH for business content
- *   - Automatic retry (3 attempts, exponential back-off) on transient 5xx errors
+ *   - Automatic retry on transient 5xx/overload/timeout errors
  *   - All calls are server-side only (uses GEMINI_API_KEY from env)
  */
 
@@ -40,6 +40,8 @@ const SAFETY_SETTINGS = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
 ];
 
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 // ── Client ────────────────────────────────────────────────────────────────────
 
 function getClient(): GoogleGenerativeAI {
@@ -66,8 +68,9 @@ async function withRetry<T>(
     } catch (err) {
       lastErr = err;
       const msg = err instanceof Error ? err.message : String(err);
-      // Only retry on transient server errors, not on safety blocks or bad API keys
-      const isRetryable = /5\d\d|rate.?limit|quota|overload|timeout/i.test(msg);
+      // Only retry on transient provider failures. Quota/rate-limit errors
+      // need operator action or a later user retry, not repeated pipeline calls.
+      const isRetryable = /5\d\d|overload|timeout/i.test(msg) && !/quota|rate.?limit|429/i.test(msg);
       if (!isRetryable || i === attempts - 1) break;
       await new Promise((r) => setTimeout(r, delayMs * Math.pow(2, i)));
     }
@@ -118,14 +121,17 @@ export async function geminiJSON<T>(
   });
 
   return withRetry(async () => {
-    const result = await genModel.generateContent({
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: options?.temperature ?? 0.4,
-        maxOutputTokens: options?.maxTokens ?? 4096,
+    const result = await genModel.generateContent(
+      {
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: options?.temperature ?? 0.4,
+          maxOutputTokens: options?.maxTokens ?? 4096,
+        },
       },
-    });
+      { timeout: options?.timeoutMs ?? DEFAULT_TIMEOUT_MS },
+    );
     return parseResponse<T>(result, `geminiJSON(${model})`);
   });
 }
@@ -148,13 +154,16 @@ export async function geminiText(
   });
 
   return withRetry(async () => {
-    const result = await genModel.generateContent({
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-      generationConfig: {
-        temperature: options?.temperature ?? 0.7,
-        maxOutputTokens: options?.maxTokens ?? 2048,
+    const result = await genModel.generateContent(
+      {
+        contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        generationConfig: {
+          temperature: options?.temperature ?? 0.7,
+          maxOutputTokens: options?.maxTokens ?? 2048,
+        },
       },
-    });
+      { timeout: options?.timeoutMs ?? DEFAULT_TIMEOUT_MS },
+    );
     const text = result.response.text();
     if (!text || text.trim() === "") {
       throw new Error("geminiText: empty response from Gemini.");

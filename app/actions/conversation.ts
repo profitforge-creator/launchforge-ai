@@ -12,7 +12,7 @@
 
 import { getGeneration, updateProjectFile } from "@/lib/storage/generation-store";
 import { runConversation } from "@/lib/ai/conversation";
-import { checkChatEditLimit } from "@/lib/ai/rate-limiter";
+import { checkChatEditLimit, rollbackChatEditIncrement } from "@/lib/ai/rate-limiter";
 import { requireUser } from "@/lib/auth/session";
 import type { FileUpdate } from "@/types";
 
@@ -46,6 +46,7 @@ export async function actionSendMessage(
 
     return { success: true, response, fileUpdates };
   } catch (err) {
+    rollbackChatEditIncrement(user.id, workspaceId);
     console.error("[Conversation]", err);
     const msg = err instanceof Error ? err.message : "Unknown error";
 

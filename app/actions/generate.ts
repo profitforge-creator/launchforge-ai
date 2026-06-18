@@ -11,7 +11,7 @@ import {
   assembleResult,
 } from "@/lib/generation/orchestrator";
 import { saveGeneration, getGeneration, patchGeneration } from "@/lib/storage/generation-store";
-import { checkProjectLimit, rollbackProjectIncrement } from "@/lib/ai/rate-limiter";
+import { canStartProject, checkProjectLimit, rollbackProjectIncrement } from "@/lib/ai/rate-limiter";
 import { geminiJSON } from "@/lib/ai/gemini";
 import { requireUser } from "@/lib/auth/session";
 import type { BusinessFormData, BusinessResult, ProjectFile } from "@/types";
@@ -35,6 +35,16 @@ function extractError(err: unknown, stage: string): string {
   const raw = err instanceof Error ? err.message : String(err);
   console.error(`[LaunchForge][${stage}]`, raw);
   return `${stage} failed: ${raw}`;
+}
+
+async function requireAiGenerationAccess(): Promise<{ userId: string; tier: "free" }> {
+  const user = await requireUser();
+  const tier = "free" as const;
+  const rateCheck = canStartProject(user.id, tier);
+  if (!rateCheck.allowed) {
+    throw new Error(rateCheck.reason);
+  }
+  return { userId: user.id, tier };
 }
 
 // ── Gemini diagnostic ─────────────────────────────────────────────────────────
@@ -82,6 +92,7 @@ export async function actionGenerateIdeas(
   context?: string,
 ): Promise<StepResult<GeneratedIdea[]>> {
   try {
+    await requireAiGenerationAccess();
     const prompt = context?.trim()
       ? `Generate 4 concrete business ideas based on this context: "${context}". Each idea should be a specific, actionable product concept.`
       : "Generate 4 diverse, concrete business ideas suitable for a solo founder to build. Cover different niches and product types.";
@@ -218,6 +229,7 @@ export async function actionRunProduct(
   research: ResearchAgentOutput,
 ): Promise<StepResult<ProductAgentOutput>> {
   try {
+    await requireAiGenerationAccess();
     const data = await runProductStep(form, research);
     return { success: true, data };
   } catch (err) {
@@ -233,6 +245,7 @@ export async function actionRunAssets(
   product: ProductAgentOutput,
 ): Promise<StepResult<AssetSet>> {
   try {
+    await requireAiGenerationAccess();
     const data = await runAssetStep(form, research, product);
     return { success: true, data };
   } catch (err) {
@@ -248,6 +261,7 @@ export async function actionRunWebsite(
   businessType = "open",
 ): Promise<StepResult<ProjectFile[]>> {
   try {
+    await requireAiGenerationAccess();
     const data = await runWebsiteStep(product, research, businessType);
     return { success: true, data };
   } catch (err) {
@@ -263,6 +277,7 @@ export async function actionRunMarketing(
   product: ProductAgentOutput,
 ): Promise<StepResult<MarketingAgentOutput>> {
   try {
+    await requireAiGenerationAccess();
     const data = await runMarketingStep(form, research, product);
     return { success: true, data };
   } catch (err) {
@@ -277,6 +292,7 @@ export async function actionRunCritic(
   marketing: MarketingAgentOutput,
 ): Promise<StepResult<CriticAgentOutput>> {
   try {
+    await requireAiGenerationAccess();
     const data = await runCriticStep(form, research, product, marketing);
     return { success: true, data };
   } catch (err) {

@@ -14,7 +14,6 @@ import {
 import {
   actionConnectVercel,
   actionConnectGitHub,
-  actionConnectWebflow,
   actionConnectStripe,
   actionConnectSupabase,
   actionDisconnectIntegration,
@@ -28,8 +27,8 @@ import {
 } from "@/app/actions/integrations";
 import type { IntegrationStatus, ConnectResult } from "@/lib/storage/integration-store";
 
-type DashboardIntegrationKey = "vercel" | "github" | "webflow" | "stripe" | "supabase";
-type OAuthConfig = { google: boolean; github: boolean; stripe: boolean; webflow: boolean };
+type DashboardIntegrationKey = "vercel" | "github" | "stripe" | "supabase";
+type OAuthConfig = { google: boolean; github: boolean; stripe: boolean };
 type EnvDiagnostics = Awaited<ReturnType<typeof actionGetEnvDiagnostics>>;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -433,17 +432,6 @@ const PLATFORM_META: Record<DashboardIntegrationKey, {
     tokenHint: "Settings → Developer settings → Personal access tokens",
     tokenUrl: "https://github.com/settings/tokens",
   },
-  webflow: {
-    name: "Webflow",
-    abbr: "W",
-    abbrbg: "hsl(210 55% 15%)",
-    abbrfg: "hsl(210 75% 62%)",
-    desc: "Publish generated pages directly into Webflow projects.",
-    tokenLabel: "API Token",
-    placeholder: "...",
-    tokenHint: "Account Settings → API Access → Generate API Token",
-    tokenUrl: "https://webflow.com/dashboard/account/general",
-  },
   stripe: {
     name: "Stripe",
     abbr: "S",
@@ -468,7 +456,7 @@ const PLATFORM_META: Record<DashboardIntegrationKey, {
   },
 };
 
-const PLATFORM_KEYS: DashboardIntegrationKey[] = ["vercel", "github", "webflow", "stripe", "supabase"];
+const PLATFORM_KEYS: DashboardIntegrationKey[] = ["vercel", "github", "stripe", "supabase"];
 
 // ── Stats row ─────────────────────────────────────────────────────────────────
 
@@ -618,7 +606,6 @@ const NOT_CONFIGURED_HINTS: Record<DashboardIntegrationKey, string> = {
   github:   "Set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET to enable GitHub OAuth.",
   stripe:   "Set STRIPE_SECRET_KEY (billing) or STRIPE_CLIENT_ID (Connect) in environment.",
   supabase: "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in environment.",
-  webflow:  "Set WEBFLOW_CLIENT_ID and WEBFLOW_CLIENT_SECRET to enable Webflow OAuth.",
 };
 
 function PlatformCard({
@@ -1163,7 +1150,6 @@ function makePlatformUI(status: IntegrationStatus): PlatformUIState {
 const OAUTH_PATHS: Partial<Record<DashboardIntegrationKey, string>> = {
   github:  "/api/auth/github",
   stripe:  "/api/auth/stripe",
-  webflow: "/api/auth/webflow",
 };
 
 export default function DeploymentsPage() {
@@ -1174,7 +1160,7 @@ export default function DeploymentsPage() {
   const [loadError,   setLoadError]   = useState<string | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [oauthBanner,    setOauthBanner]    = useState<{ type: "error" | "success"; message: string } | null>(null);
-  const [oauthConfig,    setOauthConfig]    = useState<OAuthConfig>({ google: false, github: false, stripe: false, webflow: false });
+  const [oauthConfig,    setOauthConfig]    = useState<OAuthConfig>({ google: false, github: false, stripe: false });
   const [envDiagnostics, setEnvDiagnostics] = useState<EnvDiagnostics | null>(null);
 
   // Apply a ConnectResult to a platform slot
@@ -1240,7 +1226,7 @@ export default function DeploymentsPage() {
       // ── OAuth config ────────────────────────────────────────────────────────
       const oauthCfg: OAuthConfig = oauthRes.status === "fulfilled"
         ? oauthRes.value
-        : { google: false, github: false, stripe: false, webflow: false };
+        : { google: false, github: false, stripe: false };
       if (oauthRes.status === "rejected") {
         console.error("[DeploymentsPage] actionGetOAuthConfig failed:", oauthRes.reason);
       }
@@ -1312,7 +1298,6 @@ export default function DeploymentsPage() {
   // API endpoints used:
   //   vercel:   GET https://api.vercel.com/v2/user  (Bearer VERCEL_TOKEN)
   //   github:   GET https://api.github.com/user     (Bearer <user PAT>)
-  //   webflow:  GET https://api.webflow.com/v2/token/introspect
   //   stripe:   GET https://api.stripe.com/v1/account
   //   supabase: GET https://api.supabase.com/v1/projects
   async function handleConnect(id: DashboardIntegrationKey, token: string) {
@@ -1321,7 +1306,6 @@ export default function DeploymentsPage() {
       let result: ConnectResult;
       if      (id === "vercel")   result = await actionConnectVercel(token);
       else if (id === "github")   result = await actionConnectGitHub(token);
-      else if (id === "webflow")  result = await actionConnectWebflow(token);
       else if (id === "stripe")   result = await actionConnectStripe(token);
       else if (id === "supabase") result = await actionConnectSupabase(token);
       else result = { success: false, error: "Unknown platform." };
@@ -1519,7 +1503,6 @@ export default function DeploymentsPage() {
                 oauthConfigured={
                   key === "github"  ? oauthConfig.github  :
                   key === "stripe"  ? oauthConfig.stripe  :
-                  key === "webflow" ? oauthConfig.webflow :
                   false
                 }
                 onConnect={handleConnect}

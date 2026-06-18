@@ -45,6 +45,8 @@ export interface AIGenerateOptions {
   temperature?: number;
   /** Max output tokens */
   maxTokens?: number;
+  /** Provider request timeout in milliseconds */
+  timeoutMs?: number;
 }
 
 export type AIProviderKey = "gemini" | "openai" | "anthropic";

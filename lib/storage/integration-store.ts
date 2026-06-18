@@ -5,7 +5,6 @@ import { hasSupabaseConfig } from "@/lib/supabase/server";
 export type IntegrationKey =
   | "vercel"
   | "github"
-  | "webflow"
   | "stripe"
   | "supabase"
   | "google"
@@ -19,7 +18,6 @@ export type IntegrationKey =
 export const ALL_INTEGRATION_KEYS: IntegrationKey[] = [
   "vercel",
   "github",
-  "webflow",
   "stripe",
   "supabase",
   "google",

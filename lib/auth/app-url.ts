@@ -1,7 +1,7 @@
 // Deterministic app origin for OAuth redirect URIs and in-app redirects.
 //
 // OAuth redirect URIs MUST exactly match the URI registered with each provider
-// (Google/YouTube, GitHub, Stripe, Webflow, …). They are therefore always
+// (Google/YouTube, GitHub, Stripe, …). They are therefore always
 // derived from a STABLE origin and never from an ephemeral Vercel preview or
 // per-deployment URL, which would produce a redirect_uri mismatch.
 //

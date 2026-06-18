@@ -14,6 +14,9 @@ export interface SchemaReadiness {
 }
 
 const REQUIRED_TABLES = [
+  "generations",
+  "lf_projects",
+  "deployments",
   "leads",
   "weekly_lead_digests",
   "user_integrations",

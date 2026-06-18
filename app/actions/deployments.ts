@@ -8,7 +8,7 @@ export interface DeploymentRecord {
   id: string;
   user_id: string;
   project_id: string;
-  platform: "vercel" | "github" | "webflow" | "manual" | string;
+  platform: "vercel" | "github" | "manual" | string;
   status: "live" | "error" | "building" | string;
   url: string;
   domain: string | null;

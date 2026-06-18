@@ -136,61 +136,6 @@ export async function actionConnectGitHub(token: string): Promise<ConnectResult>
   }
 }
 
-// ── Webflow ───────────────────────────────────────────────────────────────────
-// Docs:  https://developers.webflow.com/data/reference
-// Token: https://webflow.com/dashboard/account/general → API Access
-
-export async function actionConnectWebflow(token: string): Promise<ConnectResult> {
-  const ownerId = await getIntegrationOwnerId();
-  if (!ownerId) return { success: false, error: "Authentication required." };
-
-  try {
-    const [infoRes, sitesRes] = await Promise.all([
-      fetch("https://api.webflow.com/v2/token/introspect", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      }),
-      fetch("https://api.webflow.com/v2/sites", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      }),
-    ]);
-
-    if (!infoRes.ok && !sitesRes.ok) {
-      const status = sitesRes.status;
-      if (status === 401 || status === 403) {
-        return { success: false, error: "Invalid token — check your Webflow API token." };
-      }
-      return { success: false, error: `Webflow API returned ${status} — try again.` };
-    }
-
-    let name: string | undefined;
-    let email: string | undefined;
-    if (infoRes.ok) {
-      const info = await infoRes.json();
-      name  = info.user?.displayName ?? undefined;
-      email = info.user?.email ?? undefined;
-    }
-
-    let siteCount = 0;
-    if (sitesRes.ok) {
-      const sites = await sitesRes.json();
-      siteCount = Array.isArray(sites.sites) ? sites.sites.length : (Array.isArray(sites) ? sites.length : 0);
-    }
-
-    const connectedAt = new Date().toISOString();
-    const metadata = { name, email, siteCount };
-
-    const integration: StoredIntegration = { service: "webflow", ownerId, token, connectedAt, metadata };
-    const persisted = await persistIntegration(integration);
-    if (!persisted.persisted) return storageFailure(persisted);
-
-    return { success: true, status: { connected: true, connectedAt, metadata } };
-  } catch {
-    return { success: false, error: "Network error — check your connection and try again." };
-  }
-}
-
 // ── Stripe ────────────────────────────────────────────────────────────────────
 // Docs:  https://stripe.com/docs/api
 // Keys:  https://dashboard.stripe.com/apikeys (sk_live_ / sk_test_ / rk_live_ / rk_test_)
@@ -634,7 +579,6 @@ export async function actionGetOAuthConfig(): Promise<{
   youtube: boolean;
   github:  boolean;
   stripe:  boolean;
-  webflow: boolean;
   tiktok: boolean;
   instagram: boolean;
   facebook: boolean;
@@ -651,7 +595,6 @@ export async function actionGetOAuthConfig(): Promise<{
     youtube: hasGoogle,
     github:  !!(process.env.GITHUB_CLIENT_ID  && process.env.GITHUB_CLIENT_SECRET),
     stripe:  !!(process.env.STRIPE_CLIENT_ID && process.env.STRIPE_SECRET_KEY),
-    webflow: !!(process.env.WEBFLOW_CLIENT_ID  && process.env.WEBFLOW_CLIENT_SECRET),
     tiktok: !!(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET),
     instagram: hasMeta,
     facebook: hasMeta,
@@ -675,8 +618,6 @@ export async function actionGetEnvDiagnostics(): Promise<{
   hasSupabaseUrl:        boolean;
   hasSupabaseAnon:       boolean;
   hasAppUrl:             boolean;
-  hasWebflowClientId:    boolean;
-  hasWebflowSecret:      boolean;
 }> {
   const result = {
     hasVercelToken:        !!process.env.VERCEL_TOKEN,
@@ -690,8 +631,6 @@ export async function actionGetEnvDiagnostics(): Promise<{
     hasSupabaseUrl:        !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     hasSupabaseAnon:       !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     hasAppUrl:             !!process.env.NEXT_PUBLIC_APP_URL,
-    hasWebflowClientId:    !!process.env.WEBFLOW_CLIENT_ID,
-    hasWebflowSecret:      !!process.env.WEBFLOW_CLIENT_SECRET,
   };
   devLog("[LaunchForge env diagnostics]", JSON.stringify(result, null, 2));
   return result;

@@ -320,7 +320,6 @@ function AccountSection() {
     { id: "vercel",   label: "Vercel",   description: "One-click website deployment"           },
     { id: "stripe",   label: "Stripe",   description: "Payment and subscription management"    },
     { id: "supabase", label: "Supabase", description: "Database and authentication"            },
-    { id: "webflow",  label: "Webflow",  description: "No-code website publishing"            },
   ];
 
   return (

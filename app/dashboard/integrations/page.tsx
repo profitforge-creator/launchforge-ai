@@ -64,7 +64,6 @@ function providerLabel(value: string): string {
     linkedin: "LinkedIn",
     google: "Google",
     github: "GitHub",
-    webflow: "Webflow",
   };
   return labels[value] ?? value.charAt(0).toUpperCase() + value.slice(1);
 }
@@ -180,7 +179,6 @@ export default async function IntegrationsPage({
   const google = statuses?.google;
   const github = statuses?.github;
   const vercel = statuses?.vercel;
-  const webflow = statuses?.webflow;
   const supabase = statuses?.supabase;
   const youtube = statuses?.youtube;
   const tiktok = statuses?.tiktok;
@@ -214,19 +212,6 @@ export default async function IntegrationsPage({
       enabled: github?.enabled ?? github?.connected ?? false,
       actionsEnabled: integrationTablesReady,
       actionProvider: "github",
-    },
-    {
-      id: "webflow",
-      name: "Webflow",
-      description: "Website publishing account connection for Webflow sites.",
-      status: webflow?.connected ? "connected" : oauthConfig.webflow ? "disconnected" : "blocked",
-      lastSync: webflow?.connectedAt ? new Date(webflow.connectedAt).toLocaleString() : "Never",
-      scopes: webflow?.scopes ?? [],
-      connectHref: oauthConfig.webflow ? "/api/auth/webflow" : undefined,
-      enabled: webflow?.enabled ?? webflow?.connected ?? false,
-      actionsEnabled: integrationTablesReady && oauthConfig.webflow,
-      actionProvider: "webflow",
-      blockedReason: webflow?.storageWarning ?? (oauthConfig.webflow ? undefined : "Webflow OAuth is not configured yet. Add WEBFLOW_CLIENT_ID and WEBFLOW_CLIENT_SECRET in Vercel."),
     },
     socialProviderCard({
       id: "youtube",

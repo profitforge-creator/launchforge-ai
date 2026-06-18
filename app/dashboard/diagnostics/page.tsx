@@ -14,23 +14,22 @@ interface EnvVar {
   label: string;
   isSecret: boolean;
   hint: string;
+  required: boolean;
 }
 
 const ENV_VARS: EnvVar[] = [
-  { key: "GEMINI_API_KEY", label: "Gemini API Key", isSecret: true, hint: "Required for AI generation." },
-  { key: "NEXT_PUBLIC_SUPABASE_URL", label: "Supabase URL", isSecret: false, hint: "Required for database." },
-  { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", label: "Supabase Anon Key", isSecret: false, hint: "Required for database auth." },
-  { key: "NEXT_PUBLIC_APP_URL", label: "App URL", isSecret: false, hint: "Required for stable production OAuth callback URLs." },
-  { key: "VERCEL_PROJECT_PRODUCTION_URL", label: "Vercel Production URL", isSecret: false, hint: "Vercel system fallback for canonical auth redirects." },
-  { key: "GITHUB_CLIENT_ID", label: "GitHub OAuth Client ID", isSecret: false, hint: "Required for GitHub OAuth." },
-  { key: "GITHUB_CLIENT_SECRET", label: "GitHub OAuth Client Secret", isSecret: true, hint: "Required for GitHub OAuth." },
-  { key: "VERCEL_TOKEN", label: "Vercel API Token", isSecret: true, hint: "Required for Vercel API checks." },
-  { key: "STRIPE_SECRET_KEY", label: "Stripe Secret Key", isSecret: true, hint: "Required for Stripe API checks." },
-  { key: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", label: "Stripe Publishable Key", isSecret: false, hint: "Required for Stripe.js on the client." },
-  { key: "STRIPE_CLIENT_ID", label: "Stripe Connect Client ID", isSecret: false, hint: "Required for Stripe Connect OAuth." },
-  { key: "WEBFLOW_CLIENT_ID", label: "Webflow OAuth Client ID", isSecret: false, hint: "Required for Webflow OAuth." },
-  { key: "WEBFLOW_CLIENT_SECRET", label: "Webflow OAuth Client Secret", isSecret: true, hint: "Required for Webflow OAuth." },
-  { key: "LAUNCHFORGE_INTEGRATION_SECRET", label: "Integration Encryption Secret", isSecret: true, hint: "Required for durable encrypted token storage." },
+  { key: "GEMINI_API_KEY", label: "Gemini API Key", isSecret: true, hint: "Required for AI generation.", required: true },
+  { key: "NEXT_PUBLIC_SUPABASE_URL", label: "Supabase URL", isSecret: false, hint: "Required for database.", required: true },
+  { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", label: "Supabase Anon Key", isSecret: false, hint: "Required for database auth.", required: true },
+  { key: "NEXT_PUBLIC_APP_URL", label: "App URL", isSecret: false, hint: "Required for stable production OAuth callback URLs.", required: true },
+  { key: "VERCEL_PROJECT_PRODUCTION_URL", label: "Vercel Production URL", isSecret: false, hint: "Vercel system fallback for canonical auth redirects.", required: false },
+  { key: "GITHUB_CLIENT_ID", label: "GitHub OAuth Client ID", isSecret: false, hint: "Required for GitHub OAuth.", required: true },
+  { key: "GITHUB_CLIENT_SECRET", label: "GitHub OAuth Client Secret", isSecret: true, hint: "Required for GitHub OAuth.", required: true },
+  { key: "VERCEL_TOKEN", label: "Vercel API Token", isSecret: true, hint: "Required for Vercel API checks.", required: true },
+  { key: "LAUNCHFORGE_INTEGRATION_SECRET", label: "Integration Encryption Secret", isSecret: true, hint: "Required for durable encrypted token storage.", required: true },
+  { key: "STRIPE_SECRET_KEY", label: "Stripe Secret Key", isSecret: true, hint: "Optional in this pass; Stripe launch is excluded.", required: false },
+  { key: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", label: "Stripe Publishable Key", isSecret: false, hint: "Optional in this pass; Stripe launch is excluded.", required: false },
+  { key: "STRIPE_CLIENT_ID", label: "Stripe Connect Client ID", isSecret: false, hint: "Optional in this pass; Stripe launch is excluded.", required: false },
 ];
 
 type DiagnosticState = "Connected" | "Not Configured" | "Unauthorized" | "Network Failure" | "OAuth Misconfigured";
@@ -45,7 +44,7 @@ export default async function DiagnosticsPage() {
   const checks = new Map(getEnvChecks(ENV_VARS.map((v) => v.key)).map((v) => [v.key, v.loaded]));
   const results = ENV_VARS.map((v) => ({ ...v, loaded: checks.get(v.key) ?? false }));
   const loaded = results.filter((r) => r.loaded).length;
-  const missing = results.length - loaded;
+  const missingRequired = results.filter((r) => r.required && !r.loaded).length;
   const platformDiagnostics = await getPlatformDiagnostics();
 
   return (
@@ -60,7 +59,7 @@ export default async function DiagnosticsPage() {
 
         <div style={{ display: "flex", gap: "1rem", marginTop: "1.25rem" }}>
           <SummaryPill label={`${loaded} Loaded`} tone="ok" />
-          <SummaryPill label={`${missing} Missing`} tone={missing === 0 ? "neutral" : "error"} />
+          <SummaryPill label={`${missingRequired} Required Missing`} tone={missingRequired === 0 ? "neutral" : "error"} />
         </div>
       </div>
 
@@ -96,6 +95,21 @@ export default async function DiagnosticsPage() {
                     }}
                   >
                     SECRET
+                  </span>
+                )}
+                {!r.required && (
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      fontWeight: 600,
+                      padding: "0.1rem 0.4rem",
+                      borderRadius: "0.25rem",
+                      background: "hsl(var(--muted))",
+                      color: "hsl(var(--muted-foreground))",
+                      letterSpacing: "0",
+                    }}
+                  >
+                    OPTIONAL
                   </span>
                 )}
               </div>
@@ -165,23 +179,11 @@ async function getPlatformDiagnostics(): Promise<PlatformDiagnostic[]> {
     actionValidateStripeEnv(),
   ]);
 
-  const webflowConfigured = Boolean(process.env.WEBFLOW_CLIENT_ID && process.env.WEBFLOW_CLIENT_SECRET);
-  const webflowPartial = Boolean(process.env.WEBFLOW_CLIENT_ID || process.env.WEBFLOW_CLIENT_SECRET);
-
   return [
     fromConnectResult("Vercel", vercel, "VERCEL_TOKEN is missing or invalid."),
     fromConnectResult("GitHub OAuth", github, "GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are required."),
     fromConnectResult("Supabase", supabase, "Supabase URL and anon key are required."),
     fromConnectResult("Stripe", stripe, "STRIPE_SECRET_KEY is required for billing checks."),
-    {
-      name: "Webflow OAuth",
-      state: webflowConfigured ? "Connected" : webflowPartial ? "OAuth Misconfigured" : "Not Configured",
-      detail: webflowConfigured
-        ? "Client id and secret are present; OAuth callback will validate during provider exchange."
-        : webflowPartial
-          ? "Both WEBFLOW_CLIENT_ID and WEBFLOW_CLIENT_SECRET must be configured."
-          : "Webflow OAuth env vars are not configured.",
-    },
   ];
 }
 

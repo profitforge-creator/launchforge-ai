@@ -87,6 +87,32 @@ export function checkProjectLimit(
 }
 
 /**
+ * Check the project generation counter without incrementing it.
+ * Used by later pipeline steps so direct server-action calls cannot bypass
+ * a user who is already over quota, while a normal multi-step generation only
+ * consumes one project at the research/start step.
+ */
+export function canStartProject(
+  userId: string,
+  tier: SubscriptionTier,
+): RateLimitResult {
+  const limits = LIMITS[tier];
+  if (limits.projectsPerMonth === -1) return { allowed: true };
+
+  const record = getRecord(userId);
+  if (record.projectsThisMonth >= limits.projectsPerMonth) {
+    const nextTier: SubscriptionTier = tier === "free" ? "starter" : "pro";
+    return {
+      allowed: false,
+      reason: `You've used all ${limits.projectsPerMonth} projects on the ${tier} plan this month.`,
+      upgradeRequired: nextTier,
+    };
+  }
+
+  return { allowed: true };
+}
+
+/**
  * Check and increment the AI chat edit counter for a specific project.
  * Call BEFORE processing a chat message that may edit files.
  */
@@ -131,4 +157,15 @@ export function rollbackProjectIncrement(userId: string): void {
   if (record && record.projectsThisMonth > 0) {
     record.projectsThisMonth--;
   }
+}
+
+export function rollbackChatEditIncrement(userId: string, projectId: string): void {
+  const record = usage.get(userId);
+  const current = record?.chatEdits.get(projectId) ?? 0;
+  if (!record || current <= 0) return;
+  if (current === 1) {
+    record.chatEdits.delete(projectId);
+    return;
+  }
+  record.chatEdits.set(projectId, current - 1);
 }

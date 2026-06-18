@@ -19,8 +19,6 @@ export async function GET() {
     supabaseAnonKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY),
     githubClientId: Boolean(process.env.GITHUB_CLIENT_ID),
     githubClientSecret: Boolean(process.env.GITHUB_CLIENT_SECRET),
-    webflowClientId: Boolean(process.env.WEBFLOW_CLIENT_ID),
-    webflowClientSecret: Boolean(process.env.WEBFLOW_CLIENT_SECRET),
     vercelToken: Boolean(process.env.VERCEL_TOKEN),
     integrationSecret: Boolean(process.env.LAUNCHFORGE_INTEGRATION_SECRET),
   };
