@@ -675,6 +675,69 @@ function RecentActivity({ projects }: { projects: ProjectEnriched[] }) {
   );
 }
 
+// ── Getting started progress (activation hook) ────────────────────────────────
+
+function GettingStarted({ projects, onNew }: { projects: ProjectEnriched[]; onNew: () => void }) {
+  const steps = [
+    { label: "Generate your first business", done: projects.length > 0 },
+    { label: "Build a website",              done: projects.some((p) => p.hasWebsite) },
+    { label: "Create a launch plan",         done: projects.some((p) => p.hasMarketing) },
+    { label: "Deploy it live",               done: projects.some((p) => !!p.deploy) },
+  ];
+  const completed = steps.filter((s) => s.done).length;
+  if (completed === steps.length) return null; // power users: hide once done
+
+  const pct = Math.round((completed / steps.length) * 100);
+  const nextIdx = steps.findIndex((s) => !s.done);
+
+  return (
+    <div
+      className="rounded-xl p-5 mb-6"
+      style={{ border: "1px solid hsl(213 94% 62% / 0.2)", background: "linear-gradient(180deg, hsl(213 94% 62% / 0.05), hsl(220 13% 10%))" }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-sm font-semibold" style={{ color: "hsl(220 9% 90%)" }}>Get to your first live business</p>
+          <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 46%)" }}>{completed} of {steps.length} done — you&apos;re almost there</p>
+        </div>
+        <span className="text-lg font-bold tabular-nums" style={{ color: "hsl(213 94% 66%)" }}>{pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full overflow-hidden mb-4" style={{ backgroundColor: "hsl(220 13% 16%)" }}>
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "linear-gradient(90deg, hsl(213 94% 62%), hsl(245 82% 62%))" }} />
+      </div>
+      <div className="grid sm:grid-cols-2 gap-2">
+        {steps.map((s, i) => (
+          <div
+            key={s.label}
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2"
+            style={{
+              backgroundColor: s.done ? "hsl(151 60% 48% / 0.06)" : i === nextIdx ? "hsl(213 94% 62% / 0.08)" : "hsl(220 13% 11%)",
+              border: `1px solid ${s.done ? "hsl(151 60% 48% / 0.2)" : i === nextIdx ? "hsl(213 94% 62% / 0.3)" : "hsl(220 13% 15%)"}`,
+            }}
+          >
+            <span
+              className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+              style={{ backgroundColor: s.done ? "hsl(151 60% 48%)" : "hsl(220 13% 18%)", color: s.done ? "hsl(220 14% 7%)" : "hsl(220 9% 50%)" }}
+            >
+              {s.done ? "✓" : i + 1}
+            </span>
+            <span className="text-xs flex-1" style={{ color: s.done ? "hsl(220 9% 50%)" : "hsl(220 9% 72%)", textDecoration: s.done ? "line-through" : "none" }}>
+              {s.label}
+            </span>
+            {i === nextIdx && (
+              i === 3 ? (
+                <Link href="/dashboard/deployments" className="text-xs font-semibold shrink-0" style={{ color: "hsl(213 94% 66%)" }}>Start →</Link>
+              ) : (
+                <button onClick={onNew} className="text-xs font-semibold shrink-0" style={{ color: "hsl(213 94% 66%)" }}>Start →</button>
+              )
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Overview main ─────────────────────────────────────────────────────────────
 
 function ProjectsOverview({
@@ -726,6 +789,9 @@ function ProjectsOverview({
           New Project
         </button>
       </div>
+
+      {/* Activation hook — auto-hides once all milestones are complete */}
+      <GettingStarted projects={projects} onNew={onNew} />
 
       {/* Stats */}
       <OverviewStats projects={projects} />
