@@ -4,19 +4,27 @@ export type { GeneratedAsset, AssetSet, AssetType, ExportFormat, ProductCategory
 
 // ── Subscription ──────────────────────────────────────────────────────────────
 
-export type SubscriptionTier = "free" | "starter" | "pro";
+export type SubscriptionTier = "free" | "starter" | "growth" | "scale";
 
 export interface SubscriptionLimits {
   projectsPerMonth: number;   // -1 = unlimited
   aiEditsPerProject: number;  // -1 = unlimited
-  websiteGeneration: boolean;
-  exportAll: boolean;
+  websiteGeneration: boolean; // full website + source code
+  exportAll: boolean;         // ZIP export + deploys
+  integrations: boolean;      // connect GitHub/Vercel/Stripe/social
+  analytics: boolean;         // analytics + lead tools
 }
 
+// Single source of truth for plan entitlements. Mirrors the pricing page.
+//   free   $0   — a teaser: 1 idea preview/month, no full build/export/integrations
+//   starter $19 — 10 full businesses, website+code, export, deploys
+//   growth  $49 — 50 businesses, all integrations + analytics
+//   scale   $149 — unlimited
 export const SUBSCRIPTION_LIMITS: Record<SubscriptionTier, SubscriptionLimits> = {
-  free:    { projectsPerMonth: 3,  aiEditsPerProject: 5,  websiteGeneration: false, exportAll: false },
-  starter: { projectsPerMonth: 20, aiEditsPerProject: 50, websiteGeneration: true,  exportAll: true  },
-  pro:     { projectsPerMonth: -1, aiEditsPerProject: -1, websiteGeneration: true,  exportAll: true  },
+  free:    { projectsPerMonth: 1,  aiEditsPerProject: 3,   websiteGeneration: false, exportAll: false, integrations: false, analytics: false },
+  starter: { projectsPerMonth: 10, aiEditsPerProject: 30,  websiteGeneration: true,  exportAll: true,  integrations: false, analytics: false },
+  growth:  { projectsPerMonth: 50, aiEditsPerProject: 100, websiteGeneration: true,  exportAll: true,  integrations: true,  analytics: true  },
+  scale:   { projectsPerMonth: -1, aiEditsPerProject: -1,  websiteGeneration: true,  exportAll: true,  integrations: true,  analytics: true  },
 };
 
 // ── Project File System ───────────────────────────────────────────────────────

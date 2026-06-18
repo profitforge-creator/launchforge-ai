@@ -14,6 +14,7 @@ import { getGeneration, updateProjectFile } from "@/lib/storage/generation-store
 import { runConversation } from "@/lib/ai/conversation";
 import { checkChatEditLimit, rollbackChatEditIncrement } from "@/lib/ai/rate-limiter";
 import { requireUser } from "@/lib/auth/session";
+import { getUserPlan } from "@/lib/plans/server";
 import type { FileUpdate } from "@/types";
 
 type ConversationResult =
@@ -30,7 +31,7 @@ export async function actionSendMessage(
     return { success: false, error: "Project not found." };
   }
 
-  const tier = "free";
+  const tier = await getUserPlan();
   const rateCheck = checkChatEditLimit(user.id, workspaceId, tier);
   if (!rateCheck.allowed) {
     return { success: false, error: rateCheck.reason, upgradeRequired: true };

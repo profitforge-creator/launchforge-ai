@@ -11,9 +11,11 @@ import {
   assembleResult,
 } from "@/lib/generation/orchestrator";
 import { saveGeneration, getGeneration, patchGeneration } from "@/lib/storage/generation-store";
-import { canStartProject, checkProjectLimit, rollbackProjectIncrement } from "@/lib/ai/rate-limiter";
 import { geminiJSON } from "@/lib/ai/gemini";
 import { requireUser } from "@/lib/auth/session";
+import { getUserPlan, consumeProjectQuota, getProjectUsage } from "@/lib/plans/server";
+import { PLAN_META, nextTier } from "@/lib/plans/plans";
+import { SUBSCRIPTION_LIMITS, type SubscriptionTier } from "@/types";
 import type { BusinessFormData, BusinessResult, ProjectFile } from "@/types";
 import type { AssetSet } from "@/lib/assets/types";
 import type {
@@ -37,13 +39,9 @@ function extractError(err: unknown, stage: string): string {
   return `${stage} failed: ${raw}`;
 }
 
-async function requireAiGenerationAccess(): Promise<{ userId: string; tier: "free" }> {
+async function requireAiGenerationAccess(): Promise<{ userId: string; tier: SubscriptionTier }> {
   const user = await requireUser();
-  const tier = "free" as const;
-  const rateCheck = canStartProject(user.id, tier);
-  if (!rateCheck.allowed) {
-    throw new Error(rateCheck.reason);
-  }
+  const tier = await getUserPlan();
   return { userId: user.id, tier };
 }
 
@@ -206,18 +204,29 @@ export async function actionRegenerateSection(
 export async function actionRunResearch(
   form: BusinessFormData,
 ): Promise<StepResult<ResearchAgentOutput>> {
-  const user = await requireUser();
-  const tier = "free";
-  const rateCheck = checkProjectLimit(user.id, tier);
-  if (!rateCheck.allowed) {
-    return { success: false, error: rateCheck.reason, upgradeRequired: true };
+  await requireUser();
+  const plan = await getUserPlan();
+  const limit = SUBSCRIPTION_LIMITS[plan].projectsPerMonth;
+
+  // Pre-check so over-limit users are rejected before the expensive AI call.
+  if (limit >= 0) {
+    const { used } = await getProjectUsage();
+    if (used >= limit) {
+      const up = nextTier(plan);
+      return {
+        success: false,
+        upgradeRequired: true,
+        error: `You've used all ${limit} business generation${limit === 1 ? "" : "s"} on the ${PLAN_META[plan].label} plan this month.${up ? ` Upgrade to ${PLAN_META[up].label} (${PLAN_META[up].price}/mo) to keep building.` : ""}`,
+      };
+    }
   }
 
   try {
     const data = await runResearchStep(form);
+    // Count this business only after research succeeds (don't charge for failures).
+    await consumeProjectQuota(plan);
     return { success: true, data };
   } catch (err) {
-    rollbackProjectIncrement(user.id);
     return { success: false, error: extractError(err, "Research") };
   }
 }
@@ -261,7 +270,15 @@ export async function actionRunWebsite(
   businessType = "open",
 ): Promise<StepResult<ProjectFile[]>> {
   try {
-    await requireAiGenerationAccess();
+    const { tier } = await requireAiGenerationAccess();
+    if (!SUBSCRIPTION_LIMITS[tier].websiteGeneration) {
+      const up = nextTier(tier);
+      return {
+        success: false,
+        upgradeRequired: true,
+        error: `Full website + source-code generation is a paid feature.${up ? ` Upgrade to ${PLAN_META[up].label} (${PLAN_META[up].price}/mo) to unlock it.` : ""}`,
+      };
+    }
     const data = await runWebsiteStep(product, research, businessType);
     return { success: true, data };
   } catch (err) {

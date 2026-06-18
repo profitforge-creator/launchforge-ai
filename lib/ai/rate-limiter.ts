@@ -4,17 +4,16 @@
  * Current implementation: in-memory, keyed by userId or IP.
  * Resets on cold start (acceptable for MVP; swap Map for Redis in production).
  *
- * Tier limits:
- *   free     — 3 projects/month,  5  AI chat edits/project
- *   starter  — 20 projects/month, 50  AI chat edits/project
- *   pro      — unlimited
+ * Tier limits are derived from SUBSCRIPTION_LIMITS (types/index.ts) — the single
+ * source of truth shared with plan gating.
  *
- * To migrate to Redis:
- *   Replace Map.get/set calls below with redis.incr / redis.expire
- *   keeping the same function signatures and error shape.
+ * NOTE: project quota is now enforced persistently in the database
+ * (lib/plans/server.ts → consume_project_quota). This in-memory limiter handles
+ * per-project AI chat-edit throttling. Swap the Map for Redis in production.
  */
 
 import type { SubscriptionTier } from "@/types";
+import { SUBSCRIPTION_LIMITS } from "@/types";
 
 // ── Limit definitions ─────────────────────────────────────────────────────────
 
@@ -23,11 +22,15 @@ interface TierLimits {
   chatEditsPerProject: number; // -1 = unlimited
 }
 
-const LIMITS: Record<SubscriptionTier, TierLimits> = {
-  free:    { projectsPerMonth: 3,  chatEditsPerProject: 5  },
-  starter: { projectsPerMonth: 20, chatEditsPerProject: 50 },
-  pro:     { projectsPerMonth: -1, chatEditsPerProject: -1 },
-};
+const LIMITS: Record<SubscriptionTier, TierLimits> = Object.fromEntries(
+  (Object.keys(SUBSCRIPTION_LIMITS) as SubscriptionTier[]).map((tier) => [
+    tier,
+    {
+      projectsPerMonth: SUBSCRIPTION_LIMITS[tier].projectsPerMonth,
+      chatEditsPerProject: SUBSCRIPTION_LIMITS[tier].aiEditsPerProject,
+    },
+  ]),
+) as Record<SubscriptionTier, TierLimits>;
 
 // ── Storage ───────────────────────────────────────────────────────────────────
 
@@ -61,60 +64,17 @@ export type RateLimitResult =
   | { allowed: true }
   | { allowed: false; reason: string; upgradeRequired: SubscriptionTier };
 
-/**
- * Check and increment the project generation counter.
- * Call BEFORE starting a generation pipeline.
- */
-export function checkProjectLimit(
-  userId: string,
-  tier: SubscriptionTier,
-): RateLimitResult {
-  const limits = LIMITS[tier];
-  if (limits.projectsPerMonth === -1) return { allowed: true };
-
-  const record = getRecord(userId);
-  if (record.projectsThisMonth >= limits.projectsPerMonth) {
-    const nextTier: SubscriptionTier = tier === "free" ? "starter" : "pro";
-    return {
-      allowed: false,
-      reason: `You've used all ${limits.projectsPerMonth} projects on the ${tier} plan this month.`,
-      upgradeRequired: nextTier,
-    };
-  }
-
-  record.projectsThisMonth++;
-  return { allowed: true };
-}
-
-/**
- * Check the project generation counter without incrementing it.
- * Used by later pipeline steps so direct server-action calls cannot bypass
- * a user who is already over quota, while a normal multi-step generation only
- * consumes one project at the research/start step.
- */
-export function canStartProject(
-  userId: string,
-  tier: SubscriptionTier,
-): RateLimitResult {
-  const limits = LIMITS[tier];
-  if (limits.projectsPerMonth === -1) return { allowed: true };
-
-  const record = getRecord(userId);
-  if (record.projectsThisMonth >= limits.projectsPerMonth) {
-    const nextTier: SubscriptionTier = tier === "free" ? "starter" : "pro";
-    return {
-      allowed: false,
-      reason: `You've used all ${limits.projectsPerMonth} projects on the ${tier} plan this month.`,
-      upgradeRequired: nextTier,
-    };
-  }
-
-  return { allowed: true };
+// Upgrade ladder for messaging when a limit is hit.
+const TIER_LADDER: SubscriptionTier[] = ["free", "starter", "growth", "scale"];
+function suggestUpgrade(tier: SubscriptionTier): SubscriptionTier {
+  const i = TIER_LADDER.indexOf(tier);
+  return i >= 0 && i < TIER_LADDER.length - 1 ? TIER_LADDER[i + 1] : "scale";
 }
 
 /**
  * Check and increment the AI chat edit counter for a specific project.
  * Call BEFORE processing a chat message that may edit files.
+ * (Project quota is enforced separately and persistently in lib/plans/server.ts.)
  */
 export function checkChatEditLimit(
   userId: string,
@@ -128,35 +88,15 @@ export function checkChatEditLimit(
   const current = record.chatEdits.get(projectId) ?? 0;
 
   if (current >= limits.chatEditsPerProject) {
-    const nextTier: SubscriptionTier = tier === "free" ? "starter" : "pro";
     return {
       allowed: false,
       reason: `You've used all ${limits.chatEditsPerProject} AI edits for this project on the ${tier} plan.`,
-      upgradeRequired: nextTier,
+      upgradeRequired: suggestUpgrade(tier),
     };
   }
 
   record.chatEdits.set(projectId, current + 1);
   return { allowed: true };
-}
-
-/**
- * Read current usage without modifying counters.
- * Used by the dashboard to show "X of Y projects used".
- */
-export function getUsage(userId: string): { projectsThisMonth: number } {
-  const record = getRecord(userId);
-  return { projectsThisMonth: record.projectsThisMonth };
-}
-
-/**
- * Rollback a project counter increment — call if generation fails after checkProjectLimit.
- */
-export function rollbackProjectIncrement(userId: string): void {
-  const record = usage.get(userId);
-  if (record && record.projectsThisMonth > 0) {
-    record.projectsThisMonth--;
-  }
 }
 
 export function rollbackChatEditIncrement(userId: string, projectId: string): void {

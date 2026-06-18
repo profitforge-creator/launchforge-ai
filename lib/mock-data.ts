@@ -241,7 +241,7 @@ export const MOCK_USER: UserProfile = {
   id: "user_01j8x2k9",
   name: "Alex Morgan",
   email: "alex@example.com",
-  plan: "pro",
+  plan: "growth",
   generationsUsed: 5,
   generationsLimit: 50,
   joinedAt: "2026-04-01T00:00:00Z",
