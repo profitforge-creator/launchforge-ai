@@ -36,7 +36,7 @@ function AIAvatar({ size = 28 }: { size?: number }) {
       }}
     >
       <svg width={size * 0.5} height={size * 0.5} viewBox="0 0 14 14" fill="none">
-        <path d="M7 1L12.196 4V10L7 13L1.804 10V4L7 1Z" fill="hsl(213 94% 62%)" />
+        <path d="M7 1.6L11.5 6H9.7L7 3.7L4.3 6H2.5ZM7 5.6L11.5 10H9.7L7 7.7L4.3 10H2.5Z" fill="hsl(213 94% 62%)" />
       </svg>
     </div>
   );

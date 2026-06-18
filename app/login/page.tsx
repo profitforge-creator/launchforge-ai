@@ -16,7 +16,7 @@ export default async function LoginPage({
         <Link href="/" className="flex items-center gap-2">
           <div className="w-6 h-6 rounded flex items-center justify-center" style={{ backgroundColor: "hsl(213 94% 62%)" }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1L12.196 4V10L7 13L1.804 10V4L7 1Z" fill="hsl(220 13% 8%)" />
+              <path d="M7 1.6L11.5 6H9.7L7 3.7L4.3 6H2.5ZM7 5.6L11.5 10H9.7L7 7.7L4.3 10H2.5Z" fill="hsl(220 13% 8%)" />
             </svg>
           </div>
           <span className="text-sm font-semibold" style={{ color: "hsl(220 9% 93%)" }}>LaunchForge</span>

@@ -263,10 +263,13 @@ export function AppSidebar({ workspaces }: { workspaces: HistoryRecord[] }) {
         <Link href="/dashboard" className="flex items-center gap-2 px-1 mb-3">
           <div
             className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
-            style={{ backgroundColor: "hsl(213 94% 58%)" }}
+            style={{
+              background: "linear-gradient(135deg, hsl(213 94% 64%), hsl(245 82% 62%))",
+              boxShadow: "0 2px 10px hsl(218 90% 52% / 0.35)",
+            }}
           >
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
-              <path d="M7 1L12.196 4V10L7 13L1.804 10V4L7 1Z" fill="hsl(220 14% 7%)" />
+              <path d="M7 1.6L11.5 6H9.7L7 3.7L4.3 6H2.5ZM7 5.6L11.5 10H9.7L7 7.7L4.3 10H2.5Z" fill="hsl(220 14% 7%)" />
             </svg>
           </div>
           <span className="text-sm font-semibold tracking-tight" style={{ color: "hsl(220 9% 90%)" }}>

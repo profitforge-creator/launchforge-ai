@@ -63,10 +63,13 @@ function Logo() {
     <div className="flex items-center gap-2.5">
       <div
         className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-        style={{ backgroundColor: "hsl(213 94% 58%)" }}
+        style={{
+          background: "linear-gradient(135deg, hsl(213 94% 64%), hsl(245 82% 62%))",
+          boxShadow: "0 2px 14px hsl(218 90% 52% / 0.4)",
+        }}
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1L12.196 4V10L7 13L1.804 10V4L7 1Z" fill="hsl(220 14% 7%)" />
+          <path d="M7 1.6L11.5 6H9.7L7 3.7L4.3 6H2.5ZM7 5.6L11.5 10H9.7L7 7.7L4.3 10H2.5Z" fill="hsl(220 14% 7%)" />
         </svg>
       </div>
       <span className="text-sm font-semibold tracking-tight" style={{ color: "hsl(220 9% 94%)" }}>
@@ -1244,61 +1247,79 @@ interface PricingTier {
   description: string;
   cta: string;
   highlight: boolean;
+  badge?: string;
   features: { label: string; included: boolean }[];
 }
 
 const PRICING_TIERS: PricingTier[] = [
   {
-    name: "Starter",
-    price: "$29",
-    period: "/ month",
-    description: "For individuals building their first business.",
-    cta: "Preview Starter",
+    name: "Free",
+    price: "$0",
+    period: "forever",
+    description: "A taste of the magic. Enough to see what LaunchForge builds — not enough to launch.",
+    cta: "Start free",
     highlight: false,
+    badge: "Preview only",
     features: [
-      { label: "10 projects / month",        included: true  },
-      { label: "50 AI generations / month",  included: true  },
-      { label: "Website generation",         included: true  },
-      { label: "ZIP export",                 included: true  },
-      { label: "AI advisor",                 included: true  },
-      { label: "Deployments",                included: false },
-      { label: "Analytics",                  included: false },
-      { label: "Priority support",           included: false },
+      { label: "1 idea preview / month",        included: true  },
+      { label: "Scorecard + market snapshot",   included: true  },
+      { label: "Full business generation",      included: false },
+      { label: "Website + source code",         included: false },
+      { label: "ZIP export & deploys",          included: false },
+      { label: "Integrations",                  included: false },
+      { label: "Analytics & leads",             included: false },
     ],
   },
   {
-    name: "Pro",
-    price: "$79",
+    name: "Starter",
+    price: "$19",
     period: "/ month",
-    description: "For serious builders launching multiple products.",
-    cta: "Preview Pro",
-    highlight: true,
+    description: "Everything you need to generate and launch your first real business.",
+    cta: "Get Starter",
+    highlight: false,
     features: [
-      { label: "Unlimited projects",         included: true  },
-      { label: "Unlimited AI generations",   included: true  },
-      { label: "Website generation",         included: true  },
-      { label: "ZIP export",                 included: true  },
-      { label: "AI advisor",                 included: true  },
-      { label: "Deployments",                included: true  },
-      { label: "Analytics",                  included: true  },
-      { label: "Priority support",           included: true  },
+      { label: "10 full businesses / month",    included: true  },
+      { label: "Website + full source code",    included: true  },
+      { label: "ZIP export",                    included: true  },
+      { label: "GitHub + Vercel deploys",       included: true  },
+      { label: "AI advisor",                    included: true  },
+      { label: "All integrations",              included: false },
+      { label: "Analytics & leads",             included: false },
+    ],
+  },
+  {
+    name: "Growth",
+    price: "$49",
+    period: "/ month",
+    description: "For builders shipping multiple products and converting real customers.",
+    cta: "Get Growth",
+    highlight: true,
+    badge: "Most popular",
+    features: [
+      { label: "50 full businesses / month",    included: true  },
+      { label: "Everything in Starter",         included: true  },
+      { label: "All integrations + Stripe",     included: true  },
+      { label: "Analytics & lead tools",        included: true  },
+      { label: "Priority generation queue",     included: true  },
+      { label: "Remove LaunchForge badge",      included: true  },
+      { label: "Team seats",                    included: false },
     ],
   },
   {
     name: "Scale",
-    price: "Custom",
-    description: "For teams and agencies building at scale.",
-    cta: "Preview Scale",
+    price: "$149",
+    period: "/ month",
+    description: "Maximum output for agencies and teams building at full speed.",
+    cta: "Get Scale",
     highlight: false,
     features: [
-      { label: "Everything in Pro",          included: true  },
-      { label: "Custom integrations",        included: true  },
-      { label: "Dedicated support",          included: true  },
-      { label: "SLA guarantee",              included: true  },
-      { label: "Custom deployment targets",  included: true  },
-      { label: "Team accounts",              included: true  },
-      { label: "Audit logs",                 included: true  },
-      { label: "SSO / SAML",                 included: true  },
+      { label: "Unlimited businesses",          included: true  },
+      { label: "Everything in Growth",          included: true  },
+      { label: "Team seats & roles",            included: true  },
+      { label: "Highest rate limits",           included: true  },
+      { label: "Priority support + SLA",        included: true  },
+      { label: "Audit logs",                    included: true  },
+      { label: "Early access to new features",  included: true  },
     ],
   },
 ];
@@ -1328,12 +1349,16 @@ function PricingCard({ tier }: { tier: PricingTier }) {
         position: "relative",
       }}
     >
-      {tier.highlight && (
+      {tier.badge && (
         <div
-          className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-semibold"
-          style={{ backgroundColor: "hsl(213 94% 58%)", color: "hsl(220 14% 7%)" }}
+          className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+          style={
+            tier.highlight
+              ? { background: "linear-gradient(135deg, hsl(213 94% 64%), hsl(245 82% 62%))", color: "hsl(220 14% 7%)" }
+              : { backgroundColor: "hsl(220 13% 16%)", color: "hsl(220 9% 55%)", border: "1px solid hsl(220 13% 22%)" }
+          }
         >
-          Most popular
+          {tier.badge}
         </div>
       )}
       <div>
@@ -1353,11 +1378,11 @@ function PricingCard({ tier }: { tier: PricingTier }) {
         </p>
       </div>
       <Link
-        href="/dashboard"
+        href="/signup"
         className="w-full h-9 rounded-lg text-sm font-semibold flex items-center justify-center transition-all"
         style={
           tier.highlight
-            ? { backgroundColor: "hsl(220 9% 94%)", color: "hsl(220 14% 7%)" }
+            ? { background: "linear-gradient(135deg, hsl(213 94% 64%), hsl(245 82% 62%))", color: "hsl(220 14% 7%)" }
             : { border: "1px solid hsl(220 13% 22%)", color: "hsl(220 9% 60%)", backgroundColor: "transparent" }
         }
       >
@@ -1381,7 +1406,7 @@ function PricingSection() {
   const { ref, visible } = useInView();
   return (
     <section id="pricing" className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div
           ref={ref}
           className="mb-14 text-center"
@@ -1395,39 +1420,19 @@ function PricingSection() {
             Pricing
           </p>
           <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.02em" }}>
-            Preview access while billing is disabled.
+            Start free. Upgrade the moment you&apos;re ready to launch.
           </h2>
           <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 42%)" }}>
-            Pricing is shown as packaging direction only. Checkout and subscriptions are not enabled in this preview.
+            The free plan shows you what&apos;s possible. Paid plans let you actually build, export, and ship — keep more the higher you go.
           </p>
         </div>
 
-        {/* Trial callout */}
-        <div
-          className="rounded-xl px-6 py-5 mb-8 flex items-center justify-between gap-4 flex-wrap"
-          style={{ border: "1px solid hsl(151 60% 48% / 0.2)", backgroundColor: "hsl(151 60% 48% / 0.04)" }}
-        >
-          <div>
-            <p className="text-sm font-semibold" style={{ color: "hsl(220 9% 86%)" }}>Private Preview Access</p>
-            <p className="text-xs mt-0.5" style={{ color: "hsl(220 9% 40%)" }}>
-              Explore the current workspace without live billing, checkout, or external account changes.
-            </p>
-          </div>
-          <Link
-            href="/dashboard"
-            className="shrink-0 h-9 px-5 rounded-lg text-sm font-semibold flex items-center"
-            style={{ backgroundColor: "hsl(220 9% 94%)", color: "hsl(220 14% 7%)" }}
-          >
-            Open preview
-          </Link>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-5">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {PRICING_TIERS.map((tier) => <PricingCard key={tier.name} tier={tier} />)}
         </div>
 
-        <p className="text-center text-xs mt-8" style={{ color: "hsl(220 9% 28%)" }}>
-          Preview pricing is not active. Billing requires a separate approved Stripe setup.
+        <p className="text-center text-xs mt-8" style={{ color: "hsl(220 9% 30%)" }}>
+          Cancel anytime. Free includes a monthly preview so you always see what the next tier unlocks.
         </p>
       </div>
     </section>
