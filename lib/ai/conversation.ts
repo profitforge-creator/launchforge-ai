@@ -14,6 +14,7 @@
 
 import { geminiJSON } from "@/lib/ai/gemini";
 import type { BusinessResult, FileUpdate } from "@/types";
+import type { ConversationMessage } from "@/lib/conversation/types";
 
 // ── System prompt ─────────────────────────────────────────────────────────────
 
@@ -47,7 +48,8 @@ Never apologize, never be vague. Be specific, direct, and actionable.`;
 function buildConversationPrompt(
   userMessage: string,
   project: BusinessResult,
-  fileContents: Map<string, string>,
+  history: ConversationMessage[],
+  deploymentStatus?: string,
 ): string {
   const filesSection = project.projectFiles
     ? project.projectFiles
@@ -55,6 +57,18 @@ function buildConversationPrompt(
         .map((f) => `### ${f.path}\n\`\`\`\n${f.content.slice(0, 3000)}\n\`\`\``)
         .join("\n\n")
     : "(no files yet)";
+
+  const historySection =
+    history.length > 0
+      ? `**Recent conversation (last ${history.length} turns):**\n` +
+        history
+          .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content.slice(0, 600)}`)
+          .join("\n\n")
+      : "";
+
+  const deploySection = deploymentStatus
+    ? `**Deployment status:** ${deploymentStatus}`
+    : "";
 
   return `PROJECT CONTEXT:
 
@@ -70,10 +84,12 @@ function buildConversationPrompt(
 **Competitors:**
 ${project.competitors.slice(0, 2).map((c) => `- ${c.name}: ${c.weaknesses.slice(0, 2).join(", ")}`).join("\n")}
 
+${deploySection}
+
 **Current project files (website + marketing):**
 ${filesSection}
 
----
+${historySection ? `---\n\n${historySection}\n\n---` : ""}
 
 **USER MESSAGE:** ${userMessage}
 
@@ -98,15 +114,10 @@ export interface ConversationResult {
 export async function runConversation(
   userMessage: string,
   project: BusinessResult,
+  history: ConversationMessage[] = [],
+  deploymentStatus?: string,
 ): Promise<ConversationResult> {
-  const fileContents = new Map<string, string>();
-  if (project.projectFiles) {
-    for (const f of project.projectFiles) {
-      fileContents.set(f.path, f.content);
-    }
-  }
-
-  const prompt = buildConversationPrompt(userMessage, project, fileContents);
+  const prompt = buildConversationPrompt(userMessage, project, history, deploymentStatus);
 
   const result = await geminiJSON<GeminiConversationResponse>(
     CONVERSATION_SYSTEM_PROMPT,

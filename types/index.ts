@@ -151,6 +151,8 @@ export interface BusinessResult {
   projectFiles?: ProjectFile[];
   /** AI INTEGRATION POINT: usage tracking per project */
   aiEditsUsed?: number;
+  /** Persisted chat history — capped at 50 messages to bound storage */
+  chatMessages?: import("@/lib/conversation/types").PersistedChatMessage[];
 }
 
 // ── AI file modification ──────────────────────────────────────────────────────

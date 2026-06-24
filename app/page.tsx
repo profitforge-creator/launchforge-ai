@@ -1,1538 +1,549 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
 
-// ── Intersection observer hook ─────────────────────────────────────────────────
+// ── Inline SVG helpers ────────────────────────────────────────────────────────
 
-function useInView(threshold = 0.12) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
-      { threshold },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [threshold]);
-  return { ref, visible };
-}
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-const S = { fill: "none" as const, viewBox: "0 0 24 24", stroke: "currentColor", strokeWidth: 1.6 };
-
-function IconSearch() {
-  return <svg width="18" height="18" {...S}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>;
-}
-function IconBuilding() {
-  return <svg width="18" height="18" {...S}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" /></svg>;
-}
-function IconGlobe() {
-  return <svg width="18" height="18" {...S}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>;
-}
-function IconBox() {
-  return <svg width="18" height="18" {...S}><path strokeLinecap="round" strokeLinejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>;
-}
-function IconSpeaker() {
-  return <svg width="18" height="18" {...S}><path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" /></svg>;
-}
-function IconCloud() {
-  return <svg width="18" height="18" {...S}><path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.338-2.32 5.75 5.75 0 011.344 11.095H6.75z" /></svg>;
-}
-function IconPlay() {
-  return <svg width="13" height="13" {...S}><path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 010 1.972l-11.54 6.347a1.125 1.125 0 01-1.667-.986V5.653z" /></svg>;
-}
-function IconCheckSm() {
-  return <svg width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>;
-}
-function IconArrow() {
-  return <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>;
-}
-function IconChevronDown() {
-  return <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>;
-}
-
-// ── Logo ──────────────────────────────────────────────────────────────────────
-
-function Logo() {
+function LogoBolt({ size = 13 }: { size?: number }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <div
-        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-        style={{
-          background: "linear-gradient(135deg, hsl(213 94% 64%), hsl(245 82% 62%))",
-          boxShadow: "0 2px 14px hsl(218 90% 52% / 0.4)",
-        }}
-      >
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-          <path d="M7 1.6L11.5 6H9.7L7 3.7L4.3 6H2.5ZM7 5.6L11.5 10H9.7L7 7.7L4.3 10H2.5Z" fill="hsl(220 14% 7%)" />
-        </svg>
-      </div>
-      <span className="text-sm font-semibold tracking-tight" style={{ color: "hsl(220 9% 94%)" }}>
-        LaunchForge
-      </span>
-    </div>
-  );
-}
-
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 24);
-    window.addEventListener("scroll", fn, { passive: true });
-    return () => window.removeEventListener("scroll", fn);
-  }, []);
-
-  return (
-    <nav
-      className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 h-14 transition-all duration-300"
-      style={{
-        borderBottom: scrolled ? "1px solid hsl(220 13% 13%)" : "1px solid transparent",
-        backgroundColor: scrolled ? "hsl(220 14% 7% / 0.96)" : "hsl(220 14% 7% / 0.4)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-      }}
-    >
-      <Logo />
-      <div className="flex items-center gap-6">
-        <a href="#features"     className="text-xs font-medium hidden sm:block" style={{ color: "hsl(220 9% 40%)" }}>Features</a>
-        <a href="#how-it-works" className="text-xs font-medium hidden md:block" style={{ color: "hsl(220 9% 40%)" }}>How it works</a>
-        <a href="#pricing"      className="text-xs font-medium hidden sm:block" style={{ color: "hsl(220 9% 40%)" }}>Pricing</a>
-        <Link href="/dashboard" className="text-xs font-medium" style={{ color: "hsl(220 9% 46%)" }}>
-          Sign in
-        </Link>
-      </div>
-    </nav>
-  );
-}
-
-// ── Hero ──────────────────────────────────────────────────────────────────────
-
-function Hero() {
-  return (
-    <section className="relative pt-28 pb-24 px-6 overflow-hidden">
-      {/* Background: grid + glow */}
-      <div className="absolute inset-0 pointer-events-none select-none" aria-hidden>
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: [
-              "linear-gradient(hsl(220 13% 14% / 0.5) 1px, transparent 1px)",
-              "linear-gradient(90deg, hsl(220 13% 14% / 0.5) 1px, transparent 1px)",
-            ].join(", "),
-            backgroundSize: "60px 60px",
-            maskImage: "radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 80%)",
-            WebkitMaskImage: "radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 80%)",
-          }}
-        />
-        <div
-          className="absolute animate-breathe"
-          style={{
-            top: -160,
-            left: "50%",
-            transform: "translateX(-50%)",
-            width: 1100,
-            height: 700,
-            background: "radial-gradient(ellipse at center top, hsl(213 94% 62% / 0.14) 0%, transparent 62%)",
-          }}
-        />
-        <div
-          className="absolute"
-          style={{
-            top: 80,
-            left: "30%",
-            width: 400,
-            height: 300,
-            background: "radial-gradient(ellipse, hsl(234 80% 62% / 0.05) 0%, transparent 70%)",
-          }}
-        />
-      </div>
-
-      <div className="relative max-w-3xl mx-auto text-center">
-        {/* Eyebrow pill */}
-        <div
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-medium mb-8"
-          style={{
-            border: "1px solid hsl(213 94% 62% / 0.22)",
-            backgroundColor: "hsl(213 94% 62% / 0.07)",
-            color: "hsl(213 94% 74%)",
-          }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "hsl(151 60% 48%)", boxShadow: "0 0 6px hsl(151 60% 48% / 0.6)" }} />
-          Private preview — Billing disabled
-        </div>
-
-        {/* Headline */}
-        <h1
-          className="text-5xl md:text-6xl lg:text-7xl font-bold mb-6"
-          style={{ color: "hsl(220 9% 96%)", lineHeight: 1.06, letterSpacing: "-0.03em" }}
-        >
-          Build a Business.
-          <br />
-          <span style={{ color: "hsl(220 9% 44%)" }}>Not Another AI Tool.</span>
-        </h1>
-
-        {/* Subheadline */}
-        <p
-          className="text-lg mb-10 max-w-xl mx-auto"
-          style={{ color: "hsl(220 9% 48%)", lineHeight: 1.72 }}
-        >
-          Describe an idea. LaunchForge researches the market, builds the product,
-          creates the website, and prepares the launch plan for review.
-        </p>
-
-        {/* CTAs */}
-        <div className="flex flex-col items-center gap-4 mb-12">
-          <Link
-            href="/dashboard"
-            className="h-12 px-10 rounded-xl text-sm font-semibold transition-all hover:opacity-92 active:scale-[0.98] inline-flex items-center"
-            style={{
-              backgroundColor: "hsl(220 9% 96%)",
-              color: "hsl(220 14% 7%)",
-              boxShadow: "0 0 0 1px hsl(220 9% 86% / 0.15), 0 4px 24px hsl(220 14% 5% / 0.5)",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Open Preview
-          </Link>
-          <a
-            href="#demo"
-            className="flex items-center gap-1.5 text-xs font-medium transition-all"
-            style={{ color: "hsl(220 9% 38%)" }}
-          >
-            <IconPlay />
-            <span>Watch a demo build</span>
-          </a>
-        </div>
-
-        {/* Trust row — honest value props, no fabricated metrics */}
-        <div className="flex items-center justify-center gap-x-6 gap-y-2.5 flex-wrap">
-          {[
-            "No billing enabled",
-            "Demo-safe workflows",
-            "Manual review before launch",
-          ].map((label) => (
-            <div key={label} className="flex items-center gap-1.5">
-              <span style={{ color: "hsl(151 60% 48%)" }}><IconCheckSm /></span>
-              <span className="text-xs font-medium" style={{ color: "hsl(220 9% 48%)" }}>{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Feature grid ──────────────────────────────────────────────────────────────
-
-const FEATURES = [
-  { icon: <IconSearch />,   title: "Market Research",   desc: "Analyze competition, demand, opportunities, and trends across any niche — automatically." },
-  { icon: <IconBuilding />, title: "Business Creation",  desc: "Generate complete business models with pricing, deliverables, positioning, and strategy." },
-  { icon: <IconGlobe />,    title: "Website Generation", desc: "Create production-ready landing pages and sales pages tailored to your business type." },
-  { icon: <IconBox />,      title: "Product Creation",   desc: "Courses, templates, ebooks, SaaS, agencies, memberships — generation adapts automatically." },
-  { icon: <IconSpeaker />,  title: "Marketing System",   desc: "Content plans, funnels, launch strategies, campaigns, and social calendars out of the box." },
-  { icon: <IconCloud />,    title: "Deployment Prep",    desc: "Export deployable websites and track manual launch steps while live integrations remain gated." },
-];
-
-function FeatureCard({ feature }: { feature: typeof FEATURES[number] }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="rounded-xl p-5 cursor-default"
-      style={{
-        backgroundColor: hovered ? "hsl(220 13% 11%)" : "hsl(220 13% 9.5%)",
-        border: hovered ? "1px solid hsl(220 13% 22%)" : "1px solid hsl(220 13% 14%)",
-        transform: hovered ? "translateY(-2px)" : "translateY(0px)",
-        transition: "all 0.18s ease",
-        boxShadow: hovered ? "0 8px 24px hsl(220 14% 5% / 0.6)" : "none",
-      }}
-    >
-      <div
-        className="w-9 h-9 rounded-lg flex items-center justify-center mb-4"
-        style={{
-          backgroundColor: hovered ? "hsl(213 94% 62% / 0.12)" : "hsl(220 13% 14%)",
-          color: hovered ? "hsl(213 94% 68%)" : "hsl(220 9% 48%)",
-          transition: "all 0.18s ease",
-        }}
-      >
-        {feature.icon}
-      </div>
-      <h3 className="text-sm font-semibold mb-2" style={{ color: "hsl(220 9% 86%)" }}>
-        {feature.title}
-      </h3>
-      <p className="text-xs" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-        {feature.desc}
-      </p>
-    </div>
-  );
-}
-
-function AnimatedFeatureCard({ feature, delay }: { feature: typeof FEATURES[number]; delay: number }) {
-  const { ref, visible } = useInView(0.1);
-  return (
-    <div
-      ref={ref}
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(18px)",
-        transition: `opacity 0.55s ease ${delay}ms, transform 0.55s ease ${delay}ms`,
-      }}
-    >
-      <FeatureCard feature={feature} />
-    </div>
-  );
-}
-
-function FeaturesSection() {
-  const { ref, visible } = useInView();
-  return (
-    <section id="features" className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-4xl mx-auto">
-        <div
-          ref={ref}
-          className="mb-14 text-center"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(20px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Platform
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            Everything you need to launch
-          </h2>
-          <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            LaunchForge handles the business-building workflow from idea validation to launch-ready assets.
-          </p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FEATURES.map((f, i) => (
-            <AnimatedFeatureCard key={f.title} feature={f} delay={i * 75} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Integrations ──────────────────────────────────────────────────────────────
-
-const INTEGRATIONS = [
-  { name: "GitHub",       abbr: "GH", bg: "hsl(220 13% 17%)",   fg: "hsl(220 9% 70%)" },
-  { name: "Vercel",       abbr: "▲",  bg: "hsl(220 9% 18%)",    fg: "hsl(220 9% 88%)" },
-  { name: "Stripe",       abbr: "S",  bg: "hsl(234 55% 20%)",   fg: "hsl(234 80% 76%)" },
-  { name: "Supabase",     abbr: "SB", bg: "hsl(152 38% 13%)",   fg: "hsl(152 55% 52%)" },
-  { name: "Shopify",      abbr: "Sf", bg: "hsl(132 38% 13%)",   fg: "hsl(132 50% 50%)" },
-  { name: "Gmail",        abbr: "G",  bg: "hsl(4 45% 15%)",     fg: "hsl(4 75% 60%)" },
-  { name: "Google Docs",  abbr: "GD", bg: "hsl(210 50% 15%)",   fg: "hsl(210 70% 60%)" },
-  { name: "Notion",       abbr: "N",  bg: "hsl(220 13% 15%)",   fg: "hsl(220 9% 62%)" },
-  { name: "LinkedIn",     abbr: "in", bg: "hsl(200 50% 13%)",   fg: "hsl(200 68% 55%)" },
-  { name: "X",            abbr: "X",  bg: "hsl(220 13% 16%)",   fg: "hsl(220 9% 75%)" },
-  { name: "TikTok",       abbr: "TT", bg: "hsl(340 45% 13%)",   fg: "hsl(340 65% 62%)" },
-  { name: "YouTube",      abbr: "YT", bg: "hsl(0 50% 13%)",     fg: "hsl(0 70% 58%)" },
-  { name: "Discord",      abbr: "D",  bg: "hsl(234 42% 16%)",   fg: "hsl(234 65% 65%)" },
-];
-
-function IntegrationBadge({ item }: { item: typeof INTEGRATIONS[number] }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl cursor-default"
-      style={{
-        backgroundColor: hovered ? "hsl(220 13% 12%)" : "hsl(220 13% 10%)",
-        border: hovered ? "1px solid hsl(220 13% 20%)" : "1px solid hsl(220 13% 14%)",
-        transform: hovered ? "translateY(-1px) scale(1.02)" : "translateY(0) scale(1)",
-        transition: "all 0.15s ease",
-      }}
-    >
-      <div
-        className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
-        style={{ backgroundColor: item.bg, color: item.fg }}
-      >
-        {item.abbr}
-      </div>
-      <span className="text-xs font-medium whitespace-nowrap" style={{ color: "hsl(220 9% 52%)" }}>
-        {item.name}
-      </span>
-    </div>
-  );
-}
-
-function IntegrationsSection() {
-  const { ref, visible } = useInView();
-  return (
-    <section className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-4xl mx-auto">
-        <div
-          ref={ref}
-          className="mb-12 text-center"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Integrations
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            Works with your stack
-          </h2>
-          <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            Connect approved tools as they come online. Preview builds keep payments and external account changes disabled.
-          </p>
-        </div>
-        <div
-          className="flex flex-wrap justify-center gap-2.5"
-          style={{
-            opacity: visible ? 1 : 0,
-            transition: "opacity 0.7s ease 0.2s",
-          }}
-        >
-          {INTEGRATIONS.map((item) => (
-            <IntegrationBadge key={item.name} item={item} />
-          ))}
-        </div>
-        <p className="text-center text-xs mt-8" style={{ color: "hsl(220 9% 26%)" }}>
-          Integrations require approved credentials before live use.
-        </p>
-      </div>
-    </section>
-  );
-}
-
-// ── How it works ──────────────────────────────────────────────────────────────
-
-const HOW_STEPS = [
-  {
-    num: "01",
-    title: "Describe your idea",
-    body: "Type anything — an interest, a skill, or a market you want to enter. No forms, no templates. Just describe what you want to build.",
-    tag: "Natural Language",
-  },
-  {
-    num: "02",
-    title: "LaunchForge researches the market",
-    body: "Six specialized AI agents analyze competitors, demand, gaps, pricing, and opportunity — in seconds, not days.",
-    tag: "AI Research",
-  },
-  {
-    num: "03",
-    title: "Your business is created",
-    body: "The product is designed, the website is generated, and the full marketing launch plan is ready. Everything in one workspace.",
-    tag: "AI Generation",
-  },
-  {
-    num: "04",
-    title: "Review and prepare launch",
-    body: "Export your website, review the launch plan, and connect deployment providers only after the workspace is approved.",
-    tag: "Launch Prep",
-  },
-];
-
-function HowItWorksStep({ step, index }: { step: typeof HOW_STEPS[number]; index: number }) {
-  const { ref, visible } = useInView(0.1);
-  return (
-    <div
-      ref={ref}
-      className="flex gap-8"
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateX(0)" : "translateX(-16px)",
-        transition: `opacity 0.6s ease ${index * 120}ms, transform 0.6s ease ${index * 120}ms`,
-      }}
-    >
-      {/* Left: number + line */}
-      <div className="flex flex-col items-center gap-0 shrink-0">
-        <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-mono font-bold shrink-0"
-          style={{
-            backgroundColor: "hsl(220 13% 12%)",
-            border: "1px solid hsl(220 13% 18%)",
-            color: "hsl(220 9% 46%)",
-          }}
-        >
-          {step.num}
-        </div>
-        {index < HOW_STEPS.length - 1 && (
-          <div
-            className="w-px flex-1 mt-2 mb-0"
-            style={{ backgroundColor: "hsl(220 13% 15%)", minHeight: 32 }}
-          />
-        )}
-      </div>
-
-      {/* Right: content */}
-      <div className={`flex-1 ${index < HOW_STEPS.length - 1 ? "pb-10" : "pb-0"}`}>
-        <div className="flex items-center gap-3 mb-2">
-          <h3 className="text-sm font-semibold" style={{ color: "hsl(220 9% 86%)" }}>
-            {step.title}
-          </h3>
-          <span
-            className="text-xs px-2 py-0.5 rounded-md font-medium"
-            style={{ backgroundColor: "hsl(213 94% 62% / 0.08)", color: "hsl(213 94% 62%)", border: "1px solid hsl(213 94% 62% / 0.15)" }}
-          >
-            {step.tag}
-          </span>
-        </div>
-        <p className="text-sm" style={{ color: "hsl(220 9% 42%)", lineHeight: 1.66 }}>
-          {step.body}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function HowItWorksSection() {
-  const { ref, visible } = useInView();
-  return (
-    <section id="how-it-works" className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-3xl mx-auto">
-        <div
-          ref={ref}
-          className="mb-14"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Process
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            From idea to launch
-          </h2>
-          <p className="text-sm max-w-md" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            Four steps. No manual research. No blank-page problem. No weeks of work.
-          </p>
-        </div>
-        <div>
-          {HOW_STEPS.map((step, i) => (
-            <HowItWorksStep key={step.num} step={step} index={i} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Live demo (animated build) ─────────────────────────────────────────────────
-
-const BUILD_STEPS = [
-  { label: "Researching market demand",   delay: 800  },
-  { label: "Analyzing competitors",       delay: 1800 },
-  { label: "Identifying opportunities",   delay: 2800 },
-  { label: "Designing product",           delay: 3800 },
-  { label: "Building website",            delay: 4800 },
-  { label: "Generating launch strategy",  delay: 5800 },
-];
-
-const RESULT_AREAS = [
-  { label: "Research",  note: "Market gap identified" },
-  { label: "Product",   note: "FocusFlow Toolkit" },
-  { label: "Website",   note: "4 pages generated" },
-  { label: "Marketing", note: "Launch plan ready" },
-];
-
-function AnimatedDemo() {
-  const [visibleSteps, setVisibleSteps]     = useState(0);
-  const [completedSteps, setCompletedSteps] = useState(0);
-  const [showResult, setShowResult]         = useState(false);
-  const [started, setStarted]               = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setStarted(true); },
-      { threshold: 0.3 },
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!started) return;
-    BUILD_STEPS.forEach((step, i) => {
-      setTimeout(() => setVisibleSteps((v) => Math.max(v, i + 1)), step.delay);
-      setTimeout(() => setCompletedSteps((v) => Math.max(v, i + 1)), step.delay + 700);
-    });
-    setTimeout(() => setShowResult(true), 7400);
-  }, [started]);
-
-  return (
-    <div
-      ref={ref}
-      className="rounded-xl overflow-hidden max-w-2xl mx-auto"
-      style={{ border: "1px solid hsl(220 13% 16%)", backgroundColor: "hsl(220 13% 9%)" }}
-    >
-      {/* Browser chrome */}
-      <div
-        className="flex items-center gap-1.5 px-4 py-3"
-        style={{ borderBottom: "1px solid hsl(220 13% 14%)", backgroundColor: "hsl(220 13% 11%)" }}
-      >
-        {["hsl(0 60% 42%)", "hsl(38 70% 44%)", "hsl(120 40% 36%)"].map((c) => (
-          <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c }} />
-        ))}
-        <div
-          className="flex-1 mx-4 h-5 rounded text-xs flex items-center px-3"
-          style={{ backgroundColor: "hsl(220 13% 14%)", color: "hsl(220 9% 35%)" }}
-        >
-          app.launchforge.ai/build
-        </div>
-      </div>
-
-      <div className="p-6 space-y-5">
-        {/* User prompt */}
-        <div className="flex justify-end">
-          <div
-            className="px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm max-w-xs"
-            style={{ backgroundColor: "hsl(220 13% 15%)", border: "1px solid hsl(220 13% 21%)", color: "hsl(220 9% 82%)" }}
-          >
-            Create a digital product for remote professionals
-          </div>
-        </div>
-
-        {/* Build steps */}
-        <div className="space-y-2">
-          {BUILD_STEPS.slice(0, visibleSteps).map((step, i) => {
-            const done = i < completedSteps;
-            return (
-              <div key={step.label} className="flex items-center gap-3">
-                <div className="w-4 h-4 flex items-center justify-center shrink-0">
-                  {done ? (
-                    <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(151 60% 48%)" }}>
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                  ) : (
-                    <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" style={{ color: "hsl(213 94% 62%)" }}>
-                      <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                  )}
-                </div>
-                <span className="text-sm" style={{ color: done ? "hsl(220 9% 50%)" : "hsl(220 9% 78%)" }}>
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Result */}
-        {showResult && (
-          <div
-            className="rounded-xl p-5 space-y-4"
-            style={{ border: "1px solid hsl(213 94% 62% / 0.2)", backgroundColor: "hsl(213 94% 62% / 0.04)" }}
-          >
-            <div>
-              <p className="text-xs font-medium mb-1" style={{ color: "hsl(213 94% 65%)" }}>Project created</p>
-              <h3 className="text-lg font-bold" style={{ color: "hsl(220 9% 94%)" }}>FocusFlow Toolkit</h3>
-              <p className="text-xs mt-1" style={{ color: "hsl(220 9% 44%)" }}>
-                Digital productivity system for remote professionals
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {RESULT_AREAS.map((area) => (
-                <div
-                  key={area.label}
-                  className="rounded-lg px-3 py-2.5"
-                  style={{ backgroundColor: "hsl(220 13% 13%)", border: "1px solid hsl(220 13% 18%)" }}
-                >
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <svg width="10" height="10" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(151 60% 48%)" }}>
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    <span className="text-xs font-medium" style={{ color: "hsl(220 9% 70%)" }}>{area.label}</span>
-                  </div>
-                  <p className="text-xs pl-4" style={{ color: "hsl(220 9% 38%)" }}>{area.note}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function DemoSection() {
-  const { ref, visible } = useInView();
-  return (
-    <section id="demo" className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-3xl mx-auto">
-        <div
-          ref={ref}
-          className="text-center mb-12"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Live Example
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            Watch a build happen in real time
-          </h2>
-          <p className="text-sm max-w-sm mx-auto" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            This is exactly what runs when you submit an idea. Scroll down to watch it start.
-          </p>
-        </div>
-        <AnimatedDemo />
-      </div>
-    </section>
-  );
-}
-
-// ── Example businesses ─────────────────────────────────────────────────────────
-
-const EXAMPLE_BUSINESSES = [
-  {
-    name: "The Remote Toolkit",
-    type: "Course Business",
-    revenueModel: "One-time + membership upsell",
-    launchTime: "48 hours",
-    score: 86,
-    status: "Live",
-    color: "hsl(151 60% 48%)",
-  },
-  {
-    name: "ContentCraft Agency",
-    type: "Agency",
-    revenueModel: "Monthly retainer",
-    launchTime: "1 week",
-    score: 82,
-    status: "Live",
-    color: "hsl(151 60% 48%)",
-  },
-  {
-    name: "TaskStack",
-    type: "SaaS Product",
-    revenueModel: "Monthly subscription",
-    launchTime: "3–4 weeks",
-    score: 78,
-    status: "In Development",
-    color: "hsl(38 90% 55%)",
-  },
-  {
-    name: "DesignVault",
-    type: "Template Store",
-    revenueModel: "Per-template + bundle",
-    launchTime: "2–3 days",
-    score: 84,
-    status: "Launch Ready",
-    color: "hsl(213 94% 62%)",
-  },
-];
-
-function BusinessCard({ biz, delay }: { biz: typeof EXAMPLE_BUSINESSES[number]; delay: number }) {
-  const { ref, visible } = useInView(0.1);
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      ref={ref}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="rounded-xl p-5 flex flex-col gap-4 cursor-default"
-      style={{
-        backgroundColor: hovered ? "hsl(220 13% 11%)" : "hsl(220 13% 9.5%)",
-        border: hovered ? "1px solid hsl(220 13% 20%)" : "1px solid hsl(220 13% 14%)",
-        transform: visible ? (hovered ? "translateY(-2px)" : "translateY(0)") : "translateY(18px)",
-        opacity: visible ? 1 : 0,
-        transition: `opacity 0.55s ease ${delay}ms, transform 0.55s ease ${delay}ms, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease`,
-        boxShadow: hovered ? "0 8px 24px hsl(220 14% 5% / 0.5)" : "none",
-      }}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <span
-            className="inline-block text-xs font-medium px-2 py-0.5 rounded mb-2"
-            style={{ backgroundColor: "hsl(220 13% 14%)", color: "hsl(220 9% 44%)", border: "1px solid hsl(220 13% 18%)" }}
-          >
-            {biz.type}
-          </span>
-          <h3 className="text-sm font-semibold" style={{ color: "hsl(220 9% 88%)" }}>{biz.name}</h3>
-        </div>
-        <span className="text-xl font-bold tabular-nums shrink-0" style={{ color: "hsl(213 94% 62%)" }}>
-          {biz.score}
-        </span>
-      </div>
-
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: "hsl(220 9% 34%)" }}>Revenue model</span>
-          <span className="text-xs" style={{ color: "hsl(220 9% 55%)" }}>{biz.revenueModel}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: "hsl(220 9% 34%)" }}>Launch time</span>
-          <span className="text-xs" style={{ color: "hsl(220 9% 55%)" }}>{biz.launchTime}</span>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between pt-3" style={{ borderTop: "1px solid hsl(220 13% 13%)" }}>
-        <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: biz.color }}>
-          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: biz.color }} />
-          {biz.status}
-        </span>
-        <Link
-          href="/dashboard"
-          className="text-xs font-medium px-2.5 py-1 rounded-lg transition-colors"
-          style={{ backgroundColor: "hsl(220 13% 14%)", border: "1px solid hsl(220 13% 19%)", color: "hsl(220 9% 50%)" }}
-        >
-          Build this →
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function ExampleBusinessesSection() {
-  const { ref, visible } = useInView();
-  return (
-    <section id="examples" className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-4xl mx-auto">
-        <div
-          ref={ref}
-          className="mb-14"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Built with LaunchForge
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            Real businesses, real output
-          </h2>
-          <p className="text-sm max-w-md" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            These are examples of the kind of businesses LaunchForge generates — complete with research, product, website, and marketing plan.
-          </p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {EXAMPLE_BUSINESSES.map((biz, i) => (
-            <BusinessCard key={biz.name} biz={biz} delay={i * 80} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Platform preview ──────────────────────────────────────────────────────────
-
-const PREVIEW_TABS = ["Workspace", "Analytics", "Deployment"] as const;
-type PreviewTab = typeof PREVIEW_TABS[number];
-
-function WorkspaceMockup() {
-  return (
-    <div className="h-full p-4 space-y-3">
-      {/* Project header */}
-      <div className="flex items-center gap-3 pb-3" style={{ borderBottom: "1px solid hsl(220 13% 14%)" }}>
-        <div className="flex-1">
-          <p className="text-xs font-semibold" style={{ color: "hsl(220 9% 82%)" }}>FocusFlow Toolkit</p>
-          <p className="text-xs" style={{ color: "hsl(220 9% 36%)" }}>Digital product — Score: 86</p>
-        </div>
-        <div className="flex gap-1">
-          {["Overview","Research","Product","Website","Marketing","Launch"].map((t) => (
-            <span key={t} className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: "hsl(220 13% 14%)", color: "hsl(220 9% 36%)" }}>{t}</span>
-          ))}
-        </div>
-      </div>
-      {/* Mock product data */}
-      <div className="grid grid-cols-3 gap-2">
-        {[["Market Demand","High","hsl(151 60% 48%)"],["Competition","Low-Medium","hsl(213 94% 62%)"],["Revenue Scenario","Sample forecast","hsl(38 90% 55%)"]].map(([label, val, color]) => (
-          <div key={label} className="rounded-lg p-3" style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 16%)" }}>
-            <p className="text-xs mb-1" style={{ color: "hsl(220 9% 34%)" }}>{label}</p>
-            <p className="text-xs font-semibold" style={{ color }}>{val}</p>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-lg p-3" style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 16%)" }}>
-        <p className="text-xs font-medium mb-2" style={{ color: "hsl(220 9% 60%)" }}>Deliverables</p>
-        {["12-module video course","Notion workspace template","Weekly accountability system","Resource library (42 files)"].map((d) => (
-          <div key={d} className="flex items-center gap-2 py-0.5">
-            <span style={{ color: "hsl(151 60% 48%)" }}><IconCheckSm /></span>
-            <span className="text-xs" style={{ color: "hsl(220 9% 44%)" }}>{d}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function AnalyticsMockup() {
-  const bars = [42, 68, 55, 80, 63, 88, 72];
-  return (
-    <div className="h-full p-4 space-y-3">
-      <div className="grid grid-cols-3 gap-2">
-        {[["3","Active Projects"],["2","Live Websites"],["84","Avg Score"]].map(([val, label]) => (
-          <div key={label} className="rounded-lg p-3" style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 16%)" }}>
-            <p className="text-2xl font-bold tabular-nums" style={{ color: "hsl(220 9% 88%)" }}>{val}</p>
-            <p className="text-xs" style={{ color: "hsl(220 9% 36%)" }}>{label}</p>
-          </div>
-        ))}
-      </div>
-      <div className="rounded-lg p-3" style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 16%)" }}>
-        <p className="text-xs font-medium mb-3" style={{ color: "hsl(220 9% 50%)" }}>Project Scores</p>
-        <div className="flex items-end gap-1.5 h-16">
-          {bars.map((h, i) => (
-            <div key={i} className="flex-1 rounded-sm" style={{ height: `${h}%`, backgroundColor: "hsl(213 94% 62% / 0.5)", maxWidth: 24 }} />
-          ))}
-        </div>
-      </div>
-      <div className="rounded-lg p-3" style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 16%)" }}>
-        <p className="text-xs font-medium mb-2" style={{ color: "hsl(220 9% 50%)" }}>Connected Services</p>
-        {[["Stripe","Not connected"],["Vercel","Not connected"],["GitHub","Not connected"]].map(([s,st]) => (
-          <div key={s} className="flex items-center justify-between py-0.5">
-            <span className="text-xs" style={{ color: "hsl(220 9% 44%)" }}>{s}</span>
-            <span className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>{st}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function DeploymentMockup() {
-  const items = [
-    { name: "The Remote Toolkit", env: "production", status: "Live",     url: "focusflow.vercel.app",  color: "hsl(151 60% 48%)" },
-    { name: "ContentCraft Agency", env: "production", status: "Building", url: "—",                     color: "hsl(38 90% 55%)"  },
-    { name: "DesignVault",         env: "preview",    status: "Ready",    url: "designvault.preview.app",color: "hsl(213 94% 62%)" },
-  ];
-  return (
-    <div className="h-full p-4 space-y-2">
-      {items.map((item) => (
-        <div key={item.name} className="flex items-center gap-3 rounded-lg px-3 py-2.5" style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 16%)" }}>
-          <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium truncate" style={{ color: "hsl(220 9% 72%)" }}>{item.name}</p>
-            <p className="text-xs truncate" style={{ color: "hsl(220 9% 34%)" }}>{item.url}</p>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-xs font-medium" style={{ color: item.color }}>{item.status}</p>
-            <p className="text-xs capitalize" style={{ color: "hsl(220 9% 30%)" }}>{item.env}</p>
-          </div>
-        </div>
-      ))}
-      <div className="pt-2 text-center">
-        <p className="text-xs" style={{ color: "hsl(220 9% 26%)" }}>
-          Connect Vercel after preview approval for deployment sync.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function PlatformPreviewSection() {
-  const { ref, visible } = useInView();
-  const [activeTab, setActiveTab] = useState<PreviewTab>("Workspace");
-
-  return (
-    <section className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-4xl mx-auto">
-        <div
-          ref={ref}
-          className="mb-12 text-center"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Platform
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            Inside the platform
-          </h2>
-          <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            Every project gets a full workspace — research, product, website, marketing, deployment, and analytics in one place.
-          </p>
-        </div>
-
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{
-            border: "1px solid hsl(220 13% 16%)",
-            backgroundColor: "hsl(220 13% 9%)",
-            opacity: visible ? 1 : 0,
-            transition: "opacity 0.7s ease 0.25s",
-          }}
-        >
-          {/* Window chrome */}
-          <div
-            className="flex items-center gap-3 px-4 py-3"
-            style={{ backgroundColor: "hsl(220 13% 11%)", borderBottom: "1px solid hsl(220 13% 14%)" }}
-          >
-            <div className="flex gap-1.5">
-              {["hsl(0 60% 42%)", "hsl(38 70% 44%)", "hsl(120 40% 36%)"].map((c) => (
-                <div key={c} className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c }} />
-              ))}
-            </div>
-            <div className="flex gap-1">
-              {PREVIEW_TABS.map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className="text-xs px-3 py-1.5 rounded-md font-medium transition-all"
-                  style={{
-                    backgroundColor: activeTab === tab ? "hsl(220 13% 16%)" : "transparent",
-                    color: activeTab === tab ? "hsl(220 9% 78%)" : "hsl(220 9% 36%)",
-                  }}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div style={{ height: 280, overflow: "hidden" }}>
-            {activeTab === "Workspace"  && <WorkspaceMockup />}
-            {activeTab === "Analytics"  && <AnalyticsMockup />}
-            {activeTab === "Deployment" && <DeploymentMockup />}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Sample outcomes ───────────────────────────────────────────────────────────
-
-const SAMPLE_OUTCOMES = [
-  {
-    name: "Service Offer",
-    role: "Agency package",
-    initials: "SO",
-    quote: "A validated niche, positioning summary, landing page copy, and outreach plan ready for founder review.",
-    accent: "hsl(213 94% 62%)",
-  },
-  {
-    name: "Digital Product",
-    role: "Template pack",
-    initials: "DP",
-    quote: "A product spec, feature list, sales page draft, pricing options, and launch checklist for a digital download.",
-    accent: "hsl(151 60% 48%)",
-  },
-  {
-    name: "Micro SaaS",
-    role: "Prototype brief",
-    initials: "MS",
-    quote: "A scoped MVP, competitor notes, generated website, and launch plan prepared before any external deployment.",
-    accent: "hsl(234 70% 65%)",
-  },
-];
-
-function SampleOutcomeCard({ t, delay }: { t: typeof SAMPLE_OUTCOMES[number]; delay: number }) {
-  const { ref, visible } = useInView(0.1);
-  return (
-    <div
-      ref={ref}
-      className="rounded-xl p-6 flex flex-col gap-5"
-      style={{
-        backgroundColor: "hsl(220 13% 10%)",
-        border: "1px solid hsl(220 13% 15%)",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(18px)",
-        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
-      }}
-    >
-      <p className="text-sm flex-1" style={{ color: "hsl(220 9% 54%)", lineHeight: 1.7 }}>
-        {t.quote}
-      </p>
-      <div className="flex items-center gap-3">
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-          style={{ backgroundColor: `${t.accent}18`, color: t.accent, border: `1px solid ${t.accent}30` }}
-        >
-          {t.initials}
-        </div>
-        <div>
-          <p className="text-xs font-semibold" style={{ color: "hsl(220 9% 72%)" }}>{t.name}</p>
-          <p className="text-xs" style={{ color: "hsl(220 9% 36%)" }}>{t.role}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SampleOutcomesSection() {
-  const { ref, visible } = useInView();
-  return (
-    <section className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-4xl mx-auto">
-        <div
-          ref={ref}
-          className="mb-12 text-center"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Sample outputs
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            Preview outcomes
-          </h2>
-        </div>
-        <div className="grid md:grid-cols-3 gap-5">
-          {SAMPLE_OUTCOMES.map((t, i) => (
-            <SampleOutcomeCard key={t.name} t={t} delay={i * 100} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Deployments ───────────────────────────────────────────────────────────────
-
-const WORKFLOW_STEPS = [
-  { label: "Generate", desc: "AI builds your complete business",  color: "hsl(213 94% 62%)" },
-  { label: "Edit",     desc: "Refine with AI advisor",            color: "hsl(234 70% 65%)" },
-  { label: "Deploy",   desc: "Push to Vercel and GitHub",         color: "hsl(151 60% 48%)" },
-  { label: "Review",   desc: "Approve before external launch",     color: "hsl(38 90% 55%)"  },
-];
-
-const DEPLOY_PLATFORMS = [
-  { name: "Vercel",  abbr: "▲", bg: "hsl(220 9% 18%)",  fg: "hsl(220 9% 88%)" },
-  { name: "GitHub",  abbr: "GH", bg: "hsl(220 13% 17%)", fg: "hsl(220 9% 70%)" },
-];
-
-const DEPLOY_STATUS = [
-  { name: "Remote Toolkit",    status: "Deployed", color: "hsl(151 60% 48%)" },
-  { name: "ContentCraft",      status: "Building", color: "hsl(38 90% 55%)"  },
-  { name: "DesignVault",       status: "Ready",    color: "hsl(213 94% 62%)" },
-];
-
-function DeploymentSection() {
-  const { ref, visible } = useInView();
-  return (
-    <section className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-4xl mx-auto">
-        <div
-          ref={ref}
-          className="mb-14 text-center"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.12em" }}>
-            Deployment
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.025em" }}>
-            From generation to live
-          </h2>
-          <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 40%)", lineHeight: 1.66 }}>
-            LaunchForge prepares your deployment stack. Generate, edit, export, and review launch steps before connecting live providers.
-          </p>
-        </div>
-
-        <div
-          style={{
-            opacity: visible ? 1 : 0,
-            transition: "opacity 0.7s ease 0.2s",
-          }}
-        >
-          {/* Workflow steps */}
-          <div className="flex items-center justify-center gap-0 mb-10 overflow-x-auto">
-            {WORKFLOW_STEPS.map((step, i) => (
-              <div key={step.label} className="flex items-center">
-                <div
-                  className="flex flex-col items-center gap-2 px-6 py-4 rounded-xl shrink-0"
-                  style={{ backgroundColor: "hsl(220 13% 10%)", border: "1px solid hsl(220 13% 15%)", minWidth: 120 }}
-                >
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: step.color, boxShadow: `0 0 8px ${step.color}60` }}
-                  />
-                  <p className="text-sm font-semibold" style={{ color: "hsl(220 9% 82%)" }}>{step.label}</p>
-                  <p className="text-xs text-center" style={{ color: "hsl(220 9% 36%)", lineHeight: 1.5 }}>{step.desc}</p>
-                </div>
-                {i < WORKFLOW_STEPS.length - 1 && (
-                  <div className="flex items-center px-1">
-                    <div className="w-6 h-px" style={{ backgroundColor: "hsl(220 13% 18%)" }} />
-                    <span style={{ color: "hsl(220 13% 22%)" }}><IconArrow /></span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-5">
-            {/* Platforms */}
-            <div className="rounded-xl p-5" style={{ backgroundColor: "hsl(220 13% 10%)", border: "1px solid hsl(220 13% 15%)" }}>
-              <p className="text-xs font-medium mb-4" style={{ color: "hsl(220 9% 42%)" }}>CONNECTED PLATFORMS</p>
-              <div className="space-y-3">
-                {DEPLOY_PLATFORMS.map((p) => (
-                  <div key={p.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold"
-                        style={{ backgroundColor: p.bg, color: p.fg }}
-                      >
-                        {p.abbr}
-                      </div>
-                      <span className="text-sm font-medium" style={{ color: "hsl(220 9% 65%)" }}>{p.name}</span>
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: "hsl(220 13% 15%)", color: "hsl(220 9% 32%)" }}>
-                      Connect
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Status examples */}
-            <div className="rounded-xl p-5" style={{ backgroundColor: "hsl(220 13% 10%)", border: "1px solid hsl(220 13% 15%)" }}>
-              <p className="text-xs font-medium mb-4" style={{ color: "hsl(220 9% 42%)" }}>DEPLOYMENT STATUS</p>
-              <div className="space-y-3">
-                {DEPLOY_STATUS.map((d) => (
-                  <div key={d.name} className="flex items-center justify-between py-2 px-3 rounded-lg" style={{ backgroundColor: "hsl(220 13% 12%)" }}>
-                    <span className="text-sm font-medium" style={{ color: "hsl(220 9% 65%)" }}>{d.name}</span>
-                    <span
-                      className="flex items-center gap-1.5 text-xs font-medium"
-                      style={{ color: d.color }}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: d.color }} />
-                      {d.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ── Pricing ───────────────────────────────────────────────────────────────────
-
-const PREVIEW_INCLUDES = [
-  "Business generation",
-  "Product design & files",
-  "Website generation",
-  "AI advisor",
-  "ZIP export",
-  "Launch prep checklist",
-];
-
-interface PricingTier {
-  name: string;
-  price: string;
-  period?: string;
-  description: string;
-  cta: string;
-  highlight: boolean;
-  badge?: string;
-  features: { label: string; included: boolean }[];
-}
-
-const PRICING_TIERS: PricingTier[] = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    description: "A taste of the magic. Enough to see what LaunchForge builds — not enough to launch.",
-    cta: "Start free",
-    highlight: false,
-    badge: "Preview only",
-    features: [
-      { label: "1 idea preview / month",        included: true  },
-      { label: "Scorecard + market snapshot",   included: true  },
-      { label: "Full business generation",      included: false },
-      { label: "Website + source code",         included: false },
-      { label: "ZIP export & deploys",          included: false },
-      { label: "Integrations",                  included: false },
-      { label: "Analytics & leads",             included: false },
-    ],
-  },
-  {
-    name: "Starter",
-    price: "$19",
-    period: "/ month",
-    description: "Everything you need to generate and launch your first real business.",
-    cta: "Get Starter",
-    highlight: false,
-    features: [
-      { label: "10 full businesses / month",    included: true  },
-      { label: "Website + full source code",    included: true  },
-      { label: "ZIP export",                    included: true  },
-      { label: "GitHub + Vercel deploys",       included: true  },
-      { label: "AI advisor",                    included: true  },
-      { label: "All integrations",              included: false },
-      { label: "Analytics & leads",             included: false },
-    ],
-  },
-  {
-    name: "Growth",
-    price: "$49",
-    period: "/ month",
-    description: "For builders shipping multiple products and converting real customers.",
-    cta: "Get Growth",
-    highlight: true,
-    badge: "Most popular",
-    features: [
-      { label: "50 full businesses / month",    included: true  },
-      { label: "Everything in Starter",         included: true  },
-      { label: "All integrations + Stripe",     included: true  },
-      { label: "Analytics & lead tools",        included: true  },
-      { label: "Priority generation queue",     included: true  },
-      { label: "Remove LaunchForge badge",      included: true  },
-      { label: "Team seats",                    included: false },
-    ],
-  },
-  {
-    name: "Scale",
-    price: "$149",
-    period: "/ month",
-    description: "Maximum output for agencies and teams building at full speed.",
-    cta: "Get Scale",
-    highlight: false,
-    features: [
-      { label: "Unlimited businesses",          included: true  },
-      { label: "Everything in Growth",          included: true  },
-      { label: "Team seats & roles",            included: true  },
-      { label: "Highest rate limits",           included: true  },
-      { label: "Priority support + SLA",        included: true  },
-      { label: "Audit logs",                    included: true  },
-      { label: "Early access to new features",  included: true  },
-    ],
-  },
-];
-
-function CheckIcon({ included }: { included: boolean }) {
-  if (included) {
-    return (
-      <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(151 60% 48%)", flexShrink: 0 }}>
-        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-      </svg>
-    );
-  }
-  return (
-    <svg width="13" height="13" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(220 9% 24%)", flexShrink: 0 }}>
-      <path fillRule="evenodd" d="M3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#3b82f6" />
     </svg>
   );
 }
 
-function PricingCard({ tier }: { tier: PricingTier }) {
+function CheckIcon() {
   return (
-    <div
-      className="rounded-xl p-6 flex flex-col gap-5"
-      style={{
-        border: tier.highlight ? "1px solid hsl(213 94% 62% / 0.3)" : "1px solid hsl(220 13% 15%)",
-        backgroundColor: tier.highlight ? "hsl(213 94% 62% / 0.04)" : "hsl(220 13% 9%)",
-        position: "relative",
-      }}
-    >
-      {tier.badge && (
-        <div
-          className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-          style={
-            tier.highlight
-              ? { background: "linear-gradient(135deg, hsl(213 94% 64%), hsl(245 82% 62%))", color: "hsl(220 14% 7%)" }
-              : { backgroundColor: "hsl(220 13% 16%)", color: "hsl(220 9% 55%)", border: "1px solid hsl(220 13% 22%)" }
-          }
-        >
-          {tier.badge}
-        </div>
-      )}
-      <div>
-        <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 36%)", letterSpacing: "0.08em" }}>
-          {tier.name}
-        </p>
-        <div className="flex items-baseline gap-1 mb-2">
-          <span className="text-3xl font-bold" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.03em" }}>
-            {tier.price}
-          </span>
-          {tier.period && (
-            <span className="text-sm" style={{ color: "hsl(220 9% 38%)" }}>{tier.period}</span>
-          )}
-        </div>
-        <p className="text-xs leading-relaxed" style={{ color: "hsl(220 9% 40%)" }}>
-          {tier.description}
-        </p>
-      </div>
-      <Link
-        href="/signup"
-        className="w-full h-9 rounded-lg text-sm font-semibold flex items-center justify-center transition-all"
-        style={
-          tier.highlight
-            ? { background: "linear-gradient(135deg, hsl(213 94% 64%), hsl(245 82% 62%))", color: "hsl(220 14% 7%)" }
-            : { border: "1px solid hsl(220 13% 22%)", color: "hsl(220 9% 60%)", backgroundColor: "transparent" }
-        }
-      >
-        {tier.cta}
-      </Link>
-      <div className="space-y-2.5 pt-1" style={{ borderTop: "1px solid hsl(220 13% 14%)" }}>
-        {tier.features.map((f) => (
-          <div key={f.label} className="flex items-center gap-2.5">
-            <CheckIcon included={f.included} />
-            <span className="text-xs" style={{ color: f.included ? "hsl(220 9% 56%)" : "hsl(220 9% 28%)" }}>
-              {f.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#22c55e" strokeWidth="2">
+      <path d="M1.5 7L5 10.5 11.5 3" />
+    </svg>
   );
 }
 
-function PricingSection() {
-  const { ref, visible } = useInView();
+function ArrowRight({ size = 15 }: { size?: number }) {
   return (
-    <section id="pricing" className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-6xl mx-auto">
-        <div
-          ref={ref}
-          className="mb-14 text-center"
-          style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.6s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-3" style={{ color: "hsl(220 9% 30%)", letterSpacing: "0.1em" }}>
-            Pricing
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-4" style={{ color: "hsl(220 9% 90%)", letterSpacing: "-0.02em" }}>
-            Start free. Upgrade the moment you&apos;re ready to launch.
-          </h2>
-          <p className="text-sm max-w-md mx-auto" style={{ color: "hsl(220 9% 42%)" }}>
-            The free plan shows you what&apos;s possible. Paid plans let you actually build, export, and ship — keep more the higher you go.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {PRICING_TIERS.map((tier) => <PricingCard key={tier.name} tier={tier} />)}
-        </div>
-
-        <p className="text-center text-xs mt-8" style={{ color: "hsl(220 9% 30%)" }}>
-          Cancel anytime. Free includes a monthly preview so you always see what the next tier unlocks.
-        </p>
-      </div>
-    </section>
+    <svg width={size} height={size} viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M2.5 7.5h10M9 3.5l4 4-4 4" />
+    </svg>
   );
 }
 
-// ── Trial CTA ─────────────────────────────────────────────────────────────────
+// ── Data ──────────────────────────────────────────────────────────────────────
 
-function TrialCTASection() {
-  const { ref, visible } = useInView();
-  return (
-    <section className="py-28 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-2xl mx-auto">
-        <div
-          ref={ref}
-          className="rounded-2xl px-10 py-14 text-center"
-          style={{
-            border: "1px solid hsl(220 13% 16%)",
-            backgroundColor: "hsl(220 13% 9%)",
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(18px)",
-            transition: "all 0.7s ease",
-          }}
-        >
-          <p className="text-xs font-medium uppercase tracking-widest mb-4" style={{ color: "hsl(220 9% 32%)", letterSpacing: "0.1em" }}>
-            Preview
-          </p>
-          <h2 className="text-3xl font-bold tracking-tight mb-3" style={{ color: "hsl(220 9% 92%)", letterSpacing: "-0.02em" }}>
-            Private Preview Access
-          </h2>
-          <p className="text-sm mb-8" style={{ color: "hsl(220 9% 44%)" }}>
-            Billing and live provider connections stay disabled until approved.
-          </p>
-          <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto mb-8">
-            {PREVIEW_INCLUDES.map((item) => (
-              <div key={item} className="flex items-center gap-2">
-                <svg width="12" height="12" fill="currentColor" viewBox="0 0 20 20" style={{ color: "hsl(151 60% 48%)", flexShrink: 0 }}>
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                <span className="text-xs text-left" style={{ color: "hsl(220 9% 54%)" }}>{item}</span>
-              </div>
-            ))}
-          </div>
-          <Link
-            href="/dashboard"
-            className="inline-flex h-11 px-8 rounded-xl text-sm font-semibold items-center transition-all hover:opacity-90"
-            style={{ backgroundColor: "hsl(220 9% 96%)", color: "hsl(220 14% 7%)" }}
-          >
-            Open preview
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
+const FEATURES = [
+  {
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+        <path d="M8 1l2 5.5L16 8l-6 2L8 16l-2-6L0 8l6-1.5z" />
+      </svg>
+    ),
+    title: "AI Business Generation",
+    desc: "Generate validated ideas, write your pitch, and plan your GTM in minutes — not weeks.",
+  },
+  {
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+        <path d="M8 1s4.5 2 4.5 7l-4.5 5L3.5 8c0-5 4.5-7 4.5-7z" />
+        <circle cx="8" cy="6.5" r="1.5" fill="#3b82f6" stroke="none" />
+      </svg>
+    ),
+    title: "One-click Deployment",
+    desc: "Push to production with AI-optimized configs. Zero-downtime deploys with automatic rollback.",
+  },
+  {
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+        <path d="M1 13h14M3 13V8M6 13V4M9 13V7M12 13V2" />
+      </svg>
+    ),
+    title: "Real-time Analytics",
+    desc: "Revenue, traffic, and conversion metrics that give you the full picture. No vanity numbers.",
+  },
+  {
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+        <circle cx="8" cy="5" r="3" />
+        <path d="M2 15.5c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      </svg>
+    ),
+    title: "Team Workspace",
+    desc: "Collaborate seamlessly. Assign roles, share projects, and track progress across your entire team.",
+  },
+  {
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+        <path d="M5 2v3M11 2v3M4 5h8a1 1 0 011 1v2a5 5 0 01-10 0V6a1 1 0 011-1zM6 13v1.5M10 13v1.5" />
+      </svg>
+    ),
+    title: "50+ Integrations",
+    desc: "Connect GitHub, Stripe, Supabase, Vercel, and everything else your stack depends on.",
+  },
+  {
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+        <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4" />
+        <circle cx="8" cy="8" r="2.5" />
+      </svg>
+    ),
+    title: "Revenue Intelligence",
+    desc: "Know exactly what drives growth. Connect Stripe and see MRR, churn, and LTV in real time.",
+  },
+];
 
-// ── Footer ────────────────────────────────────────────────────────────────────
+const PRICING = [
+  {
+    tier: "Free",
+    price: "$0",
+    desc: "Taste the magic. See exactly what you're missing.",
+    cta: "Start for free",
+    ctaStyle: "secondary" as const,
+    badge: null,
+    features: [
+      "1 project / month",
+      "3 AI chat edits per project",
+      "Website preview (no export)",
+      "Community support",
+    ],
+    locked: ["Export source code", "All integrations", "Analytics", "Priority support"],
+  },
+  {
+    tier: "Starter",
+    price: "$19",
+    desc: "For solo builders ready to actually launch.",
+    cta: "Start Starter",
+    ctaStyle: "primary" as const,
+    badge: null,
+    features: [
+      "10 projects / month",
+      "30 AI chat edits per project",
+      "Full website generation + export",
+      "GitHub & Vercel deployment",
+      "Email support",
+    ],
+    locked: [],
+  },
+  {
+    tier: "Growth",
+    price: "$49",
+    desc: "For founders building seriously.",
+    cta: "Start Growth trial",
+    ctaStyle: "blue" as const,
+    badge: "Most popular",
+    features: [
+      "50 projects / month",
+      "100 AI chat edits per project",
+      "All integrations",
+      "Advanced analytics",
+      "Priority support",
+    ],
+    locked: [],
+  },
+  {
+    tier: "Scale",
+    price: "$149",
+    desc: "For teams and agencies at scale.",
+    cta: "Contact sales",
+    ctaStyle: "secondary" as const,
+    badge: null,
+    features: [
+      "Unlimited projects",
+      "Unlimited AI edits",
+      "White-label option",
+      "Dedicated account manager",
+      "SLA guarantee",
+    ],
+    locked: [],
+  },
+];
 
-function Footer() {
-  return (
-    <footer className="py-10 px-6" style={{ borderTop: "1px solid hsl(220 13% 12%)" }}>
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <Logo />
-          <div className="flex items-center gap-6 flex-wrap">
-            <a href="#features"     className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Features</a>
-            <a href="#how-it-works" className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>How it works</a>
-            <a href="#pricing"      className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Pricing</a>
-            <Link href="/legal/privacy" className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Privacy</Link>
-            <Link href="/legal/terms"   className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Terms</Link>
-            <Link href="/legal"         className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Legal</Link>
-            <Link href="/dashboard/settings" className="text-xs" style={{ color: "hsl(220 9% 30%)" }}>Settings</Link>
-          </div>
-          <p className="text-xs" style={{ color: "hsl(220 9% 24%)" }}>
-            © 2026 LaunchForge. All rights reserved.
-          </p>
-        </div>
-      </div>
-    </footer>
-  );
-}
+const TESTIMONIALS = [
+  {
+    quote: "LaunchForge cut our time-to-market by 60%. What used to take weeks now takes hours. The AI generation tools alone are worth 10x the price.",
+    name: "Marcus Chen",
+    title: "Founder, Orbit AI",
+    grad: "linear-gradient(135deg,#667eea,#764ba2)",
+    initial: "M",
+  },
+  {
+    quote: "I manage 12 client projects through LaunchForge. The deployment tracking and analytics make client reporting effortless. Nothing else comes close.",
+    name: "Sarah Okonkwo",
+    title: "Agency Director, Pixel Wave",
+    grad: "linear-gradient(135deg,#f093fb,#f5576c)",
+    initial: "S",
+  },
+  {
+    quote: "Shipped my SaaS in 3 weeks. The integrations with Stripe and Supabase made the infrastructure painless. I could focus 100% on the product.",
+    name: "Jamie Rivera",
+    title: "Indie Hacker, MicraSaaS",
+    grad: "linear-gradient(135deg,#4facfe,#00f2fe)",
+    initial: "J",
+  },
+];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function HomePage() {
+export default function LandingPage() {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "hsl(220 14% 7%)" }}>
-      <Nav />
-      <Hero />
-      <FeaturesSection />
-      <IntegrationsSection />
-      <HowItWorksSection />
-      <DemoSection />
-      <ExampleBusinessesSection />
-      <PlatformPreviewSection />
-      <SampleOutcomesSection />
-      <DeploymentSection />
-      <PricingSection />
-      <TrialCTASection />
-      <Footer />
+    <div style={{ minHeight: "100vh", background: "#09090b", color: "#fafafa", fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+
+      {/* NAV */}
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 100, height: 56,
+        display: "flex", alignItems: "center", padding: "0 40px",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        backdropFilter: "blur(16px)", background: "rgba(9,9,11,0.85)",
+      }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", textDecoration: "none", color: "inherit" }}>
+          <LogoBolt size={22} />
+          <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: "-0.02em" }}>LaunchForge</span>
+        </Link>
+        <div style={{ display: "flex", alignItems: "center", marginLeft: 48, gap: 2 }}>
+          {["Features", "Integrations", "Pricing", "Docs"].map((l) => (
+            <a key={l} href={`#${l.toLowerCase()}`} style={{ color: "#a1a1aa", fontSize: 13.5, padding: "6px 12px", borderRadius: 5, textDecoration: "none" }}>{l}</a>
+          ))}
+        </div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          <Link href="/login" style={{ color: "#a1a1aa", fontSize: 13.5, padding: "7px 14px", borderRadius: 6, textDecoration: "none" }}>Sign in</Link>
+          <Link href="/signup" style={{ background: "#3b82f6", color: "white", fontSize: 13.5, fontWeight: 500, padding: "7px 16px", borderRadius: 6, textDecoration: "none" }}>Start free</Link>
+        </div>
+      </nav>
+
+      {/* HERO */}
+      <section style={{ padding: "96px 40px 72px", maxWidth: 1200, margin: "0 auto", textAlign: "center" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", padding: "4px 12px 4px 8px", borderRadius: 100, fontSize: 12.5, color: "#60a5fa", fontWeight: 500, marginBottom: 32, cursor: "pointer" }}>
+          <span style={{ background: "#3b82f6", color: "white", fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 100, letterSpacing: "0.04em" }}>NEW</span>
+          LaunchForge 2.0 — AI that builds with you
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#60a5fa" strokeWidth="1.5"><path d="M2 6h8M7 3l3 3-3 3" /></svg>
+        </div>
+
+        <h1 style={{ fontSize: "clamp(44px,5.5vw,72px)", fontWeight: 700, letterSpacing: "-0.035em", lineHeight: 1.04, marginBottom: 24, maxWidth: 900, marginLeft: "auto", marginRight: "auto", color: "#fafafa" }}>
+          The AI operating system<br />for <span style={{ color: "#3b82f6" }}>ambitious builders</span>
+        </h1>
+
+        <p style={{ fontSize: 18, color: "#a1a1aa", maxWidth: 540, margin: "0 auto 40px", lineHeight: 1.65, fontWeight: 400 }}>
+          Generate ideas, build products, deploy globally, and scale revenue — all from one intelligent workspace.
+        </p>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 10, marginBottom: 56 }}>
+          <Link href="/signup" style={{ background: "#3b82f6", color: "white", fontSize: 15, fontWeight: 500, padding: "11px 24px", borderRadius: 7, display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+            Start building free
+            <ArrowRight />
+          </Link>
+          <Link href="/dashboard" style={{ color: "#a1a1aa", fontSize: 15, fontWeight: 500, padding: "11px 20px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)", display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="7.5" cy="7.5" r="6" /><path d="M6 5.5l3.5 2L6 9.5V5.5z" fill="currentColor" stroke="none" /></svg>
+            Watch demo
+          </Link>
+        </div>
+
+        {/* Social proof */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, marginBottom: 64 }}>
+          <div style={{ display: "flex" }}>
+            {[
+              "linear-gradient(135deg,#667eea,#764ba2)",
+              "linear-gradient(135deg,#f093fb,#f5576c)",
+              "linear-gradient(135deg,#4facfe,#00f2fe)",
+              "linear-gradient(135deg,#43e97b,#38f9d7)",
+            ].map((g, i) => (
+              <div key={i} style={{ width: 28, height: 28, borderRadius: "50%", background: g, border: "2px solid #09090b", marginLeft: i > 0 ? -8 : 0 }} />
+            ))}
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#fa709a,#fee140)", border: "2px solid #09090b", marginLeft: -8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 600, color: "white" }}>+</div>
+          </div>
+          <span style={{ color: "#71717a", fontSize: 13.5 }}>Trusted by <strong style={{ color: "#a1a1aa", fontWeight: 500 }}>2,400+</strong> founders and agencies</span>
+        </div>
+
+        {/* Product preview */}
+        <div style={{ position: "relative", maxWidth: 1100, margin: "0 auto", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,.3),0 60px 120px rgba(0,0,0,.5),0 0 80px rgba(59,130,246,0.07)" }}>
+          {/* Browser chrome */}
+          <div style={{ background: "#111113", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ display: "flex", gap: 5 }}>
+              {["#ef4444", "#f59e0b", "#22c55e"].map((c) => (
+                <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c, opacity: 0.6 }} />
+              ))}
+            </div>
+            <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+              <div style={{ background: "#18181b", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 5, padding: "3px 16px", fontSize: 11.5, color: "#52525b", minWidth: 220, textAlign: "center", fontFamily: "monospace" }}>app.launchforge.ai/dashboard</div>
+            </div>
+          </div>
+          {/* Dashboard preview */}
+          <div style={{ background: "#09090b", display: "flex", height: 460, overflow: "hidden" }}>
+            {/* Sidebar */}
+            <div style={{ width: 196, background: "#111113", borderRight: "1px solid rgba(255,255,255,0.07)", padding: 14, display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "7px 8px", marginBottom: 10 }}>
+                <div style={{ width: 22, height: 22, background: "#3b82f6", borderRadius: 5, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#fafafa" }}>LaunchForge</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 8px", borderRadius: 5, background: "rgba(255,255,255,0.06)" }}>
+                <div style={{ width: 13, height: 13, background: "rgba(255,255,255,0.3)", borderRadius: 2 }} />
+                <div style={{ height: 7, width: 55, background: "#fafafa", borderRadius: 2, opacity: 0.8 }} />
+              </div>
+              {[55, 45, 62, 50, 56, 48].map((w, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, padding: "5px 8px", borderRadius: 5 }}>
+                  <div style={{ width: 13, height: 13, background: "rgba(255,255,255,0.15)", borderRadius: 2 }} />
+                  <div style={{ height: 6, width: w, background: "#a1a1aa", borderRadius: 2, opacity: 0.3 }} />
+                </div>
+              ))}
+            </div>
+            {/* Main */}
+            <div style={{ flex: 1, padding: 18, display: "flex", flexDirection: "column", gap: 14, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
+                {[
+                  { label: "Monthly Revenue", val: "$12,400", sub: "+18% this month", c: "#22c55e" },
+                  { label: "Active Projects", val: "7", sub: "3 live in production", c: "#3b82f6" },
+                  { label: "Deployments", val: "23", sub: "This month", c: "#a1a1aa" },
+                  { label: "AI Generations", val: "142", sub: "858 remaining", c: "#a1a1aa" },
+                ].map((s) => (
+                  <div key={s.label} style={{ background: "#111113", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 7, padding: 14 }}>
+                    <div style={{ fontSize: 10, color: "#71717a", marginBottom: 6 }}>{s.label}</div>
+                    <div style={{ fontSize: 19, fontWeight: 700, color: "#fafafa", letterSpacing: "-0.02em" }}>{s.val}</div>
+                    <div style={{ fontSize: 10, color: s.c, marginTop: 3 }}>{s.sub}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 240px", gap: 12, flex: 1, overflow: "hidden" }}>
+                <div style={{ background: "#111113", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 7, overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#fafafa" }}>Recent Projects</span>
+                    <span style={{ fontSize: 10, color: "#3b82f6" }}>View all</span>
+                  </div>
+                  <div style={{ padding: "0 14px" }}>
+                    {[
+                      { name: "SaaS Boilerplate", badge: "Live", bc: "#22c55e", bg: "rgba(34,197,94,0.1)", time: "2h ago" },
+                      { name: "AI Newsletter", badge: "Building", bc: "#3b82f6", bg: "rgba(59,130,246,0.1)", time: "5h ago" },
+                      { name: "E-commerce Store", badge: "Review", bc: "#f59e0b", bg: "rgba(245,158,11,0.1)", time: "1d ago" },
+                    ].map((p, i, a) => (
+                      <div key={p.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: i < a.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ width: 7, height: 7, borderRadius: "50%", background: p.bc }} />
+                          <span style={{ fontSize: 11.5, color: "#fafafa" }}>{p.name}</span>
+                          <span style={{ fontSize: 9.5, color: p.bc, background: p.bg, padding: "1px 5px", borderRadius: 3 }}>{p.badge}</span>
+                        </div>
+                        <span style={{ fontSize: 10, color: "#52525b" }}>{p.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ background: "#111113", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 7, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#fafafa", display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 16, height: 16, background: "rgba(59,130,246,0.15)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="#3b82f6"><path d="M4 0l.9 2.7L8 4 5.1 5.3 4 8 3.1 5.3 0 4l3.1-1.3z" /></svg>
+                    </div>
+                    AI Assistant
+                  </div>
+                  <div style={{ background: "#18181b", borderRadius: 6, padding: 10, fontSize: 11, color: "#a1a1aa", lineHeight: 1.6 }}>Hello! I can generate ideas, review your projects, or set up integrations. What would you like to build?</div>
+                  <div style={{ background: "rgba(59,130,246,0.1)", borderRadius: 6, padding: 8, fontSize: 11, color: "#fafafa", lineHeight: 1.5, alignSelf: "flex-end" }}>Generate a SaaS idea for productivity</div>
+                  <div style={{ background: "#18181b", borderRadius: 5, padding: "8px 10px", display: "flex", alignItems: "center", gap: 6, border: "1px solid rgba(255,255,255,0.07)", marginTop: "auto" }}>
+                    <span style={{ fontSize: 11, color: "#52525b", flex: 1 }}>Ask anything...</span>
+                    <div style={{ width: 18, height: 18, background: "#3b82f6", borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center" }}><svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="white" strokeWidth="1.5"><path d="M1 4h6M4.5 1.5L7 4l-2.5 2.5" /></svg></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" style={{ padding: "80px 40px", borderTop: "1px solid rgba(255,255,255,0.06)", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 52 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#3b82f6", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Everything you need</div>
+          <h2 style={{ fontSize: 38, fontWeight: 700, letterSpacing: "-0.025em", marginBottom: 14 }}>Built for the full launch journey</h2>
+          <p style={{ fontSize: 16, color: "#a1a1aa", maxWidth: 440, margin: "0 auto" }}>From first idea to thousandth customer.</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+          {FEATURES.map((f) => (
+            <div key={f.title} style={{ background: "#09090b", padding: 30 }}>
+              <div style={{ width: 34, height: 34, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.18)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                {f.icon}
+              </div>
+              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>{f.title}</h3>
+              <p style={{ fontSize: 13.5, color: "#71717a", lineHeight: 1.65 }}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* INTEGRATIONS BAR */}
+      <section id="integrations" style={{ padding: "56px 40px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <p style={{ textAlign: "center", fontSize: 12, fontWeight: 500, color: "#3f3f46", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 36 }}>Connects with your entire stack</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 48, flexWrap: "wrap", opacity: 0.5 }}>
+          {[
+            {
+              label: "GitHub",
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" /></svg>,
+            },
+            { label: "Vercel", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 19.5h20L12 2z" /></svg> },
+            { label: "Stripe", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><rect width="24" height="24" rx="4" fill="#635bff" /><path d="M10.5 9.5c0-.8.7-1.5 2.5-1.5 2.3 0 3.5.9 3.5.9v3s-1.2-1.1-3.5-1.1c-1.2 0-2.5.5-2.5 1.7 0 1.1 1.3 1.5 2.8 1.8 2.5.5 4.2 1.3 4.2 3.5 0 2.4-2 3.7-4.5 3.7-2.7 0-4.5-1.2-4.5-1.2V17s1.8 1.2 4 1.2c1.4 0 2-.5 2-1.2 0-1-1.2-1.4-2.8-1.7-2.5-.5-4.2-1.3-4.2-3.6 0-2 1.5-3.2 3-3.2z" fill="white" /></svg> },
+            { label: "Supabase", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M13.5 2L3 14.5h8.5L10 22 21 9.5h-8.5L13.5 2z" fill="#3ecf8e" /></svg> },
+            {
+              label: "Google",
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" /><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" /><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" /><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" /></svg>,
+            },
+            {
+              label: "OpenAI",
+              icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M22.282 9.821a5.985 5.985 0 00-.516-4.91 6.046 6.046 0 00-6.51-2.9A6.065 6.065 0 004.981 4.18a5.985 5.985 0 00-3.998 2.9 6.046 6.046 0 00.743 7.097 5.98 5.98 0 00.51 4.911 6.051 6.051 0 006.515 2.9A5.985 5.985 0 0013.26 24a6.056 6.056 0 005.772-4.206 5.99 5.99 0 003.997-2.9 6.056 6.056 0 00-.747-7.073z" /></svg>,
+            },
+          ].map((brand) => (
+            <div key={brand.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 500, color: "#a1a1aa" }}>
+              {brand.icon}
+              {brand.label}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PRICING */}
+      <section id="pricing" style={{ padding: "80px 40px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 52 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: "#3b82f6", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Pricing</div>
+            <h2 style={{ fontSize: 38, fontWeight: 700, letterSpacing: "-0.025em", marginBottom: 14 }}>Simple, transparent pricing</h2>
+            <p style={{ fontSize: 16, color: "#a1a1aa" }}>Start free. Scale as you grow. No hidden fees.</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 1, background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 10, overflow: "hidden" }}>
+            {PRICING.map((p) => {
+              const isPopular = p.badge === "Most popular";
+              return (
+                <div
+                  key={p.tier}
+                  style={{
+                    background: isPopular ? "#0b1220" : "#09090b",
+                    padding: 28,
+                    position: "relative",
+                    ...(isPopular ? { borderLeft: "1px solid rgba(59,130,246,0.25)", borderRight: "1px solid rgba(59,130,246,0.25)" } : {}),
+                  }}
+                >
+                  {isPopular && (
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent 10%,#3b82f6 50%,transparent 90%)" }} />
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#a1a1aa" }}>{p.tier}</span>
+                    {p.badge && (
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: "#3b82f6", background: "rgba(59,130,246,0.12)", padding: "2px 7px", borderRadius: 100, letterSpacing: "0.04em" }}>
+                        {p.badge.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 6 }}>
+                    <span style={{ fontSize: 34, fontWeight: 700, letterSpacing: "-0.02em" }}>{p.price}</span>
+                    <span style={{ fontSize: 14, color: "#52525b" }}>/month</span>
+                  </div>
+                  <p style={{ fontSize: 13, color: "#52525b", marginBottom: 22, lineHeight: 1.5 }}>{p.desc}</p>
+                  <Link
+                    href="/signup"
+                    style={{
+                      display: "block", width: "100%", textAlign: "center",
+                      fontSize: 13.5, fontWeight: 500, padding: 9, borderRadius: 6, marginBottom: 24,
+                      textDecoration: "none",
+                      ...(p.ctaStyle === "blue"
+                        ? { background: "#3b82f6", color: "white" }
+                        : { background: "#18181b", color: "#fafafa", border: "1px solid rgba(255,255,255,0.1)" }),
+                    }}
+                  >
+                    {p.cta}
+                  </Link>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                    {p.features.map((f) => (
+                      <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "#a1a1aa" }}>
+                        <CheckIcon />{f}
+                      </div>
+                    ))}
+                    {p.locked.map((f) => (
+                      <div key={f} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, color: "#3f3f46" }}>
+                        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="#3f3f46" strokeWidth="1.5"><path d="M4 6V4.5a2.5 2.5 0 015 0V6M2.5 6h8a.5.5 0 01.5.5v4a.5.5 0 01-.5.5h-8a.5.5 0 01-.5-.5v-4a.5.5 0 01.5-.5z" /></svg>
+                        {f}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIALS */}
+      <section style={{ padding: "80px 40px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <h2 style={{ fontSize: 38, fontWeight: 700, letterSpacing: "-0.025em", marginBottom: 12 }}>Founders love LaunchForge</h2>
+            <p style={{ fontSize: 16, color: "#a1a1aa" }}>Join thousands of teams building the next generation of startups.</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+            {TESTIMONIALS.map((t) => (
+              <div key={t.name} style={{ background: "#111113", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 9, padding: 26, display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ display: "flex", gap: 2 }}>
+                  {[...Array(5)].map((_, i) => (
+                    <svg key={i} width="13" height="13" viewBox="0 0 13 13" fill="#f59e0b"><path d="M6.5 1l1.4 4.2H12l-3.5 2.5L9.8 12 6.5 9.5 3.2 12l1.3-4.3L1 5.2h4.1z" /></svg>
+                  ))}
+                </div>
+                <p style={{ fontSize: 14, color: "#a1a1aa", lineHeight: 1.7 }}>"{t.quote}"</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: "auto" }}>
+                  <div style={{ width: 30, height: 30, borderRadius: "50%", background: t.grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, color: "white", flexShrink: 0 }}>{t.initial}</div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: "#fafafa" }}>{t.name}</div>
+                    <div style={{ fontSize: 11.5, color: "#52525b" }}>{t.title}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section style={{ padding: "80px 40px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "center" }}>
+        <h2 style={{ fontSize: 44, fontWeight: 700, letterSpacing: "-0.03em", marginBottom: 18, lineHeight: 1.08 }}>Ready to launch your next big thing?</h2>
+        <p style={{ fontSize: 17, color: "#a1a1aa", marginBottom: 36, lineHeight: 1.6 }}>Join 2,400+ founders building and shipping with LaunchForge.</p>
+        <Link href="/signup" style={{ background: "#3b82f6", color: "white", fontSize: 15, fontWeight: 500, padding: "12px 28px", borderRadius: 7, textDecoration: "none", display: "inline-block" }}>
+          Start for free — no card required
+        </Link>
+      </section>
+
+      {/* FOOTER */}
+      <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 40px 32px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 48, marginBottom: 40 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 14 }}>
+                <LogoBolt size={18} />
+                <span style={{ fontSize: 14, fontWeight: 600 }}>LaunchForge</span>
+              </div>
+              <p style={{ fontSize: 13, color: "#52525b", lineHeight: 1.65, maxWidth: 220 }}>The AI operating system for founders. Build, launch, and scale — all in one place.</p>
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: "#71717a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>Product</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                {["Features", "Pricing", "Changelog", "Roadmap"].map((l) => (
+                  <a key={l} href="#" style={{ fontSize: 13, color: "#52525b", textDecoration: "none" }}>{l}</a>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: "#71717a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>Developers</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                {["Docs", "API Reference", "Integrations", "Status"].map((l) => (
+                  <a key={l} href="#" style={{ fontSize: 13, color: "#52525b", textDecoration: "none" }}>{l}</a>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: "#71717a", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>Legal</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                <Link href="/legal/privacy" style={{ fontSize: 13, color: "#52525b", textDecoration: "none" }}>Privacy Policy</Link>
+                <Link href="/legal/terms" style={{ fontSize: 13, color: "#52525b", textDecoration: "none" }}>Terms of Service</Link>
+                <Link href="/legal/acceptable-use" style={{ fontSize: 13, color: "#52525b", textDecoration: "none" }}>Acceptable Use</Link>
+                <Link href="/legal/cookies" style={{ fontSize: 13, color: "#52525b", textDecoration: "none" }}>Cookies</Link>
+              </div>
+            </div>
+          </div>
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "#3f3f46" }}>© 2026 LaunchForge, Inc. All rights reserved.</span>
+            <span style={{ fontSize: 12, color: "#3f3f46" }}>Built for ambitious builders.</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -2,15 +2,18 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { actionSendMessage } from "@/app/actions/conversation";
-import type { ConversationMessage } from "@/lib/conversation/types";
+import { actionSendMessage, actionLoadMessages } from "@/app/actions/conversation";
+import type { PersistedChatMessage } from "@/lib/conversation/types";
 import type { FileUpdate } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface Message extends ConversationMessage {
+interface Message extends PersistedChatMessage {
   fileUpdates?: FileUpdate[];
 }
+
+// 45 s client-side guard — Gemini has a 30 s server timeout + retries
+const CLIENT_TIMEOUT_MS = 45_000;
 
 // ── Suggestion prompts ────────────────────────────────────────────────────────
 
@@ -44,7 +47,13 @@ function AIAvatar({ size = 28 }: { size?: number }) {
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 
-function MessageBubble({ msg }: { msg: Message }) {
+function MessageBubble({
+  msg,
+  onRetry,
+}: {
+  msg: Message;
+  onRetry?: (content: string) => void;
+}) {
   const isUser = msg.role === "user";
 
   if (isUser) {
@@ -70,12 +79,35 @@ function MessageBubble({ msg }: { msg: Message }) {
       <div className="flex-1 min-w-0 space-y-2">
         <div
           className="px-4 py-3 rounded-2xl rounded-tl-md"
-          style={{ backgroundColor: "hsl(220 13% 12%)", border: "1px solid hsl(220 13% 18%)" }}
+          style={{
+            backgroundColor: msg.isError ? "hsl(0 72% 50% / 0.07)" : "hsl(220 13% 12%)",
+            border: msg.isError
+              ? "1px solid hsl(0 72% 50% / 0.22)"
+              : "1px solid hsl(220 13% 18%)",
+          }}
         >
-          <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "hsl(220 9% 76%)" }}>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: msg.isError ? "hsl(0 72% 68%)" : "hsl(220 9% 76%)" }}>
             {msg.content.replace(/\*\*(.*?)\*\*/g, "$1")}
           </p>
         </div>
+
+        {msg.isError && onRetry && (
+          <button
+            onClick={() => {
+              // Find the user message just before this error to retry
+              onRetry("__retry__");
+            }}
+            className="text-xs px-3 py-1 rounded-lg transition-colors"
+            style={{
+              backgroundColor: "hsl(213 94% 62% / 0.1)",
+              border: "1px solid hsl(213 94% 62% / 0.22)",
+              color: "hsl(213 94% 72%)",
+            }}
+          >
+            Try again
+          </button>
+        )}
+
         {msg.fileUpdates && msg.fileUpdates.length > 0 && (
           <div
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
@@ -175,9 +207,24 @@ export function ChatTab({ workspaceId }: { workspaceId: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  // Track last user content so retry can resend it
+  const lastUserContentRef = useRef<string>("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
+
+  // Load persisted history on mount
+  useEffect(() => {
+    actionLoadMessages(workspaceId)
+      .then((msgs) => {
+        if (msgs.length > 0) {
+          setMessages(msgs as Message[]);
+        }
+      })
+      .catch(() => {/* non-critical */})
+      .finally(() => setHistoryLoaded(true));
+  }, [workspaceId]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -195,33 +242,70 @@ export function ChatTab({ workspaceId }: { workspaceId: string }) {
 
   const sendMessage = useCallback(
     async (text: string) => {
-      const content = text.trim();
+      const content = text === "__retry__" ? lastUserContentRef.current : text.trim();
       if (!content || loading) return;
 
       setInput("");
+      lastUserContentRef.current = content;
+
       const userMsg: Message = {
         id: `u_${Date.now()}`,
         role: "user",
         content,
         createdAt: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, userMsg]);
+
+      // On retry, remove the previous error message then re-add the user message
+      if (text === "__retry__") {
+        setMessages((prev) => {
+          const withoutLastError = [...prev];
+          // Remove trailing error assistant message if present
+          if (withoutLastError.length > 0 && withoutLastError[withoutLastError.length - 1].isError) {
+            withoutLastError.pop();
+          }
+          return [...withoutLastError, userMsg];
+        });
+      } else {
+        setMessages((prev) => [...prev, userMsg]);
+      }
+
       setLoading(true);
 
-      const result = await actionSendMessage(workspaceId, content);
+      try {
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Request timed out. Please try again.")), CLIENT_TIMEOUT_MS),
+        );
 
-      const assistantMsg: Message = {
-        id: `a_${Date.now()}`,
-        role: "assistant",
-        content: result.success ? result.response : `Error: ${result.error}`,
-        createdAt: new Date().toISOString(),
-        fileUpdates: result.success ? result.fileUpdates : undefined,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setLoading(false);
+        const result = await Promise.race([
+          actionSendMessage(workspaceId, content),
+          timeout,
+        ]);
 
-      if (result.success && result.fileUpdates.length > 0) {
-        router.refresh();
+        const assistantMsg: Message = {
+          id: `a_${Date.now()}`,
+          role: "assistant",
+          content: result.success ? result.response : result.error,
+          createdAt: new Date().toISOString(),
+          fileUpdates: result.success ? result.fileUpdates : undefined,
+          isError: !result.success,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+
+        if (result.success && result.fileUpdates.length > 0) {
+          router.refresh();
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const assistantMsg: Message = {
+          id: `a_${Date.now()}`,
+          role: "assistant",
+          content: errMsg,
+          createdAt: new Date().toISOString(),
+          isError: true,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } finally {
+        setLoading(false);
       }
     },
     [workspaceId, loading, router],
@@ -234,15 +318,23 @@ export function ChatTab({ workspaceId }: { workspaceId: string }) {
     }
   }
 
+  const showWelcome = historyLoaded && messages.length === 0 && !loading;
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
-        {messages.length === 0 && !loading ? (
+        {showWelcome ? (
           <WelcomeState onSuggestion={sendMessage} />
         ) : (
           <div className="px-4 py-6 space-y-5 max-w-3xl mx-auto">
-            {messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)}
+            {messages.map((msg) => (
+              <MessageBubble
+                key={msg.id}
+                msg={msg}
+                onRetry={msg.isError ? sendMessage : undefined}
+              />
+            ))}
             {loading && <TypingIndicator />}
           </div>
         )}

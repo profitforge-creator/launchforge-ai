@@ -3,12 +3,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { actionSendMessage } from "@/app/actions/conversation";
-import type { ConversationMessage } from "@/lib/conversation/types";
+import type { PersistedChatMessage } from "@/lib/conversation/types";
 import type { FileUpdate } from "@/types";
+
+// 45 s client-side guard — Gemini has a 30 s server timeout + retries
+const CLIENT_TIMEOUT_MS = 45_000;
 
 // ── Message bubble ────────────────────────────────────────────────────────────
 
-interface ConversationMessageWithUpdates extends ConversationMessage {
+interface ConversationMessageWithUpdates extends PersistedChatMessage {
   fileUpdates?: FileUpdate[];
 }
 
@@ -45,9 +48,15 @@ function MessageBubble({ msg }: { msg: ConversationMessageWithUpdates }) {
       <div className="flex-1 space-y-1.5">
         <div
           className="rounded-xl rounded-tl-sm px-3 py-2"
-          style={{ backgroundColor: "hsl(220 13% 13%)", border: "1px solid hsl(220 13% 18%)" }}
+          style={{
+            backgroundColor: msg.isError ? "hsl(0 72% 50% / 0.07)" : "hsl(220 13% 13%)",
+            border: msg.isError ? "1px solid hsl(0 72% 50% / 0.22)" : "1px solid hsl(220 13% 18%)",
+          }}
         >
-          <p className="text-xs leading-relaxed whitespace-pre-wrap" style={{ color: "hsl(220 9% 75%)" }}>
+          <p
+            className="text-xs leading-relaxed whitespace-pre-wrap"
+            style={{ color: msg.isError ? "hsl(0 72% 68%)" : "hsl(220 9% 75%)" }}
+          >
             {msg.content.replace(/\*\*(.*?)\*\*/g, "$1")}
           </p>
         </div>
@@ -112,21 +121,41 @@ export function ConversationPanel({ workspaceId }: { workspaceId: string }) {
       setMessages((prev) => [...prev, userMsg]);
       setLoading(true);
 
-      const result = await actionSendMessage(workspaceId, content);
+      try {
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Request timed out. Please try again.")), CLIENT_TIMEOUT_MS),
+        );
 
-      const assistantMsg: ConversationMessageWithUpdates = {
-        id: `msg_${Date.now() + 1}`,
-        role: "assistant",
-        content: result.success ? result.response : result.error,
-        createdAt: new Date().toISOString(),
-        fileUpdates: result.success ? result.fileUpdates : undefined,
-      };
-      setMessages((prev) => [...prev, assistantMsg]);
-      setLoading(false);
+        const result = await Promise.race([
+          actionSendMessage(workspaceId, content),
+          timeout,
+        ]);
 
-      // Refresh the page if any files were updated so the Files tab reflects changes
-      if (result.success && result.fileUpdates.length > 0) {
-        router.refresh();
+        const assistantMsg: ConversationMessageWithUpdates = {
+          id: `msg_${Date.now() + 1}`,
+          role: "assistant",
+          content: result.success ? result.response : result.error,
+          createdAt: new Date().toISOString(),
+          fileUpdates: result.success ? result.fileUpdates : undefined,
+          isError: !result.success,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+
+        if (result.success && result.fileUpdates.length > 0) {
+          router.refresh();
+        }
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+        const assistantMsg: ConversationMessageWithUpdates = {
+          id: `msg_${Date.now() + 1}`,
+          role: "assistant",
+          content: errMsg,
+          createdAt: new Date().toISOString(),
+          isError: true,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } finally {
+        setLoading(false);
       }
     },
     [workspaceId, loading, router],

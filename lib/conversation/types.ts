@@ -7,6 +7,11 @@ export interface ConversationMessage {
   createdAt: string;
 }
 
+/** Stored in generations.result.chatMessages — includes error flag for client display */
+export interface PersistedChatMessage extends ConversationMessage {
+  isError?: boolean;
+}
+
 export interface Conversation {
   workspaceId: string;
   messages: ConversationMessage[];
