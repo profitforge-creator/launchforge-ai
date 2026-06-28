@@ -1,5 +1,5 @@
 export type EnvKey =
-  | "GEMINI_API_KEY"
+  | "ANTHROPIC_API_KEY"
   | "NEXT_PUBLIC_SUPABASE_URL"
   | "NEXT_PUBLIC_SUPABASE_ANON_KEY"
   | "NEXT_PUBLIC_APP_URL"
@@ -32,7 +32,7 @@ export interface EnvCheck {
 }
 
 export const ENV_KEYS: EnvKey[] = [
-  "GEMINI_API_KEY",
+  "ANTHROPIC_API_KEY",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "NEXT_PUBLIC_APP_URL",

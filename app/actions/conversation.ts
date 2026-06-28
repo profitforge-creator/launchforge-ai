@@ -117,8 +117,11 @@ export async function actionSendMessage(
     console.error("[Conversation]", err);
     const msg = err instanceof Error ? err.message : "Unknown error";
 
-    if (msg.includes("GEMINI_API_KEY")) {
-      return { success: false, error: "AI is not configured. Set GEMINI_API_KEY in .env.local." };
+    if (msg.includes("ANTHROPIC_API_KEY")) {
+      return { success: false, error: "AI is not configured. Set ANTHROPIC_API_KEY in .env.local." };
+    }
+    if (msg.includes("AI model is unavailable")) {
+      return { success: false, error: msg };
     }
 
     return { success: false, error: "The AI advisor couldn't respond. Please try again." };

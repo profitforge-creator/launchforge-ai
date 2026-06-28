@@ -1,8 +1,8 @@
 /**
  * AI Orchestrator — LaunchForge's 6-agent generation pipeline.
  *
- * All agents call Gemini. No mock fallbacks exist.
- * If GEMINI_API_KEY is absent, every agent throws a clear error.
+ * All agents call Anthropic Claude. No mock fallbacks exist.
+ * If ANTHROPIC_API_KEY is absent, every agent throws a clear error.
  *
  * Pipeline order:
  *   1. Research Agent     — market demand, competition, scoring, gaps
@@ -10,7 +10,7 @@
  *   3. Product Agent      — v1 product concept grounded in research
  *   4. Website Agent      — full site copy (5 pages worth of structured content)
  *   5. Marketing Agent    — hooks, content calendar, launch strategy
- *   6. Critic Agent       — weaknesses, improvements, alternatives (gemini-1.5-pro)
+ *   6. Critic Agent       — weaknesses, improvements, alternatives
  *
  * Output: BusinessResult assembled from all agent outputs + project file system.
  *
@@ -133,7 +133,7 @@ export async function runCritic(
   );
 }
 
-// ── Assets (template-based, Gemini-enhanced metadata) ────────────────────────
+// ── Assets (template-based) ───────────────────────────────────────────────────
 
 export function runAssets(
   form: BusinessFormData,

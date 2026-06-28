@@ -1,6 +1,16 @@
 "use server";
 
+import { z } from "zod";
 import { getUserSupabaseClient, requireUser } from "@/lib/auth/session";
+
+const NewDeploymentSchema = z.object({
+  project_id:  z.string().uuid("Invalid project ID."),
+  platform:    z.enum(["vercel", "github", "manual"]),
+  status:      z.enum(["live", "error", "building"]),
+  url:         z.string().url("Invalid URL.").max(512),
+  domain:      z.string().max(253).nullable(),
+  environment: z.enum(["production", "preview"]),
+});
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -114,6 +124,11 @@ export async function actionSaveDeployment(
   record: NewDeployment
 ): Promise<{ data: DeploymentRecord | null; error: string | null }> {
   try {
+    const parsed = NewDeploymentSchema.safeParse(record);
+    if (!parsed.success) {
+      return { data: null, error: parsed.error.issues[0]?.message ?? "Invalid deployment data." };
+    }
+
     const user = await requireUser();
     const supabase = await getUserSupabaseClient();
     if (!supabase) return { data: null, error: "Authentication required." };

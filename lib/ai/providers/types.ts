@@ -1,11 +1,8 @@
 /**
  * AIProvider interface — every AI provider must implement this contract.
  *
- * LaunchForge currently ships with Gemini as the only active provider.
- * To add a second provider (OpenAI, Anthropic, etc.):
- *   1. Create lib/ai/providers/openai-provider.ts implementing AIProvider
- *   2. Register it in lib/ai/registry.ts
- *   3. Expose a provider key in the admin config
+ * LaunchForge uses Anthropic Claude as the active provider (lib/ai/provider.ts).
+ * To swap providers: replace activeProvider in lib/ai/provider.ts.
  *
  * All agent code talks to AIProvider — never to a vendor SDK directly.
  * This keeps provider details out of business logic.
@@ -49,4 +46,4 @@ export interface AIGenerateOptions {
   timeoutMs?: number;
 }
 
-export type AIProviderKey = "gemini" | "openai" | "anthropic";
+export type AIProviderKey = "anthropic" | "openai";

@@ -3,9 +3,25 @@
 import { createHash, randomBytes } from "crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { z } from "zod";
 import { clearAuthCookies, setAuthCookies } from "@/lib/auth/session";
 import { getCanonicalAppOrigin, getSupabaseAuthCallbackUrl } from "@/lib/auth/app-url";
 import { getRequiredSupabaseEnv, getSupabaseClient, hasSupabaseConfig } from "@/lib/supabase/server";
+
+// ── Validation schemas ────────────────────────────────────────────────────────
+
+const EmailPasswordSchema = z.object({
+  email:    z.string().email("Invalid email address.").max(254),
+  password: z.string().min(8, "Password must be at least 8 characters.").max(128),
+});
+
+const SignUpSchema = EmailPasswordSchema.extend({
+  full_name: z.string().max(100).optional(),
+});
+
+const EmailSchema = z.object({
+  email: z.string().email("Invalid email address.").max(254),
+});
 
 const SUPABASE_PKCE_COOKIE = "lf_sb_pkce_verifier";
 const SUPABASE_PKCE_MAX_AGE = 60 * 10;
@@ -34,9 +50,14 @@ async function getCurrentRequestOrigin(): Promise<string | undefined> {
 export async function actionSignIn(formData: FormData): Promise<void> {
   if (!hasSupabaseConfig()) supabaseMissingRedirect("/login");
 
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  if (!email || !password) redirect(encoded("/login", "error", "Email and password are required."));
+  const parsed = EmailPasswordSchema.safeParse({
+    email:    String(formData.get("email") ?? "").trim().toLowerCase(),
+    password: String(formData.get("password") ?? ""),
+  });
+  if (!parsed.success) {
+    redirect(encoded("/login", "error", parsed.error.issues[0]?.message ?? "Invalid input."));
+  }
+  const { email, password } = parsed.data;
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -51,10 +72,15 @@ export async function actionSignIn(formData: FormData): Promise<void> {
 export async function actionSignUp(formData: FormData): Promise<void> {
   if (!hasSupabaseConfig()) supabaseMissingRedirect("/signup");
 
-  const email = String(formData.get("email") ?? "").trim();
-  const password = String(formData.get("password") ?? "");
-  const fullName = String(formData.get("full_name") ?? "").trim();
-  if (!email || !password) redirect(encoded("/signup", "error", "Email and password are required."));
+  const parsed = SignUpSchema.safeParse({
+    email:     String(formData.get("email") ?? "").trim().toLowerCase(),
+    password:  String(formData.get("password") ?? ""),
+    full_name: String(formData.get("full_name") ?? "").trim() || undefined,
+  });
+  if (!parsed.success) {
+    redirect(encoded("/signup", "error", parsed.error.issues[0]?.message ?? "Invalid input."));
+  }
+  const { email, password, full_name: fullName } = parsed.data;
 
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.auth.signUp({
@@ -75,8 +101,13 @@ export async function actionSignUp(formData: FormData): Promise<void> {
 }
 
 export async function actionResetPassword(formData: FormData): Promise<void> {
-  const email = String(formData.get("email") ?? "").trim();
-  if (!email) redirect(encoded("/forgot-password", "error", "Email is required."));
+  const parsed = EmailSchema.safeParse({
+    email: String(formData.get("email") ?? "").trim().toLowerCase(),
+  });
+  if (!parsed.success) {
+    redirect(encoded("/forgot-password", "error", parsed.error.issues[0]?.message ?? "Invalid email."));
+  }
+  const { email } = parsed.data;
   if (!hasSupabaseConfig()) {
     redirect(encoded("/forgot-password", "message", "Password reset is disabled until Supabase is configured."));
   }

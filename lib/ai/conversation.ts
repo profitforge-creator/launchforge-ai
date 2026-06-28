@@ -12,7 +12,7 @@
  *   { "response": "...", "fileUpdates": [...] }
  */
 
-import { geminiJSON } from "@/lib/ai/gemini";
+import { callAI, DEFAULT_MODEL } from "@/lib/ai/provider";
 import type { BusinessResult, FileUpdate } from "@/types";
 import type { ConversationMessage } from "@/lib/conversation/types";
 
@@ -119,10 +119,10 @@ export async function runConversation(
 ): Promise<ConversationResult> {
   const prompt = buildConversationPrompt(userMessage, project, history, deploymentStatus);
 
-  const result = await geminiJSON<GeminiConversationResponse>(
+  const result = await callAI<GeminiConversationResponse>(
     CONVERSATION_SYSTEM_PROMPT,
     prompt,
-    "gemini-2.0-flash",
+    DEFAULT_MODEL,
     { temperature: 0.6, maxTokens: 8192 },
   );
 

@@ -7,11 +7,11 @@ export default function TermsPage() {
   return (
     <LegalArticle
       title="Terms of Service"
-      updated="[EFFECTIVE_DATE]"
-      intro={<>These Terms of Service (&quot;Terms&quot;) are a binding agreement between you and [COMPANY] (&quot;LaunchForge&quot;, &quot;we&quot;, &quot;us&quot;) governing your use of the LaunchForge application and website (the &quot;Service&quot;). By creating an account or using the Service, you agree to these Terms.</>}
+      updated="June 28, 2026"
+      intro={<>These Terms of Service (&quot;Terms&quot;) are a binding agreement between you and LaunchForge AI (&quot;LaunchForge&quot;, &quot;we&quot;, &quot;us&quot;) governing your use of the LaunchForge application and website (the &quot;Service&quot;). By creating an account or using the Service, you agree to these Terms.</>}
     >
       <Section heading="1. Eligibility & accounts">
-        <P>You must be at least [MINIMUM_AGE] and able to form a binding contract. You are responsible for your account, for keeping your credentials secure, and for all activity under your account.</P>
+        <P>You must be at least 13 (or the age of digital consent in your country, whichever is higher) and able to form a binding contract. You are responsible for your account, for keeping your credentials secure, and for all activity under your account.</P>
       </Section>
 
       <Section heading="2. Plans, billing & trials">
@@ -22,7 +22,7 @@ export default function TermsPage() {
           <><strong>Growth — $49/month</strong> — for active builders who need higher limits and more integrations.</>,
           <><strong>Scale — $149/month</strong> — for power users and teams who need the highest limits and priority support.</>,
         ]} />
-        <P>Paid plans are billed in advance on a recurring basis through Stripe until cancelled. Prices are in [CURRENCY] and exclusive of taxes unless stated. We may change pricing with notice; changes apply to the next billing cycle. Any free trial converts to a paid subscription unless cancelled before it ends.</P>
+        <P>Paid plans are billed in advance on a recurring basis through Stripe until cancelled. Prices are in USD and exclusive of taxes unless stated. We may change pricing with notice; changes apply to the next billing cycle. Any free trial converts to a paid subscription unless cancelled before it ends.</P>
       </Section>
 
       <Section heading="3. Cancellations & refunds">
@@ -54,11 +54,11 @@ export default function TermsPage() {
       </Section>
 
       <Section heading="10. Limitation of liability">
-        <P>TO THE MAXIMUM EXTENT PERMITTED BY LAW, [COMPANY] WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR LOST PROFITS OR DATA. OUR TOTAL LIABILITY FOR ANY CLAIM WILL NOT EXCEED THE AMOUNTS YOU PAID US IN THE [LIABILITY_WINDOW] PRECEDING THE CLAIM.</P>
+        <P>TO THE MAXIMUM EXTENT PERMITTED BY LAW, LAUNCHFORGE AI WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR LOST PROFITS OR DATA. OUR TOTAL LIABILITY FOR ANY CLAIM WILL NOT EXCEED THE AMOUNTS YOU PAID US IN THE 12 MONTHS PRECEDING THE CLAIM.</P>
       </Section>
 
       <Section heading="11. Indemnification">
-        <P>You agree to indemnify and hold harmless [COMPANY] from claims arising out of your content, your use of the Service, or your violation of these Terms or applicable law.</P>
+        <P>You agree to indemnify and hold harmless LaunchForge AI from claims arising out of your content, your use of the Service, or your violation of these Terms or applicable law.</P>
       </Section>
 
       <Section heading="12. Termination">
@@ -66,7 +66,7 @@ export default function TermsPage() {
       </Section>
 
       <Section heading="13. Governing law & disputes">
-        <P>These Terms are governed by the laws of [JURISDICTION], without regard to conflict-of-laws rules. Disputes will be resolved in the courts of [VENUE], unless otherwise required by mandatory local law. [ARBITRATION_CLAUSE_OPTIONAL]</P>
+        <P>These Terms are governed by the laws of the State of Delaware, United States, without regard to conflict-of-laws rules. Disputes will be resolved in the state or federal courts located in Delaware, unless otherwise required by mandatory local law.</P>
       </Section>
 
       <Section heading="14. Changes">
@@ -74,7 +74,7 @@ export default function TermsPage() {
       </Section>
 
       <Section heading="15. Contact">
-        <P>[COMPANY], [ADDRESS]. Email: [CONTACT_EMAIL].</P>
+        <P>LaunchForge AI. Email: legal@launchforge.ai.</P>
       </Section>
     </LegalArticle>
   );

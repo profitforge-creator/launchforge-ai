@@ -7,8 +7,8 @@ export default function PrivacyPage() {
   return (
     <LegalArticle
       title="Privacy Policy"
-      updated="[EFFECTIVE_DATE]"
-      intro={<>This Privacy Policy explains how [COMPANY] (&quot;LaunchForge&quot;, &quot;we&quot;, &quot;us&quot;) collects, uses, and shares information when you use the LaunchForge application and website (the &quot;Service&quot;). By using the Service you agree to this Policy.</>}
+      updated="June 28, 2026"
+      intro={<>This Privacy Policy explains how LaunchForge AI (&quot;LaunchForge&quot;, &quot;we&quot;, &quot;us&quot;) collects, uses, and shares information when you use the LaunchForge application and website (the &quot;Service&quot;). By using the Service you agree to this Policy.</>}
     >
       <Section heading="1. Information we collect">
         <P>We collect the following categories of information:</P>
@@ -60,15 +60,15 @@ export default function PrivacyPage() {
       </Section>
 
       <Section heading="7. Your rights">
-        <P>Depending on your location (including under the EU/UK GDPR and the California CCPA/CPRA), you may have the right to access, correct, delete, export, or restrict processing of your personal information, and to object to certain processing. To exercise these rights, contact [CONTACT_EMAIL]. You may also lodge a complaint with your local data protection authority.</P>
+        <P>Depending on your location (including under the EU/UK GDPR and the California CCPA/CPRA), you may have the right to access, correct, delete, export, or restrict processing of your personal information, and to object to certain processing. To exercise these rights, contact legal@launchforge.ai. You may also lodge a complaint with your local data protection authority.</P>
       </Section>
 
       <Section heading="8. International transfers">
-        <P>We may process and store information in countries other than your own, including [DATA_LOCATIONS]. Where required, we use appropriate safeguards such as Standard Contractual Clauses. See our <a href="/legal/dpa" style={{ color: "hsl(213 94% 62%)" }}>Data Processing Addendum</a>.</P>
+        <P>We may process and store information in countries other than your own, including the United States. Where required, we use appropriate safeguards such as Standard Contractual Clauses. See our <a href="/legal/dpa" style={{ color: "hsl(213 94% 62%)" }}>Data Processing Addendum</a>.</P>
       </Section>
 
       <Section heading="9. Children">
-        <P>The Service is not directed to individuals under [MINIMUM_AGE]. We do not knowingly collect personal information from children. If you believe a child has provided us information, contact us and we will delete it.</P>
+        <P>The Service is not directed to individuals under 13. We do not knowingly collect personal information from children. If you believe a child has provided us information, contact us and we will delete it.</P>
       </Section>
 
       <Section heading="10. Changes to this Policy">
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section heading="11. Contact">
-        <P>[COMPANY], [ADDRESS]. Email: [CONTACT_EMAIL].</P>
+        <P>LaunchForge AI. Email: legal@launchforge.ai.</P>
       </Section>
     </LegalArticle>
   );

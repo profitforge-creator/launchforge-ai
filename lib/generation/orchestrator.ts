@@ -4,8 +4,8 @@
  * Thin re-export layer over lib/ai/orchestrator.ts.
  * Server actions import from here; the AI pipeline lives in lib/ai/.
  *
- * All generation is Gemini-powered. No mock fallbacks.
- * GEMINI_API_KEY must be set in .env.local for generation to work.
+ * All generation is Claude-powered. No mock fallbacks.
+ * ANTHROPIC_API_KEY must be set in .env.local for generation to work.
  */
 
 export {

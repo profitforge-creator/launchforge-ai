@@ -1,6 +1,6 @@
 "use server";
 
-import { geminiJSON } from "@/lib/ai/gemini";
+import { callAI } from "@/lib/ai/provider";
 import type { Opportunity, DifficultyLevel, StartupCostRange, CompetitionLevel, RevenuePotential, LaunchSpeed } from "@/lib/opportunities/types";
 import type { BusinessTypeId } from "@/lib/business-types/config";
 
@@ -74,7 +74,7 @@ The difficulty and startupCost fields must be realistic for the user's stated bu
 Do NOT recommend SaaS ideas to someone with under $100 budget and under 5 hours per week.`;
 
   try {
-    const raw = await geminiJSON<unknown[]>(system, prompt);
+    const raw = await callAI<unknown[]>(system, prompt);
     const opps = (raw as Opportunity[]).map((o) => ({
       ...o,
       id: o.id || `gen_${Math.random().toString(36).slice(2, 8)}`,
@@ -138,7 +138,7 @@ Return ONLY this JSON:
 }`;
 
   try {
-    const raw = await geminiJSON<{ opportunities: Opportunity[]; reasoning: string }>(system, prompt);
+    const raw = await callAI<{ opportunities: Opportunity[]; reasoning: string }>(system, prompt);
     return { success: true, data: raw };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

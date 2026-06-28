@@ -1,20 +1,4 @@
 // Research Agent Prompts
-//
-// AI INTEGRATION POINT — Claude integration:
-//   import Anthropic from "@anthropic-ai/sdk"
-//   const client = new Anthropic()
-//   const response = await client.messages.create({
-//     model: "claude-sonnet-4-6",
-//     max_tokens: 2048,
-//     system: RESEARCH_SYSTEM_PROMPT,
-//     messages: [{ role: "user", content: buildResearchPrompt(input) }]
-//   })
-//
-// AI INTEGRATION POINT — Gemini integration:
-//   import { GoogleGenerativeAI } from "@google/generative-ai"
-//   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-//   const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro", systemInstruction: RESEARCH_SYSTEM_PROMPT })
-//   const result = await model.generateContent(buildResearchPrompt(input))
 
 import type { AgentInput } from "@/lib/types/agents";
 

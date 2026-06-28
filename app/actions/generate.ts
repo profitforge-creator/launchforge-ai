@@ -11,7 +11,7 @@ import {
   assembleResult,
 } from "@/lib/generation/orchestrator";
 import { saveGeneration, getGeneration, patchGeneration } from "@/lib/storage/generation-store";
-import { geminiJSON } from "@/lib/ai/gemini";
+import { callAI, DEFAULT_MODEL } from "@/lib/ai/provider";
 import { requireUser } from "@/lib/auth/session";
 import { getUserPlan, consumeProjectQuota, getProjectUsage } from "@/lib/plans/server";
 import { PLAN_META, nextTier } from "@/lib/plans/plans";
@@ -45,7 +45,7 @@ async function requireAiGenerationAccess(): Promise<{ userId: string; tier: Subs
   return { userId: user.id, tier };
 }
 
-// ── Gemini diagnostic ─────────────────────────────────────────────────────────
+// ── AI diagnostic ─────────────────────────────────────────────────────────────
 
 export async function actionDiagnoseGemini(): Promise<{
   keyPresent: boolean;
@@ -53,24 +53,22 @@ export async function actionDiagnoseGemini(): Promise<{
   testResult: string;
   error: string | null;
 }> {
-  const key = process.env.GEMINI_API_KEY ?? "";
+  const key = process.env.ANTHROPIC_API_KEY ?? "";
   const keyPresent = key.length > 0;
   const keyStatus = keyPresent ? "Loaded" : "Missing";
 
   if (!keyPresent) {
-    return { keyPresent, keyStatus, testResult: "", error: "GEMINI_API_KEY is not set in environment." };
+    return { keyPresent, keyStatus, testResult: "", error: "ANTHROPIC_API_KEY is not set in environment." };
   }
 
   try {
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
-    const client = new GoogleGenerativeAI(key);
-    const model = client.getGenerativeModel({ model: "gemini-2.0-flash" });
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: 'Reply with exactly: {"ok":true}' }] }],
-      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 20 },
-    });
-    const text = result.response.text();
-    return { keyPresent, keyStatus, testResult: text, error: null };
+    const result = await callAI<{ ok: boolean }>(
+      "You are a connectivity test. Reply with valid JSON only.",
+      'Reply with exactly: {"ok":true}',
+      DEFAULT_MODEL,
+      { maxTokens: 20 },
+    );
+    return { keyPresent, keyStatus, testResult: JSON.stringify(result), error: null };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { keyPresent, keyStatus, testResult: "", error: msg };
@@ -95,7 +93,7 @@ export async function actionGenerateIdeas(
       ? `Generate 4 concrete business ideas based on this context: "${context}". Each idea should be a specific, actionable product concept.`
       : "Generate 4 diverse, concrete business ideas suitable for a solo founder to build. Cover different niches and product types.";
 
-    const data = await geminiJSON<{ ideas: GeneratedIdea[] }>(
+    const data = await callAI<{ ideas: GeneratedIdea[] }>(
       `You generate business idea concepts for solo founders. For each idea respond with a JSON array. Each idea has: title (product name, 2-4 words), type (one of: course, ebook, template, saas, agency, membership, coaching, newsletter), description (1 sentence, specific and actionable), audience (who it's for, 5-8 words). Return: {"ideas": [...]}`,
       prompt,
     );

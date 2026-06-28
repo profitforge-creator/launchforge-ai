@@ -19,7 +19,6 @@ export interface CriticAgentInput {
 export class CriticAgent extends BaseAgent<CriticAgentInput, CriticAgentOutput> {
   readonly name = "Critic Agent";
 
-  // Uses gemini-1.5-pro: receives the largest context and needs stronger reasoning
   protected async aiRun(input: CriticAgentInput): Promise<CriticAgentOutput> {
     return this.generate<CriticAgentOutput>(
       CRITIC_SYSTEM_PROMPT,

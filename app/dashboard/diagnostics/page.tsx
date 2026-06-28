@@ -18,7 +18,7 @@ interface EnvVar {
 }
 
 const ENV_VARS: EnvVar[] = [
-  { key: "GEMINI_API_KEY", label: "Gemini API Key", isSecret: true, hint: "Required for AI generation.", required: true },
+  { key: "ANTHROPIC_API_KEY", label: "Anthropic API Key", isSecret: true, hint: "Required for AI generation.", required: true },
   { key: "NEXT_PUBLIC_SUPABASE_URL", label: "Supabase URL", isSecret: false, hint: "Required for database.", required: true },
   { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", label: "Supabase Anon Key", isSecret: false, hint: "Required for database auth.", required: true },
   { key: "NEXT_PUBLIC_APP_URL", label: "App URL", isSecret: false, hint: "Required for stable production OAuth callback URLs.", required: true },

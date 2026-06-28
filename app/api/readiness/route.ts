@@ -11,7 +11,7 @@ export async function GET() {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() ?? "";
   const canonicalOrigin = getCanonicalAppOrigin();
   const requiredEnv = {
-    geminiApiKey: Boolean(process.env.GEMINI_API_KEY),
+    anthropicApiKey: Boolean(process.env.ANTHROPIC_API_KEY),
     nextPublicAppUrl: Boolean(appUrl),
     nextPublicAppUrlCanonical: normalizeOrigin(appUrl) === CANONICAL_PRODUCTION_ORIGIN,
     canonicalOriginResolved: canonicalOrigin === CANONICAL_PRODUCTION_ORIGIN,
